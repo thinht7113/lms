@@ -1,0 +1,61 @@
+services:
+  # 1. Cơ sở dữ liệu chính: PostgreSQL 16
+  db:
+    image: postgres:16-alpine
+    container_name: lms_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: lms_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - lms_network
+
+  # 2. Bộ nhớ đệm & Lưu trữ Session tạm thời: Redis
+  redis:
+    image: redis:7-alpine
+    container_name: lms_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - lms_network
+
+  # 3. Ứng dụng Backend API: FastAPI (Python)
+  web:
+    build: .
+    container_name: lms_fastapi_app
+    restart: always
+    # Sử dụng cờ --reload và mount volumes giúp tự động phát hiện code thay đổi trên máy thật và reload container lập tức
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      # Sử dụng db host thay thế cho localhost nhờ tính năng phân giải DNS của Docker Network
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgrespassword@db:5432/lms_db
+      - APP_NAME=LMS Backend (Docker Environment)
+      - APP_ENV=development
+      - SECRET_KEY=YOUR_SUPER_SECRET_KEY_FOR_JWT_SIGNING_1234567890
+    depends_on:
+      - db
+      - redis
+    networks:
+      - lms_network
+
+# 4. Định nghĩa các phân vùng lưu trữ bền vững (Persistent Volumes) giúp tránh mất dữ liệu khi tắt container
+volumes:
+  postgres_data:
+  redis_data:
+
+# 5. Thiết lập mạng nội bộ phân giải DNS nội bộ giữa các service
+networks:
+  lms_network:
+    driver: bridge

@@ -1,0 +1,25 @@
+# Bỏ qua môi trường ảo Python
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Bỏ qua tệp tin cấu hình môi trường cục bộ nhạy cảm
+.env
+
+# Bỏ qua các thư mục công cụ phát triển
+.git/
+.gitignore
+.dockerignore
+.idea/
+.vscode/
+
+# Bỏ qua tài liệu tạm và logs
+*.log
+scratch/
+Cnh_ch/
+Cac_End_Points/
+*.md
