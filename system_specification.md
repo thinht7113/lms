@@ -1,12 +1,12 @@
-# Đặc tả Thiết kế Cơ sở dữ liệu, Kiến trúc API & Logic Nghiệp vụ LMS
+# Tài liệu Đặc tả Thiết kế Hệ thống LMS Backend
 
-Tài liệu này cung cấp chi tiết toàn diện về thiết kế Cơ sở dữ liệu (PostgreSQL), kiến trúc Cổng kết nối API (FastAPI) và phân tích các quy tắc logic nghiệp vụ nâng cao được triển khai trong hệ thống LMS Backend.
+Tài liệu này cung cấp mô tả chi tiết và đầy đủ về thiết kế Cơ sở dữ liệu (PostgreSQL), kiến trúc Cổng kết nối API (FastAPI) và phân tích các quy tắc logic nghiệp vụ nâng cao được triển khai trong hệ thống LMS (Learning Management System) Backend.
 
 ---
 
 ## 1. Thiết kế Cơ sở dữ liệu (Database Design)
 
-Hệ thống cơ sở dữ liệu được thiết kế và chuẩn hóa hoàn toàn theo các tiêu chuẩn **1NF, 2NF, và 3NF** nhằm đảm bảo tính toàn vẹn dữ liệu, loại bỏ dư thừa và tối ưu hóa hiệu năng truy vấn. Hệ thống bao gồm **17 bảng quan hệ logic** chặt chẽ:
+Hệ thống cơ sở dữ liệu được thiết kế và chuẩn hóa hoàn toàn theo các tiêu chuẩn **1NF, 2NF, và 3NF** nhằm đảm bảo tính toàn vẹn dữ liệu, loại bỏ dữ liệu dư thừa và tối ưu hóa hiệu năng truy vấn. Hệ thống bao gồm **17 bảng quan hệ logic** chặt chẽ:
 
 ### Sơ đồ quan hệ thực thể (ERD - Entity Relationship Diagram)
 
@@ -48,148 +48,148 @@ erDiagram
 #### 1. Bảng `nguoi_dung` (User)
 Lưu trữ thông tin tài khoản người dùng trong hệ thống (Học viên, Giảng viên, Quản trị viên).
 *   `id` (int, Primary Key, Auto Increment)
-*   `ho_ten` (varchar(255), Not Null): Họ và tên.
+*   `ho_ten` (varchar(255), Not Null): Họ và tên người dùng.
 *   `email` (varchar(255), Unique, Not Null): Địa chỉ email đăng nhập.
-*   `mat_khau` (varchar(255), Not Null): Mật khẩu đã được mã hóa (băm bcrypt).
-*   `vai_tro` (varchar(50), Not Null): Vai trò người dùng (`student`, `instructor`, `admin`).
-*   `ngay_tao` (datetime, Default func.now()): Thời điểm khởi tạo tài khoản.
+*   `mat_khau` (varchar(255), Not Null): Mật khẩu đã được mã hóa bằng thuật toán bcrypt.
+*   `vai_tro` (varchar(50), Not Null): Vai trò trên hệ thống (`student`, `instructor`, `admin`).
+*   `ngay_tao` (datetime, Default func.now()): Thời điểm tạo tài khoản.
 
 #### 2. Bảng `danh_muc` (Category)
-Phân loại các lĩnh vực của khóa học.
+Phân loại chủ đề/lĩnh vực của khóa học.
 *   `id` (int, Primary Key, Auto Increment)
 *   `ten_danh_muc` (varchar(255), Not Null): Tên danh mục.
-*   `mo_ta` (text, Nullable): Mô tả danh mục.
+*   `mo_ta` (text, Nullable): Mô tả chi tiết danh mục.
 
 #### 3. Bảng `khoa_hoc` (Course)
-Thông tin chi tiết về khóa học trực tuyến.
+Lưu trữ thông tin chi tiết về khóa học trực tuyến.
 *   `id` (int, Primary Key, Auto Increment)
 *   `ma_giang_vien` (int, Foreign Key -> `nguoi_dung.id`, Set Null): Giảng viên sở hữu khóa học.
-*   `ma_danh_muc` (int, Foreign Key -> `danh_muc.id`, Set Null): Danh mục của khóa học.
+*   `ma_danh_muc` (int, Foreign Key -> `danh_muc.id`, Set Null): Danh mục phân loại khóa học.
 *   `tieu_de` (varchar(255), Not Null): Tiêu đề khóa học.
 *   `mo_ta` (text, Nullable): Mô tả chi tiết.
-*   `gia_tien` (numeric(10, 2), Default 0.00): Giá bán khóa học.
-*   `trinh_do` (varchar(50), Default 'beginner'): Trình độ (`beginner`, `intermediate`, `advanced`).
-*   `da_xuat_ban` (boolean, Default False): Trạng thái hiển thị công khai.
-*   `danh_gia_trung_binh` (numeric(3, 2), Default 0.00): Điểm đánh giá trung bình.
+*   `gia_tien` (numeric(10, 2), Default 0.00): Giá bán của khóa học.
+*   `trinh_do` (varchar(50), Default 'beginner'): Trình độ yêu cầu (`beginner`, `intermediate`, `advanced`).
+*   `da_xuat_ban` (boolean, Default False): Trạng thái xuất bản để hiển thị công khai.
+*   `danh_gia_trung_binh` (numeric(3, 2), Default 0.00): Điểm đánh giá trung bình từ học viên.
 *   `ngay_tao` (datetime, Default func.now())
 
 #### 4. Bảng `chuong_hoc` (Section)
-Phân chia các chương mục chính của một khóa học.
+Các chương học chính chia nhỏ nội dung của khóa học.
 *   `id` (int, Primary Key, Auto Increment)
 *   `ma_khoa_hoc` (int, Foreign Key -> `khoa_hoc.id`, Cascade): Thuộc khóa học nào.
-*   `tieu_de` (varchar(255), Not Null): Tiêu đề chương.
-*   `thu_tu` (int, Not Null): Thứ tự hiển thị của chương trong khóa học.
+*   `tieu_de` (varchar(255), Not Null): Tiêu đề chương học.
+*   `thu_tu` (int, Not Null): Thứ tự sắp xếp của chương trong đề cương khóa học.
 
 #### 5. Bảng `bai_hoc` (Lesson)
-Lưu trữ nội dung bài học chi tiết của từng chương.
+Các bài học chi tiết dạng Video, Văn bản hoặc Tài liệu nằm trong chương.
 *   `id` (int, Primary Key, Auto Increment)
 *   `ma_chuong_hoc` (int, Foreign Key -> `chuong_hoc.id`, Cascade): Thuộc chương học nào.
 *   `tieu_de` (varchar(255), Not Null): Tiêu đề bài học.
-*   `loai_noi_dung` (varchar(50), Nullable): Phân loại bài học (`VIDEO`, `DOCUMENT`, `TEXT`).
-*   `duong_dan_noi_dung` (varchar(255), Nullable): Link nội dung văn bản.
-*   `duong_dan_video` (varchar(255), Nullable): Đường dẫn luồng phát video.
-*   `duong_dan_tai_lieu` (varchar(255), Nullable): Đường dẫn tài liệu đính kèm.
-*   `thoi_luong` (int, Default 0): Thời lượng bài học (giây).
-*   `thu_tu` (int, Not Null): Thứ tự hiển thị bài học trong chương học.
-*   `xem_truoc` (boolean, Default False): Cho phép xem thử không cần mua khóa học.
+*   `loai_noi_dung` (varchar(50), Nullable): Phân loại định dạng bài học (`VIDEO`, `DOCUMENT`, `TEXT`).
+*   `duong_dan_noi_dung` (varchar(255), Nullable): Đường dẫn nội dung văn bản.
+*   `duong_dan_video` (varchar(255), Nullable): Đường dẫn video phát bài học.
+*   `duong_dan_tai_lieu` (varchar(255), Nullable): Đường dẫn tài liệu đính kèm tải xuống.
+*   `thoi_luong` (int, Default 0): Thời lượng bài học tính bằng giây.
+*   `thu_tu` (int, Not Null): Thứ tự sắp xếp bài học trong chương học.
+*   `xem_truoc` (boolean, Default False): Đánh dấu bài học cho phép xem thử miễn phí.
 
 #### 6. Bảng `dang_ky_hoc` (Enrollment)
-Ghi nhận mối quan hệ sở hữu khóa học của học viên sau khi thanh toán thành công.
+Ghi nhận quyền sở hữu khóa học của học viên sau khi thanh toán thành công.
 *   `id` (int, Primary Key, Auto Increment)
-*   `ma_nguoi_dung` (int, Foreign Key -> `nguoi_dung.id`, Cascade): ID Học viên.
-*   `ma_khoa_hoc` (int, Foreign Key -> `khoa_hoc.id`, Cascade): ID Khóa học.
+*   `ma_nguoi_dung` (int, Foreign Key -> `nguoi_dung.id`, Cascade): Học viên tham gia học.
+*   `ma_khoa_hoc` (int, Foreign Key -> `khoa_hoc.id`, Cascade): Khóa học đăng ký.
 *   `ngay_dang_ky` (datetime, Default func.now())
 
 #### 7. Bảng `tien_do_hoc_tap` (LearningProgress)
-Lưu tiến trình học tập chi tiết của học viên đối với từng bài học.
+Theo dõi chi tiết tiến độ hoàn thành từng bài học của học viên.
 *   `id` (int, Primary Key, Auto Increment)
-*   `ma_dang_ky_hoc` (int, Foreign Key -> `dang_ky_hoc.id`, Cascade): Bản ghi ghi danh tương ứng.
-*   `ma_bai_hoc` (int, Foreign Key -> `bai_hoc.id`, Cascade): Bài học ghi nhận.
-*   `da_hoan_thanh` (boolean, Default False): Trạng thái hoàn thành bài học.
-*   `ngay_hoan_thanh` (datetime, Nullable): Ngày đánh dấu hoàn thành.
+*   `ma_dang_ky_hoc` (int, Foreign Key -> `dang_ky_hoc.id`, Cascade): Bản ghi ghi danh liên quan.
+*   `ma_bai_hoc` (int, Foreign Key -> `bai_hoc.id`, Cascade): Bài học ghi nhận tiến độ.
+*   `da_hoan_thanh` (boolean, Default False): Trạng thái học viên đã hoàn thành bài học này chưa.
+*   `ngay_hoan_thanh` (datetime, Nullable): Ngày đánh dấu hoàn thành bài học.
 
 #### 8. Bảng `bai_kiem_tra` (Quiz)
-Thiết lập bài trắc nghiệm cuối khóa để đánh giá học viên.
+Thiết lập các bài thi/kiểm tra trắc nghiệm cuối khóa học.
 *   `id` (int, Primary Key, Auto Increment)
 *   `ma_khoa_hoc` (int, Foreign Key -> `khoa_hoc.id`, Cascade): Thuộc khóa học nào.
-*   `tieu_de` (varchar(255), Not Null): Tiêu đề bài thi.
-*   `diem_dat` (numeric(4, 2), Default 5.0): Điểm tối thiểu để vượt qua (Hệ số 10).
-*   `thoi_gian_lam_bai` (int, Nullable): Giới hạn thời gian làm bài (phút).
-*   `so_luot_lam_toi_da` (int, Default 3): Số lượt làm bài thi tối đa cho phép.
+*   `tieu_de` (varchar(255), Not Null): Tiêu đề bài kiểm tra.
+*   `diem_dat` (numeric(4, 2), Default 5.0): Điểm tối thiểu để thi đỗ (Hệ số 10).
+*   `thoi_gian_lam_bai` (int, Nullable): Giới hạn thời gian thi tính bằng phút.
+*   `so_luot_lam_toi_da` (int, Default 3): Số lượt nộp bài tối đa được phép thực hiện.
 *   `ngay_tao` (datetime, Default func.now())
 
 #### 9. Bảng `cau_hoi` (Question)
-Danh sách câu hỏi trắc nghiệm thuộc đề thi.
+Các câu hỏi trắc nghiệm nằm trong đề thi.
 *   `id` (int, Primary Key, Auto Increment)
-*   `ma_bai_kiem_tra` (int, Foreign Key -> `bai_kiem_tra.id`, Cascade): Thuộc bài thi nào.
-*   `noi_dung` (text, Not Null): Nội dung câu hỏi.
-*   `diem_so` (int, Default 1): Trọng số điểm câu hỏi.
-*   `giai_thich` (text, Nullable): Gợi ý/Giải thích đáp án sau khi nộp bài.
+*   `ma_bai_kiem_tra` (int, Foreign Key -> `bai_kiem_tra.id`, Cascade): Thuộc bài kiểm tra nào.
+*   `noi_dung` (text, Not Null): Nội dung văn bản câu hỏi.
+*   `diem_so` (int, Default 1): Trọng số điểm của câu hỏi.
+*   `giai_thich` (text, Nullable): Gợi ý giải thích đáp án sau khi nộp bài thi.
 
 #### 10. Bảng `lua_chon_cau_hoi` (QuestionOption)
-Chuẩn hóa 1NF các đáp án lựa chọn của một câu hỏi trắc nghiệm (loại bỏ trường cột mảng hoặc cột JSONB gây dư thừa).
+Các phương án đáp án lựa chọn của một câu hỏi trắc nghiệm (Chuẩn hóa 1NF loại bỏ mảng/JSONB).
 *   `id` (int, Primary Key, Auto Increment)
 *   `ma_cau_hoi` (int, Foreign Key -> `cau_hoi.id`, Cascade): Thuộc câu hỏi nào.
-*   `noi_dung_lua_chon` (text, Not Null): Văn bản câu trả lời lựa chọn.
-*   `la_dap_an_dung` (boolean, Default False): Đánh dấu đáp án chính xác.
+*   `noi_dung_lua_chon` (text, Not Null): Văn bản phương án trả lời.
+*   `la_dap_an_dung` (boolean, Default False): Đánh dấu phương án chính xác.
 
 #### 11. Bảng `lich_su_lam_bai` (QuizAttempt)
-Lịch sử kết quả làm bài kiểm tra của học viên qua các lượt thi.
+Nhật ký kết quả chi tiết từng lượt làm bài thi trắc nghiệm của học viên.
 *   `id` (int, Primary Key, Auto Increment)
 *   `ma_nguoi_dung` (int, Foreign Key -> `nguoi_dung.id`, Cascade): Học viên làm bài.
-*   `ma_bai_kiem_tra` (int, Foreign Key -> `bai_kiem_tra.id`, Cascade): Bài kiểm tra thực hiện.
-*   `diem_dat_duoc` (numeric(4, 2), Not Null): Điểm số đạt được (Hệ 10).
-*   `da_qua_mon` (boolean, Not Null): Trạng thái Đạt (`True`) hoặc Không Đạt (`False`).
+*   `ma_bai_kiem_tra` (int, Foreign Key -> `bai_kiem_tra.id`, Cascade): Bài thi thực hiện.
+*   `diem_dat_duoc` (numeric(4, 2), Not Null): Điểm số chấm được (Hệ 10).
+*   `da_qua_mon` (boolean, Not Null): Kết quả Đạt hoặc Không Đạt.
 *   `ngay_lam_bai` (datetime, Default func.now())
 
 #### 12. Bảng `gio_hang` (Cart)
-Giỏ hàng trực tuyến của người dùng.
+Giỏ hàng hiện tại của người dùng.
 *   `id` (int, Primary Key, Auto Increment)
-*   `ma_nguoi_dung` (int, Foreign Key -> `nguoi_dung.id`, Cascade, Unique): Học viên sở hữu.
+*   `ma_nguoi_dung` (int, Foreign Key -> `nguoi_dung.id`, Cascade, Unique): Học viên sở hữu giỏ hàng.
 
 #### 13. Bảng `chi_tiet_gio_hang` (CartItem)
-Chi tiết các khóa học nằm trong giỏ hàng.
+Danh sách các khóa học đang nằm trong giỏ hàng.
 *   `id` (int, Primary Key, Auto Increment)
 *   `ma_gio_hang` (int, Foreign Key -> `gio_hang.id`, Cascade): Giỏ hàng liên kết.
 *   `ma_khoa_hoc` (int, Foreign Key -> `khoa_hoc.id`, Cascade): Khóa học được chọn.
 
 #### 14. Bảng `don_hang` (Order)
-Quản lý đơn hàng mua khóa học và tích hợp thông tin thanh toán (Tránh liên kết 1-1 thừa với bảng thanh toán riêng biệt).
+Quản lý thông tin đơn mua khóa học và tích hợp thông tin thanh toán (Tránh liên kết 1-1 thừa với bảng thanh toán riêng biệt).
 *   `id` (int, Primary Key, Auto Increment)
-*   `ma_nguoi_dung` (int, Foreign Key -> `nguoi_dung.id`, Set Null): Người mua hàng.
-*   `ma_giam_gia_id` (int, Foreign Key -> `ma_giam_gia.id`, Set Null): Mã coupon áp dụng.
-*   `tong_tien` (numeric(10, 2), Not Null): Tổng số tiền thanh toán cuối cùng.
-*   `trang_thai` (varchar(50), Default 'pending'): Trạng thái đơn (`pending`, `success`, `failed`).
+*   `ma_nguoi_dung` (int, Foreign Key -> `nguoi_dung.id`, Set Null): Người thực hiện mua.
+*   `ma_giam_gia_id` (int, Foreign Key -> `ma_giam_gia.id`, Set Null): Mã coupon áp dụng giảm giá.
+*   `tong_tien` (numeric(10, 2), Not Null): Tổng số tiền thanh toán cuối cùng sau ưu đãi.
+*   `trang_thai` (varchar(50), Default 'pending'): Trạng thái thanh toán (`pending`, `success`, `failed`).
 *   `ngay_tao` (datetime, Default func.now())
-*   `phuong_thuc_thanh_toan` (varchar(50), Nullable): Cổng giao dịch (`momo`, `vnpay`, `stripe`).
-*   `ma_giao_dich` (varchar(255), Nullable): Mã tham chiếu giao dịch của cổng thanh toán.
-*   `ngay_thanh_toan` (datetime, Nullable): Ngày nhận tiền thành công.
+*   `phuong_thuc_thanh_toan` (varchar(50), Nullable): Cổng thanh toán (`momo`, `vnpay`, `stripe`).
+*   `ma_giao_dich` (varchar(255), Nullable): Mã giao dịch đối chiếu từ cổng thanh toán.
+*   `ngay_thanh_toan` (datetime, Nullable): Ngày giờ giao dịch thành công.
 
 #### 15. Bảng `chi_tiet_don_hang` (OrderItem)
-Lưu vết các mặt hàng trong hóa đơn tại thời điểm giao dịch.
+Lưu vết các sản phẩm khóa học và giá bán tại thời điểm mua trong hóa đơn.
 *   `id` (int, Primary Key, Auto Increment)
 *   `ma_don_hang` (int, Foreign Key -> `don_hang.id`, Cascade): Đơn hàng liên kết.
 *   `ma_khoa_hoc` (int, Foreign Key -> `khoa_hoc.id`, Set Null): Khóa học đã mua.
-*   `gia_luc_mua` (numeric(10, 2), Not Null): Lưu vết giá tiền khóa học tại thời điểm mua (đề phòng khóa học đổi giá sau này).
+*   `gia_luc_mua` (numeric(10, 2), Not Null): Giá tiền khóa học ghi nhận tại thời điểm mua.
 
 #### 16. Bảng `ma_giam_gia` (Coupon)
-Mã coupon ưu đãi giảm giá đơn hàng.
+Thông tin mã coupon khuyến mãi cho đơn hàng.
 *   `id` (int, Primary Key, Auto Increment)
-*   `ma_code` (varchar(50), Unique, Not Null): Chuỗi mã giảm giá (ví dụ: `PERCENT20`).
-*   `loai_giam_gia` (varchar(50), Default 'PERCENTAGE'): Phân loại ưu đãi (`PERCENTAGE` hoặc `FIXED_AMOUNT`).
-*   `gia_tri_giam` (numeric(10, 2), Not Null): Giá trị giảm trừ (% hoặc số tiền cụ thể).
-*   `gia_tri_don_toi_thieu` (numeric(10, 2), Default 0.00): Điều kiện giá trị đơn hàng tối thiểu để áp dụng.
-*   `so_luot_dung_toi_da` (int, Nullable): Giới hạn số lượt sử dụng của mã (Null là không giới hạn).
-*   `so_luot_da_dung` (int, Default 0): Theo dõi số lượt đã sử dụng thành công thực tế.
-*   `ngay_het_han` (datetime, Nullable)
+*   `ma_code` (varchar(50), Unique, Not Null): Chuỗi mã giảm giá (ví dụ: `FIXED50`).
+*   `loai_giam_gia` (varchar(50), Default 'PERCENTAGE'): Phân loại giảm theo % (`PERCENTAGE`) hoặc số tiền cố định (`FIXED_AMOUNT`).
+*   `gia_tri_giam` (numeric(10, 2), Not Null): Trị giá giảm trừ (% hoặc số tiền cụ thể).
+*   `gia_tri_don_toi_thieu` (numeric(10, 2), Default 0.00): Điều kiện giá trị đơn hàng tối thiểu để áp dụng coupon.
+*   `so_luot_dung_toi_da` (int, Nullable): Giới hạn số lượt sử dụng của mã trên hệ thống.
+*   `so_luot_da_dung` (int, Default 0): Tổng số lượt đã áp dụng thành công trên thực tế.
+*   `ngay_het_han` (datetime, Nullable): Ngày hết hiệu lực của mã.
 
 #### 17. Bảng `chung_chi` (Certificate)
-Chứng chỉ hoàn thành khóa học được cấp tự động.
+Chứng nhận số hoàn thành khóa học được cấp tự động.
 *   `id` (int, Primary Key, Auto Increment)
-*   `ma_nguoi_dung` (int, Foreign Key -> `nguoi_dung.id`, Cascade): Học viên được cấp.
-*   `ma_khoa_hoc` (int, Foreign Key -> `khoa_hoc.id`, Cascade): Khóa học hoàn thành.
+*   `ma_nguoi_dung` (int, Foreign Key -> `nguoi_dung.id`, Cascade): Học viên được cấp phát.
+*   `ma_khoa_hoc` (int, Foreign Key -> `khoa_hoc.id`, Cascade): Khóa học tương ứng.
 *   `uuid` (varchar(255), Unique): Mã xác thực duy nhất định dạng UUIDv4.
-*   `duong_dan_chung_chi` (varchar(255), Not Null): Đường dẫn đến tệp PDF/ảnh chứng chỉ.
+*   `duong_dan_chung_chi` (varchar(255), Not Null): Đường dẫn tệp tin chứng chỉ.
 *   `ngay_cap` (datetime, Default func.now())
 
 ---
@@ -244,16 +244,16 @@ Hệ thống API sử dụng cấu trúc định tuyến phân cấp thông qua 
 
 ## 3. Phân tích các Logic Nghiệp vụ Nâng cao (Business Logic)
 
-Hệ thống được thiết lập các quy tắc kiểm soát logic chặt chẽ để đáp ứng hoàn hảo các bài toán nghiệp vụ thực tế của một nền tảng E-Learning chuyên nghiệp:
+Hệ thống tích hợp chặt chẽ các quy tắc kiểm soát nghiệp vụ để xử lý hoàn hảo các bài toán đặc thù của một nền tảng E-Learning chuyên nghiệp:
 
 ### 3.1. Công thức tính tiến độ học tập tích hợp gộp (Combined Progress Formula)
-Tiến trình học tập của một khóa học không chỉ tính theo số lượng bài học đã xem, mà phải gộp cả kết quả thi qua môn. 
+Tiến trình hoàn thành khóa học của một học viên được đánh giá đồng thời dựa trên cả quá trình xem bài giảng và kết quả kiểm tra.
 *   **Công thức áp dụng:**
     $$\text{Tiến độ hoàn thành (\%)} = \frac{\text{Số bài học đã hoàn thành} + \text{Số bài kiểm tra đã thi đạt}}{\text{Tổng số bài học của khóa}} + \text{Tổng số bài kiểm tra của khóa}} \times 100$$
-*   **Triển khai:** Hệ thống thực hiện đếm động số lượng bài học và bài kiểm tra thuộc khóa học đó, sau đó lấy số lượng bài học đã đạt trạng thái `da_hoan_thanh = True` trong bảng `tien_do_hoc_tap` cộng với số lượng đề thi đạt trạng thái `da_qua_mon = True` (điểm số $\ge$ điểm đạt) trong bảng `lich_su_lam_bai` để chia tỉ lệ.
+*   **Triển khai:** Hệ thống đếm động số lượng bài học và bài kiểm tra thuộc khóa học, sau đó lấy số lượng bài học đã đạt trạng thái `da_hoan_thanh = True` trong bảng `tien_do_hoc_tap` cộng với số lượng đề thi đạt trạng thái `da_qua_mon = True` (điểm số $\ge$ điểm đạt) trong bảng `lich_su_lam_bai` để chia tỉ lệ phần trăm.
 
 ### 3.2. Logic áp dụng Mã giảm giá thông minh (Coupon Logic)
-Hệ thống hỗ trợ cơ chế áp dụng ưu đãi thông minh tích hợp ràng buộc:
+Hệ thống hỗ trợ áp dụng ưu đãi kết hợp các điều kiện ràng buộc:
 *   **Loại giảm giá:** Hỗ trợ giảm giá theo tỷ lệ phần trăm (`PERCENTAGE` - ví dụ giảm 20%) và giảm số tiền cố định (`FIXED_AMOUNT` - ví dụ giảm thẳng 50.000 VND).
 *   **Giá trị đơn hàng tối thiểu (`gia_tri_don_toi_thieu`):** Hệ thống sẽ kiểm tra xem tổng tiền tạm tính trong giỏ hàng có đạt điều kiện tối thiểu hay chưa. Nếu chưa đạt, lập tức từ chối áp dụng và trả về mã lỗi `400 Bad Request`.
 *   **Giới hạn số lượt dùng tối đa (`so_luot_dung_toi_da`):** Mỗi coupon có giới hạn số lượt dùng. Khi một đơn hàng áp dụng coupon chuyển sang trạng thái thành công (`success`), hệ thống sẽ tự động tăng cột `so_luot_da_dung` lên 1 đơn vị. Nếu số lượt đã dùng đạt ngưỡng giới hạn, coupon đó sẽ bị khóa không cho áp dụng tiếp.
