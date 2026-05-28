@@ -19,11 +19,8 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 1 ngày
     
-    # 3. Database URL (PostgreSQL Async Connection String)
-    # Cấu hình khớp với mật khẩu mới postgrespassword trong docker-compose.yml
     DATABASE_URL: str = "postgresql+asyncpg://thinh:thinh@localhost:5432/lms_database"
 
-    # 4. Third-party Cổng thanh toán (Momo/VNPay)
     MOMO_PARTNER_CODE: Optional[str] = None
     MOMO_ACCESS_KEY: Optional[str] = None
     MOMO_SECRET_KEY: Optional[str] = None

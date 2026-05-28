@@ -17,7 +17,6 @@ async def get_cart(
     current_user: User = Depends(get_current_user)
 ):
     if current_user.vai_tro != "student":
-        # Tạo giỏ hàng giả lập nếu không phải student, nhưng student mới là chính chủ
         pass
     return await OrderService.get_cart(db, current_user.id)
 
