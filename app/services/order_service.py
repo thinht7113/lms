@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, desc
 from sqlalchemy.orm import selectinload, attributes
 from fastapi import HTTPException, status
-from app.models.cart import Cart, CartItem
+from app.models.cart import CartItem
 from app.models.course import Course, Enrollment
 from app.models.order import Coupon, Order, OrderItem
 from app.schemas.order import CouponCreate, CheckoutRequest, PaymentMockRequest
@@ -13,32 +13,22 @@ from datetime import datetime, timezone
 class OrderService:
     # ==================== CART SERVICES ====================
     @staticmethod
-    async def get_or_create_cart(db: AsyncSession, user_id: int) -> Cart:
-        result = await db.execute(
-            select(Cart)
-            .options(selectinload(Cart.chi_tiet_gio_hang).selectinload(CartItem.khoa_hoc))
-            .where(Cart.ma_nguoi_dung == user_id)
-        )
-        cart = result.scalars().first()
-        if not cart:
-            cart = Cart(ma_nguoi_dung=user_id)
-            db.add(cart)
-            await db.commit()
-            await db.refresh(cart)
-        return cart
-
-    @staticmethod
     async def get_cart(db: AsyncSession, user_id: int):
-        cart = await OrderService.get_or_create_cart(db, user_id)
+        result = await db.execute(
+            select(CartItem)
+            .options(selectinload(CartItem.khoa_hoc))
+            .where(CartItem.ma_nguoi_dung == user_id)
+        )
+        cart_items = list(result.scalars().all())
+        
         # Tính tổng tiền tạm tính
         tong_tien = Decimal("0.00")
-        for item in cart.chi_tiet_gio_hang:
+        for item in cart_items:
             if item.khoa_hoc:
                 tong_tien += item.khoa_hoc.gia_tien
+                
         return {
-            "id": cart.id,
-            "ma_nguoi_dung": cart.ma_nguoi_dung,
-            "chi_tiet_gio_hang": cart.chi_tiet_gio_hang,
+            "chi_tiet_gio_hang": cart_items,
             "tong_tien_tam_tinh": tong_tien
         }
 
@@ -68,20 +58,24 @@ class OrderService:
                 detail="Bạn đã mua và ghi danh khóa học này rồi."
             )
 
-        # 3. Lấy giỏ hàng
-        cart = await OrderService.get_or_create_cart(db, user_id)
-
-        # 4. Kiểm tra khóa học đã có sẵn trong giỏ chưa
-        for item in cart.chi_tiet_gio_hang:
-            if item.ma_khoa_hoc == course_id:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Khóa học đã có sẵn trong giỏ hàng."
+        # 3. Kiểm tra khóa học đã có sẵn trong giỏ chưa
+        existing_item = await db.execute(
+            select(CartItem).where(
+                and_(
+                    CartItem.ma_nguoi_dung == user_id,
+                    CartItem.ma_khoa_hoc == course_id
                 )
+            )
+        )
+        if existing_item.scalars().first():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Khóa học đã có sẵn trong giỏ hàng."
+            )
 
-        # 5. Thêm vào giỏ hàng
+        # 4. Thêm vào giỏ hàng
         cart_item = CartItem(
-            ma_gio_hang=cart.id,
+            ma_nguoi_dung=user_id,
             ma_khoa_hoc=course_id
         )
         db.add(cart_item)
@@ -93,14 +87,15 @@ class OrderService:
 
     @staticmethod
     async def remove_from_cart(db: AsyncSession, user_id: int, course_id: int) -> bool:
-        cart = await OrderService.get_or_create_cart(db, user_id)
-        
-        # Tìm item cần xóa
-        item_to_delete = None
-        for item in cart.chi_tiet_gio_hang:
-            if item.ma_khoa_hoc == course_id:
-                item_to_delete = item
-                break
+        result = await db.execute(
+            select(CartItem).where(
+                and_(
+                    CartItem.ma_nguoi_dung == user_id,
+                    CartItem.ma_khoa_hoc == course_id
+                )
+            )
+        )
+        item_to_delete = result.scalars().first()
                 
         if not item_to_delete:
             raise HTTPException(
@@ -139,7 +134,7 @@ class OrderService:
         return db_coupon
 
     @staticmethod
-    async def apply_coupon(db: AsyncSession, code: str, original_amount: Decimal) -> Coupon:
+    async def apply_coupon(db: AsyncSession, code: str, original_amount: Decimal, user_id: int) -> Coupon:
         result = await db.execute(select(Coupon).where(Coupon.ma_code == code))
         coupon = result.scalars().first()
         if not coupon:
@@ -169,6 +164,22 @@ class OrderService:
                 detail="Mã giảm giá này đã hết số lần sử dụng cho phép."
             )
 
+        # 4. Kiểm tra xem người dùng đã sử dụng mã này chưa
+        used_result = await db.execute(
+            select(Order).where(
+                and_(
+                    Order.ma_nguoi_dung == user_id,
+                    Order.ma_giam_gia_id == coupon.id,
+                    Order.trang_thai == "success"
+                )
+            )
+        )
+        if used_result.scalars().first():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Bạn đã sử dụng mã giảm giá này cho một đơn hàng trước đó."
+            )
+
         return coupon
 
     # ==================== ORDER & CHECKOUT SERVICES ====================
@@ -196,7 +207,19 @@ class OrderService:
                 is_below_min = original_amount < coupon.gia_tri_don_toi_thieu
                 is_limit_reached = coupon.so_luot_dung_toi_da is not None and coupon.so_luot_da_dung >= coupon.so_luot_dung_toi_da
                 
-                if not is_expired and not is_below_min and not is_limit_reached:
+                # Kiểm tra xem user đã dùng mã này chưa
+                used_res = await db.execute(
+                    select(Order).where(
+                        and_(
+                            Order.ma_nguoi_dung == user_id,
+                            Order.ma_giam_gia_id == coupon.id,
+                            Order.trang_thai == "success"
+                        )
+                    )
+                )
+                is_already_used = used_res.scalars().first() is not None
+                
+                if not is_expired and not is_below_min and not is_limit_reached and not is_already_used:
                     coupon_id = coupon.id
                     if coupon.loai_giam_gia == "PERCENTAGE":
                         discount_ratio = coupon.gia_tri_giam / Decimal("100.00")
@@ -310,19 +333,11 @@ class OrderService:
                     db.add(new_enrollment)
 
         # 4. DỌN SẠCH GIỎ HÀNG
-        cart_result = await db.execute(select(Cart).where(Cart.ma_nguoi_dung == user_id))
-        cart = cart_result.scalars().first()
-        if cart:
-            # Xóa toàn bộ CartItem liên kết với Cart này
-            await db.execute(
-                select(CartItem).where(CartItem.ma_gio_hang == cart.id)
-            )
-            # Dùng SQLAlchemy để xóa các items
-            items_result = await db.execute(
-                select(CartItem).where(CartItem.ma_gio_hang == cart.id)
-            )
-            for item in items_result.scalars().all():
-                await db.delete(item)
+        items_result = await db.execute(
+            select(CartItem).where(CartItem.ma_nguoi_dung == user_id)
+        )
+        for item in items_result.scalars().all():
+            await db.delete(item)
 
         await db.commit()
         await db.refresh(order)

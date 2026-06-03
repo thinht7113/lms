@@ -2,9 +2,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_, and_, desc, asc, func
 from sqlalchemy.orm import selectinload, attributes
 from fastapi import HTTPException, status
-from app.models.course import Category, Course, Section, Lesson
+from app.models.course import Category, Course, Section, Lesson, LessonContent, Enrollment, CourseReview, Wishlist
 from app.models.user import User
-from app.schemas.course import CategoryCreate, CourseCreate, CourseUpdate, SectionCreate, LessonCreate, LessonUpdate
+from app.schemas.course import CategoryCreate, CourseCreate, CourseUpdate, SectionCreate, LessonCreate, LessonUpdate, LessonContentCreate, ReviewCreate
 from typing import List, Optional
 from decimal import Decimal
 
@@ -54,11 +54,15 @@ class CourseService:
 
     @staticmethod
     async def get_course(db: AsyncSession, course_id: int) -> Course:
-        # Load đầy đủ chương học và bài học trong chương học bằng selectinload
+        # Load đầy đủ chương học, bài học và đánh giá bằng selectinload
         result = await db.execute(
             select(Course)
             .options(
-                selectinload(Course.chuong_hoc).selectinload(Section.bai_hoc)
+                selectinload(Course.chuong_hoc)
+                .selectinload(Section.bai_hoc)
+                .selectinload(Lesson.noi_dung),
+                selectinload(Course.danh_gia_khoa_hoc)
+                .selectinload(CourseReview.nguoi_dung)
             )
             .where(Course.id == course_id)
         )
@@ -196,10 +200,6 @@ class CourseService:
         db_lesson = Lesson(
             ma_chuong_hoc=section_id,
             tieu_de=lesson_in.tieu_de,
-            loai_noi_dung=lesson_in.loai_noi_dung,
-            duong_dan_video=lesson_in.duong_dan_video,
-            duong_dan_tai_lieu=lesson_in.duong_dan_tai_lieu,
-            duong_dan_noi_dung=lesson_in.duong_dan_noi_dung,
             thoi_luong=lesson_in.thoi_luong,
             thu_tu=lesson_in.thu_tu,
             xem_truoc=lesson_in.xem_truoc
@@ -208,10 +208,27 @@ class CourseService:
         await db.commit()
         await db.refresh(db_lesson)
         
-        # Load lại kèm chuong_hoc để tránh lỗi async lazy loading khi truy cập property ma_khoa_hoc
+        # Thêm các block nội dung nếu có
+        for content_in in lesson_in.noi_dung:
+            db_content = LessonContent(
+                ma_bai_hoc=db_lesson.id,
+                loai_noi_dung=content_in.loai_noi_dung,
+                noi_dung_text=content_in.noi_dung_text,
+                duong_dan_file=content_in.duong_dan_file,
+                thu_tu=content_in.thu_tu
+            )
+            db.add(db_content)
+        
+        if lesson_in.noi_dung:
+            await db.commit()
+        
+        # Load lại kèm chuong_hoc và noi_dung để trả về chuẩn Schema
         final_res = await db.execute(
             select(Lesson)
-            .options(selectinload(Lesson.chuong_hoc))
+            .options(
+                selectinload(Lesson.chuong_hoc),
+                selectinload(Lesson.noi_dung)
+            )
             .where(Lesson.id == db_lesson.id)
         )
         return final_res.scalars().one()
@@ -220,7 +237,10 @@ class CourseService:
     async def update_lesson(db: AsyncSession, lesson_id: int, lesson_in: LessonUpdate, instructor_id: int) -> Lesson:
         result = await db.execute(
             select(Lesson)
-            .options(selectinload(Lesson.chuong_hoc).selectinload(Section.khoa_hoc))
+            .options(
+                selectinload(Lesson.chuong_hoc).selectinload(Section.khoa_hoc),
+                selectinload(Lesson.noi_dung)
+            )
             .where(Lesson.id == lesson_id)
         )
         lesson = result.scalars().first()
@@ -266,3 +286,173 @@ class CourseService:
         await db.delete(lesson)
         await db.commit()
         return True
+
+    # ==================== LESSON CONTENT SERVICES ====================
+    @staticmethod
+    async def create_lesson_content(db: AsyncSession, lesson_id: int, content_in: LessonContentCreate, instructor_id: int) -> LessonContent:
+        result = await db.execute(
+            select(Lesson)
+            .options(selectinload(Lesson.chuong_hoc).selectinload(Section.khoa_hoc))
+            .where(Lesson.id == lesson_id)
+        )
+        lesson = result.scalars().first()
+        if not lesson:
+            raise HTTPException(status_code=404, detail="Bài học không tồn tại.")
+        if lesson.chuong_hoc.khoa_hoc.ma_giang_vien != instructor_id:
+            raise HTTPException(status_code=403, detail="Không có quyền chỉnh sửa.")
+
+        db_content = LessonContent(
+            ma_bai_hoc=lesson_id,
+            loai_noi_dung=content_in.loai_noi_dung,
+            noi_dung_text=content_in.noi_dung_text,
+            duong_dan_file=content_in.duong_dan_file,
+            thu_tu=content_in.thu_tu
+        )
+        db.add(db_content)
+        await db.commit()
+        await db.refresh(db_content)
+        return db_content
+
+    @staticmethod
+    async def delete_lesson_content(db: AsyncSession, content_id: int, instructor_id: int) -> bool:
+        result = await db.execute(
+            select(LessonContent)
+            .options(selectinload(LessonContent.bai_hoc).selectinload(Lesson.chuong_hoc).selectinload(Section.khoa_hoc))
+            .where(LessonContent.id == content_id)
+        )
+        content = result.scalars().first()
+        if not content:
+            raise HTTPException(status_code=404, detail="Nội dung không tồn tại.")
+        if content.bai_hoc.chuong_hoc.khoa_hoc.ma_giang_vien != instructor_id:
+            raise HTTPException(status_code=403, detail="Không có quyền xóa.")
+
+        await db.delete(content)
+        await db.commit()
+        return True
+
+    # ==================== COURSE REVIEW SERVICES ====================
+    @staticmethod
+    async def create_course_review(db: AsyncSession, user_id: int, course_id: int, review_in: ReviewCreate) -> CourseReview:
+        # 1. Kiểm tra học viên đã đăng ký/mua khóa học này chưa
+        enroll_result = await db.execute(
+            select(Enrollment).where(
+                and_(
+                    Enrollment.ma_nguoi_dung == user_id,
+                    Enrollment.ma_khoa_hoc == course_id
+                )
+            )
+        )
+        if not enroll_result.scalars().first():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Bạn phải đăng ký và mua khóa học này mới được phép đánh giá."
+            )
+
+        # 2. Kiểm tra xem học viên đã đánh giá khóa học này chưa (Unique Constraint)
+        existing_review = await db.execute(
+            select(CourseReview).where(
+                and_(
+                    CourseReview.ma_nguoi_dung == user_id,
+                    CourseReview.ma_khoa_hoc == course_id
+                )
+            )
+        )
+        if existing_review.scalars().first():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Bạn đã đánh giá khóa học này rồi."
+            )
+
+        # 3. Tạo đánh giá mới
+        db_review = CourseReview(
+            ma_nguoi_dung=user_id,
+            ma_khoa_hoc=course_id,
+            so_sao=review_in.so_sao,
+            binh_luan=review_in.binh_luan
+        )
+        db.add(db_review)
+        await db.commit()
+        await db.refresh(db_review)
+
+        # 4. Tính toán lại đánh giá trung bình của khóa học
+        avg_stars_result = await db.execute(
+            select(func.avg(CourseReview.so_sao)).where(CourseReview.ma_khoa_hoc == course_id)
+        )
+        avg_stars = avg_stars_result.scalar() or 0.0
+        
+        course_result = await db.execute(select(Course).where(Course.id == course_id))
+        course = course_result.scalars().first()
+        if course:
+            course.danh_gia_trung_binh = Decimal(str(round(float(avg_stars), 2)))
+            db.add(course)
+            await db.commit()
+
+        # Load thêm thông tin người dùng gửi về
+        final_res = await db.execute(
+            select(CourseReview)
+            .options(selectinload(CourseReview.nguoi_dung))
+            .where(CourseReview.id == db_review.id)
+        )
+        return final_res.scalars().one()
+
+    @staticmethod
+    async def get_course_reviews(db: AsyncSession, course_id: int, skip: int = 0, limit: int = 20) -> List[CourseReview]:
+        result = await db.execute(
+            select(CourseReview)
+            .options(selectinload(CourseReview.nguoi_dung))
+            .where(CourseReview.ma_khoa_hoc == course_id)
+            .order_by(desc(CourseReview.ngay_tao))
+            .offset(skip)
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    # ==================== COURSE WISHLIST SERVICES ====================
+    @staticmethod
+    async def toggle_wishlist(db: AsyncSession, user_id: int, course_id: int) -> bool:
+        # 1. Kiểm tra khóa học có tồn tại không
+        course_result = await db.execute(select(Course).where(Course.id == course_id))
+        course = course_result.scalars().first()
+        if not course:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Khóa học không tồn tại."
+            )
+
+        # 2. Kiểm tra xem người dùng đã yêu thích khóa học này chưa
+        existing_wish = await db.execute(
+            select(Wishlist).where(
+                and_(
+                    Wishlist.ma_nguoi_dung == user_id,
+                    Wishlist.ma_khoa_hoc == course_id
+                )
+            )
+        )
+        db_wish = existing_wish.scalars().first()
+
+        if db_wish:
+            # Nếu đã thích, xóa bản ghi (bỏ yêu thích)
+            await db.delete(db_wish)
+            await db.commit()
+            return False
+        else:
+            # Nếu chưa thích, tạo bản ghi mới (yêu thích)
+            new_wish = Wishlist(
+                ma_nguoi_dung=user_id,
+                ma_khoa_hoc=course_id
+            )
+            db.add(new_wish)
+            await db.commit()
+            return True
+
+    @staticmethod
+    async def get_user_wishlist(db: AsyncSession, user_id: int) -> List[Wishlist]:
+        result = await db.execute(
+            select(Wishlist)
+            .options(selectinload(Wishlist.khoa_hoc))
+            .where(Wishlist.ma_nguoi_dung == user_id)
+            .order_by(desc(Wishlist.ngay_them))
+        )
+        return list(result.scalars().all())
+
+

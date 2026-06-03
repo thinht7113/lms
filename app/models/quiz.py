@@ -1,4 +1,4 @@
-from sqlalchemy import String, Text, Numeric, Boolean, DateTime, ForeignKey, func
+from sqlalchemy import String, Text, Numeric, Boolean, DateTime, ForeignKey, func, UniqueConstraint
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime
@@ -92,6 +92,29 @@ class QuizAttempt(Base):
     # Relationships
     nguoi_dung = relationship("User", back_populates="lich_su_lam_bai")
     bai_kiem_tra = relationship("Quiz", back_populates="lich_su_lam_bai")
+    cau_tra_loi_chi_tiet = relationship("QuizAttemptAnswer", back_populates="luot_lam", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<QuizAttempt User:{self.ma_nguoi_dung} Quiz:{self.ma_bai_kiem_tra} Score:{self.diem_dat_duoc}>"
+
+
+class QuizAttemptAnswer(Base):
+    __tablename__ = "chi_tiet_bai_lam"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    ma_luot_lam: Mapped[int] = mapped_column(ForeignKey("lich_su_lam_bai.id", ondelete="CASCADE"), nullable=False)
+    ma_cau_hoi: Mapped[int] = mapped_column(ForeignKey("cau_hoi.id", ondelete="CASCADE"), nullable=False)
+    ma_lua_chon: Mapped[int] = mapped_column(ForeignKey("lua_chon_cau_hoi.id", ondelete="CASCADE"), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("ma_luot_lam", "ma_cau_hoi", name="uq_attempt_question"),
+    )
+
+    # Relationships
+    luot_lam = relationship("QuizAttempt", back_populates="cau_tra_loi_chi_tiet")
+    cau_hoi = relationship("Question")
+    lua_chon = relationship("QuestionOption")
+
+    def __repr__(self):
+        return f"<QuizAttemptAnswer Attempt:{self.ma_luot_lam} Question:{self.ma_cau_hoi} Option:{self.ma_lua_chon}>"
+

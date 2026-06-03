@@ -33,8 +33,8 @@ async def apply_coupon(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    coupon = await OrderService.apply_coupon(db, payload.code, payload.original_amount)
-    
+    coupon = await OrderService.apply_coupon(db, payload.code, payload.original_amount, current_user.id)
+
     if coupon.loai_giam_gia == "PERCENTAGE":
         discount_ratio = coupon.gia_tri_giam / Decimal("100.00")
         discount_amount = payload.original_amount * discount_ratio
@@ -57,7 +57,7 @@ async def apply_coupon(
 @router.post(
     "/admin/coupons",
     status_code=status.HTTP_201_CREATED,
-    summary="Admin tạo mã giảm giá mới"
+    summary="Admin tạo mã giảm giá mới",
 )
 async def create_coupon(
     coupon_in: CouponCreate,

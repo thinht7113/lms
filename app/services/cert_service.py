@@ -164,8 +164,7 @@ class CertService:
         quiz_result = await db.execute(select(Quiz).where(Quiz.ma_khoa_hoc == course_id))
         quizzes = quiz_result.scalars().all()
         if quizzes:
-            # Nếu khóa học có bài kiểm tra, kiểm tra xem học viên đã thi đỗ ít nhất 1 bài kiểm tra chưa
-            passed_quiz = False
+            # Học viên bắt buộc phải đỗ TẤT CẢ các bài kiểm tra trong khóa học
             for quiz in quizzes:
                 attempt_res = await db.execute(
                     select(QuizAttempt).where(
@@ -176,13 +175,9 @@ class CertService:
                         )
                     )
                 )
-                if attempt_res.scalars().first():
-                    passed_quiz = True
-                    break
-            
-            if not passed_quiz:
-                # Có bài kiểm tra nhưng học viên chưa hoàn thành đạt yêu cầu
-                return None
+                if not attempt_res.scalars().first():
+                    # Nếu có bất kỳ bài kiểm tra nào chưa thi đỗ, không cấp chứng chỉ
+                    return None
 
         # 3. Kiểm tra xem chứng chỉ đã được cấp trước đó chưa (Tránh cấp trùng lặp)
         cert_result = await db.execute(

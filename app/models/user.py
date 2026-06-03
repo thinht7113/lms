@@ -1,4 +1,4 @@
-from sqlalchemy import String, DateTime, func
+from sqlalchemy import String, DateTime, func, Boolean, CheckConstraint
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from datetime import datetime
 from typing import Optional
@@ -12,15 +12,23 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     mat_khau: Mapped[str] = mapped_column(String(255), nullable=False)
     vai_tro: Mapped[str] = mapped_column(String(50), default="student", nullable=False)  # 'student', 'instructor', 'admin'
+    trang_thai_hoat_dong: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     ngay_tao: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        CheckConstraint(vai_tro.in_(["student", "instructor", "admin"]), name="cc_user_vai_tro"),
+    )
 
     # Relationships
     khoa_hoc = relationship("Course", back_populates="giang_vien")
-    gio_hang = relationship("Cart", back_populates="nguoi_dung", uselist=False, cascade="all, delete-orphan")
+    chi_tiet_gio_hang = relationship("CartItem", back_populates="nguoi_dung", cascade="all, delete-orphan")
     don_hang = relationship("Order", back_populates="nguoi_dung")
     dang_ky_hoc = relationship("Enrollment", back_populates="nguoi_dung", cascade="all, delete-orphan")
     lich_su_lam_bai = relationship("QuizAttempt", back_populates="nguoi_dung", cascade="all, delete-orphan")
     chung_chi = relationship("Certificate", back_populates="nguoi_dung", cascade="all, delete-orphan")
+    danh_gia_khoa_hoc = relationship("CourseReview", back_populates="nguoi_dung", cascade="all, delete-orphan")
+    danh_sach_yeu_thich = relationship("Wishlist", back_populates="nguoi_dung", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User {self.email} ({self.vai_tro})>"
+

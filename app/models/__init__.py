@@ -1,9 +1,9 @@
 from app.models.base import Base
 from app.models.user import User
-from app.models.course import Category, Course, Section, Lesson, Enrollment, Progress
-from app.models.cart import Cart, CartItem
+from app.models.course import Category, Course, Section, Lesson, Enrollment, Progress, CourseReview, Wishlist
+from app.models.cart import CartItem
 from app.models.order import Coupon, Order, OrderItem
-from app.models.quiz import Quiz, Question, QuestionOption, QuizAttempt
+from app.models.quiz import Quiz, Question, QuestionOption, QuizAttempt, QuizAttemptAnswer
 from app.models.certificate import Certificate
 
 # Gom toàn bộ các ORM models lại để import tập trung dễ dàng
@@ -16,7 +16,8 @@ __all__ = [
     "Lesson",
     "Enrollment",
     "Progress",
-    "Cart",
+    "CourseReview",
+    "Wishlist",
     "CartItem",
     "Coupon",
     "Order",
@@ -25,5 +26,7 @@ __all__ = [
     "Question",
     "QuestionOption",
     "QuizAttempt",
+    "QuizAttemptAnswer",
     "Certificate"
 ]
+

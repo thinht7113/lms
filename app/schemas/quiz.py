@@ -9,12 +9,14 @@ class OptionSchema(BaseModel):
     is_correct: bool = Field(..., description="Lựa chọn này có đúng hay không")
 
 class OptionResponse(BaseModel):
+    id: int
     text: str = Field(..., description="Nội dung lựa chọn")
 
     class Config:
         from_attributes = True
 
 class OptionDetailResponse(BaseModel):
+    id: int
     text: str = Field(..., description="Nội dung lựa chọn")
     is_correct: bool = Field(..., description="Lựa chọn này có đúng hay không")
 
@@ -70,7 +72,7 @@ class QuizResponse(BaseModel):
     thoi_gian_lam_bai: Optional[int] = None
     so_luot_lam_toi_da: int = 3
     ngay_tao: datetime
-
+    
     class Config:
         from_attributes = True
         populate_by_name = True
@@ -82,7 +84,7 @@ class QuizDetailResponse(QuizResponse):
 # ==================== ATTEMPT & SUBMISSION SCHEMAS ====================
 class AnswerSubmit(BaseModel):
     question_id: int
-    chosen_answer: str # Ví dụ: 'A', 'B', 'C' hoặc nội dung text trùng khớp lựa chọn đúng
+    chosen_option_id: int
 
 class QuizSubmitRequest(BaseModel):
     answers: List[AnswerSubmit]
@@ -94,6 +96,15 @@ class QuizSubmitResponse(BaseModel):
     correct_count: int
     total_count: int
 
+class QuizAttemptAnswerResponse(BaseModel):
+    id: int
+    ma_luot_lam: int
+    ma_cau_hoi: int
+    ma_lua_chon: int
+
+    class Config:
+        from_attributes = True
+
 class QuizAttemptResponse(BaseModel):
     id: int
     ma_nguoi_dung: int
@@ -102,6 +113,7 @@ class QuizAttemptResponse(BaseModel):
     da_qua_mon: bool
     ngay_lam_bai: datetime
     bai_kiem_tra: Optional[QuizResponse] = None
+    cau_tra_loi_chi_tiet: List[QuizAttemptAnswerResponse] = []
 
     class Config:
         from_attributes = True

@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 1 ngày
     
-    DATABASE_URL: str = "postgresql+asyncpg://thinh:thinh@localhost:5432/lms_database"
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/lms_database"
 
     MOMO_PARTNER_CODE: Optional[str] = None
     MOMO_ACCESS_KEY: Optional[str] = None

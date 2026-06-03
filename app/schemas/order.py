@@ -13,16 +13,15 @@ class CartItemAdd(BaseModel):
 
 class CartItemResponse(BaseModel):
     id: int
-    ma_gio_hang: int
+    ma_nguoi_dung: int
     ma_khoa_hoc: int
+    ngay_them_vao_gio: Optional[datetime] = None
     khoa_hoc: CourseResponse
 
     class Config:
         from_attributes = True
 
 class CartResponse(BaseModel):
-    id: int
-    ma_nguoi_dung: int
     chi_tiet_gio_hang: List[CartItemResponse] = []
     tong_tien_tam_tinh: Decimal = Decimal("0.00")
 

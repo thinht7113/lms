@@ -63,7 +63,7 @@ api_description = "Hệ thống API backend cho ứng dụng học trực tuyế
 app = FastAPI(
     title="LMS API Documentation",
     description=api_description,
-    version="1.0.0",
+    version="1.0.0", 
     openapi_tags=tags_metadata,
     docs_url="/docs",
     redoc_url="/redoc",
@@ -97,7 +97,7 @@ app.include_router(api_router, prefix="/api/v1")
 async def root():
     return {
         "status": "healthy",
-        "message": "Chào mừng đến với API Hệ thống Khóa học Trực tuyến LMS",
+        "message": "Chào mừng đến với API Hệ thống Khóa học Trực tuyến",
         "version": "1.0.0"
     }
 

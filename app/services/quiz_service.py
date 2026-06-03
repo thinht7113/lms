@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
-from app.models.quiz import Quiz, Question, QuizAttempt, QuestionOption
+from app.models.quiz import Quiz, Question, QuizAttempt, QuestionOption, QuizAttemptAnswer
 from app.models.course import Course, Enrollment
 from app.schemas.quiz import QuizCreate, QuestionCreate, QuizSubmitRequest
 from typing import List, Optional
@@ -213,15 +213,23 @@ class QuizService:
             )
 
         # Chuyển đổi submission sang dạng dict để tra cứu nhanh
-        user_answers = {ans.question_id: ans.chosen_answer for ans in submit_in.answers}
+        user_answers = {ans.question_id: ans.chosen_option_id for ans in submit_in.answers}
 
         correct_count = 0
+        answer_logs = []
         for q in quiz.cau_hoi:
-            user_choice = user_answers.get(q.id)
-            # Lấy đáp án đúng từ bảng QuestionOption (lua_chon_cau_hoi)
-            correct_opt = next((opt for opt in q.lua_chon_cau_hoi if opt.la_dap_an_dung), None)
-            if user_choice and correct_opt and user_choice.strip().lower() == correct_opt.noi_dung_lua_chon.strip().lower():
-                correct_count += 1
+            chosen_opt_id = user_answers.get(q.id)
+            if chosen_opt_id:
+                # Tìm phương án trong các lựa chọn của câu hỏi
+                chosen_opt = next((opt for opt in q.lua_chon_cau_hoi if opt.id == chosen_opt_id), None)
+                if not chosen_opt:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Lựa chọn ID {chosen_opt_id} không hợp lệ cho câu hỏi ID {q.id}."
+                    )
+                answer_logs.append((q.id, chosen_opt_id))
+                if chosen_opt.la_dap_an_dung:
+                    correct_count += 1
 
         # Tính điểm hệ số 10
         score = Decimal(str(round((correct_count / total_questions) * 10.0, 2)))
@@ -238,7 +246,17 @@ class QuizService:
         await db.commit()
         await db.refresh(db_attempt)
 
-        # 5. KÍCH HOẠT TỰ ĐỘNG CẤP CHỨNG CHỈ (Chạy kiểm tra ngầm)
+        # 5. Lưu chi tiết các câu trả lời học viên đã chọn
+        for q_id, opt_id in answer_logs:
+            db_ans_log = QuizAttemptAnswer(
+                ma_luot_lam=db_attempt.id,
+                ma_cau_hoi=q_id,
+                ma_lua_chon=opt_id
+            )
+            db.add(db_ans_log)
+        await db.commit()
+
+        # 6. KÍCH HOẠT TỰ ĐỘNG CẤP CHỨNG CHỈ (Chạy kiểm tra ngầm)
         # Import CertService ngay tại đây để tránh vòng lặp circular dependency
         from app.services.cert_service import CertService
         await CertService.check_and_issue_certificate(db, user_id, quiz.ma_khoa_hoc)
@@ -255,7 +273,10 @@ class QuizService:
     async def get_attempt(db: AsyncSession, attempt_id: int, user_id: int) -> QuizAttempt:
         result = await db.execute(
             select(QuizAttempt)
-            .options(selectinload(QuizAttempt.bai_kiem_tra).selectinload(Quiz.cau_hoi).selectinload(Question.lua_chon_cau_hoi))
+            .options(
+                selectinload(QuizAttempt.bai_kiem_tra).selectinload(Quiz.cau_hoi).selectinload(Question.lua_chon_cau_hoi),
+                selectinload(QuizAttempt.cau_tra_loi_chi_tiet)
+            )
             .where(QuizAttempt.id == attempt_id)
         )
         attempt = result.scalars().first()

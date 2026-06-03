@@ -17,23 +17,41 @@ class CategoryResponse(BaseModel):
         from_attributes = True
 
 
+# ==================== LESSON CONTENT SCHEMAS ====================
+class LessonContentCreate(BaseModel):
+    loai_noi_dung: str = Field(..., description="Loại: video, pdf, text, code, image")
+    noi_dung_text: Optional[str] = Field(None, description="Mã HTML/Markdown dài")
+    duong_dan_file: Optional[str] = Field(None, description="Link file nếu có")
+    thu_tu: int = Field(0, description="Thứ tự hiển thị block")
+
+class LessonContentUpdate(BaseModel):
+    loai_noi_dung: Optional[str] = None
+    noi_dung_text: Optional[str] = None
+    duong_dan_file: Optional[str] = None
+    thu_tu: Optional[int] = None
+
+class LessonContentResponse(BaseModel):
+    id: int
+    ma_bai_hoc: int
+    loai_noi_dung: str
+    noi_dung_text: Optional[str]
+    duong_dan_file: Optional[str]
+    thu_tu: int
+
+    class Config:
+        from_attributes = True
+
+
 # ==================== LESSON SCHEMAS ====================
 class LessonCreate(BaseModel):
     tieu_de: str = Field(..., min_length=2, description="Tiêu đề bài học")
-    loai_noi_dung: Optional[str] = Field("TEXT", description="Loại nội dung: VIDEO, DOCUMENT, TEXT")
-    duong_dan_video: Optional[str] = Field(None, description="Đường dẫn phát video")
-    duong_dan_tai_lieu: Optional[str] = Field(None, description="Đường dẫn tài liệu")
-    duong_dan_noi_dung: Optional[str] = Field(None, description="Đường dẫn nội dung text")
+    noi_dung: List[LessonContentCreate] = Field(default_factory=list, description="Danh sách các block nội dung")
     thoi_luong: int = Field(0, ge=0, description="Thời lượng bài học tính bằng giây")
     thu_tu: int = Field(0, description="Thứ tự hiển thị bài học")
     xem_truoc: bool = Field(False, description="Cho phép xem thử trước khi mua")
 
 class LessonUpdate(BaseModel):
     tieu_de: Optional[str] = None
-    loai_noi_dung: Optional[str] = None
-    duong_dan_video: Optional[str] = None
-    duong_dan_tai_lieu: Optional[str] = None
-    duong_dan_noi_dung: Optional[str] = None
     thoi_luong: Optional[int] = None
     thu_tu: Optional[int] = None
     xem_truoc: Optional[bool] = None
@@ -43,10 +61,7 @@ class LessonResponse(BaseModel):
     ma_khoa_hoc: int
     ma_chuong_hoc: Optional[int]
     tieu_de: str
-    loai_noi_dung: Optional[str]
-    duong_dan_video: Optional[str] = None
-    duong_dan_tai_lieu: Optional[str] = None
-    duong_dan_noi_dung: Optional[str] = None
+    noi_dung: List[LessonContentResponse] = []
     thoi_luong: int
     thu_tu: int
     xem_truoc: bool
@@ -109,5 +124,41 @@ class CourseResponse(BaseModel):
     class Config:
         from_attributes = True
 
+# ==================== COURSE REVIEW SCHEMAS ====================
+class UserMinimalResponse(BaseModel):
+    id: int
+    ho_ten: str
+
+    class Config:
+        from_attributes = True
+
+class ReviewCreate(BaseModel):
+    so_sao: int = Field(..., ge=1, le=5, description="Số sao đánh giá (1-5)")
+    binh_luan: Optional[str] = Field(None, max_length=1000, description="Bình luận/Nhận xét (Tối đa 1000 ký tự)")
+
+class ReviewResponse(BaseModel):
+    id: int
+    ma_nguoi_dung: int
+    ma_khoa_hoc: int
+    so_sao: int
+    binh_luan: Optional[str]
+    ngay_tao: datetime
+    nguoi_dung: Optional[UserMinimalResponse] = None
+
+    class Config:
+        from_attributes = True
+
 class CourseDetailResponse(CourseResponse):
     chuong_hoc: List[SectionResponse] = []
+    danh_gia_khoa_hoc: List[ReviewResponse] = []
+
+class WishlistResponse(BaseModel):
+    id: int
+    ma_nguoi_dung: int
+    ma_khoa_hoc: int
+    ngay_them: datetime
+    khoa_hoc: CourseResponse
+
+    class Config:
+        from_attributes = True
+

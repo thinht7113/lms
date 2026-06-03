@@ -2,13 +2,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import HTTPException, status
 from app.models.user import User
-from app.models.cart import Cart
 from app.schemas.user import UserRegister
 from app.core.security import get_password_hash, verify_password
 
 class AuthService:
     @staticmethod
     async def register(db: AsyncSession, user_in: UserRegister) -> User:
+        # 0. Bảo mật: Không cho phép đăng ký vai trò Quản trị viên (Admin) qua cổng công khai
+        if user_in.vai_tro == "admin":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Không cho phép đăng ký vai trò Quản trị viên (Admin) qua cổng công khai."
+            )
+
         # 1. Kiểm tra xem email đã được đăng ký trước đó chưa
         result = await db.execute(select(User).where(User.email == user_in.email))
         existing_user = result.scalars().first()
@@ -29,12 +35,6 @@ class AuthService:
         await db.commit()  # Commit để DB sinh ID tự tăng cho User
         await db.refresh(new_user)
 
-        # 3. Nếu người dùng đăng ký vai trò học viên, tự tạo một Giỏ hàng trống tương ứng
-        if new_user.vai_tro == "student":
-            new_cart = Cart(ma_nguoi_dung=new_user.id)
-            db.add(new_cart)
-            await db.commit()
-            
         return new_user
 
     @staticmethod

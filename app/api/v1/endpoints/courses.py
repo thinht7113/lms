@@ -6,7 +6,10 @@ from app.schemas.course import (
     CategoryCreate, CategoryResponse,
     CourseCreate, CourseUpdate, CourseResponse, CourseDetailResponse,
     SectionCreate, SectionResponse,
-    LessonCreate, LessonUpdate, LessonResponse
+    LessonCreate, LessonUpdate, LessonResponse,
+    LessonContentCreate, LessonContentResponse,
+    ReviewCreate, ReviewResponse,
+    WishlistResponse
 )
 from app.services.course_service import CourseService
 from typing import List, Optional
@@ -151,6 +154,33 @@ async def delete_lesson(
     success = await CourseService.delete_lesson(db, lesson_id, current_user.id)
     return {"status": "success", "message": "Đã xóa bài học thành công."}
 
+# ==================== LESSON CONTENT ENDPOINTS ====================
+@router.post(
+    "/lessons/{lesson_id}/contents",
+    response_model=LessonContentResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Giảng viên thêm block nội dung vào bài học"
+)
+async def create_lesson_content(
+    lesson_id: int,
+    content_in: LessonContentCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_instructor)
+):
+    return await CourseService.create_lesson_content(db, lesson_id, content_in, current_user.id)
+
+@router.delete(
+    "/lesson-contents/{content_id}",
+    summary="Giảng viên xóa block nội dung khỏi bài học"
+)
+async def delete_lesson_content(
+    content_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_instructor)
+):
+    await CourseService.delete_lesson_content(db, content_id, current_user.id)
+    return {"status": "success", "message": "Đã xóa nội dung bài học thành công."}
+
 
 # ==================== PUBLIC SEARCH & FILTER ENDPOINTS ====================
 @router.get(
@@ -178,6 +208,17 @@ async def get_courses(
     )
 
 @router.get(
+    "/courses/wishlist/me",
+    response_model=List[WishlistResponse],
+    summary="Lấy danh sách khóa học yêu thích cá nhân"
+)
+async def get_my_wishlist(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return await CourseService.get_user_wishlist(db, current_user.id)
+
+@router.get(
     "/courses/{course_id}",
     response_model=CourseDetailResponse,
     summary="Xem chi tiết đề cương khóa học (Mọi người có thể xem)"
@@ -191,3 +232,47 @@ async def get_course_detail(
     # Ở đây chúng ta trả về toàn bộ cấu trúc CourseDetailResponse, 
     # Nhưng trong thực tế, các bài học sẽ ẩn link tài liệu và video nếu is_preview = False (sẽ xử lý ở API học tập).
     return course
+
+# ==================== COURSE REVIEW ENDPOINTS ====================
+@router.post(
+    "/courses/{course_id}/reviews",
+    response_model=ReviewResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Học viên gửi đánh giá cho khóa học"
+)
+async def create_course_review(
+    course_id: int,
+    review_in: ReviewCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return await CourseService.create_course_review(db, current_user.id, course_id, review_in)
+
+@router.get(
+    "/courses/{course_id}/reviews",
+    response_model=List[ReviewResponse],
+    summary="Lấy danh sách đánh giá của khóa học"
+)
+async def get_course_reviews(
+    course_id: int,
+    skip: int = 0,
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db)
+):
+    return await CourseService.get_course_reviews(db, course_id, skip=skip, limit=limit)
+
+# ==================== COURSE WISHLIST ENDPOINTS ====================
+@router.post(
+    "/courses/{course_id}/wishlist",
+    summary="Yêu thích / Bỏ yêu thích khóa học"
+)
+async def toggle_course_wishlist(
+    course_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    added = await CourseService.toggle_wishlist(db, current_user.id, course_id)
+    msg = "Đã thêm khóa học vào danh sách yêu thích thành công." if added else "Đã xóa khóa học khỏi danh sách yêu thích."
+    return {"added": added, "message": msg}
+
+
