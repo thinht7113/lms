@@ -46,7 +46,7 @@ async def get_lesson_learning_content(
     lesson_result = await db.execute(
         select(Lesson)
         .join(Section, Lesson.ma_chuong_hoc == Section.id)
-        .options(selectinload(Lesson.chuong_hoc))
+        .options(selectinload(Lesson.chuong_hoc).selectinload(Section.khoa_hoc))
         .where(
             and_(
                 Lesson.id == lesson_id,
@@ -61,7 +61,15 @@ async def get_lesson_learning_content(
             detail="Bài học không tồn tại hoặc không thuộc khóa học này."
         )
 
-    # Nếu bài học được xem trước thì cho phép xem luôn
+    # 1b. Nếu bài học chưa được xuất bản, chỉ cho phép giảng viên sở hữu hoặc admin xem
+    if not lesson.da_xuat_ban:
+        if current_user.vai_tro != "admin" and lesson.chuong_hoc.khoa_hoc.ma_giang_vien != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Bài học này chưa được xuất bản."
+            )
+
+    # Nếu bài học được xem trước và đã xuất bản thì cho phép xem luôn
     if lesson.xem_truoc:
         return lesson
 
@@ -74,13 +82,58 @@ async def get_lesson_learning_content(
             )
         )
     )
-    if not enroll_result.scalars().first():
+    enrollment = enroll_result.scalars().first()
+    if not enrollment:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Bạn chưa mua khóa học này. Hãy thanh toán để bắt đầu học bài giảng."
         )
 
-    return lesson
+    # 3. Học bài giảng tuần tự (Drip Content) - Chỉ tính các bài học đã xuất bản
+    lessons_result = await db.execute(
+        select(Lesson)
+        .join(Section, Lesson.ma_chuong_hoc == Section.id)
+        .where(
+            and_(
+                Section.ma_khoa_hoc == course_id,
+                Lesson.da_xuat_ban == True
+            )
+        )
+        .order_by(Section.thu_tu.asc(), Lesson.thu_tu.asc())
+    )
+    all_lessons = lessons_result.scalars().all()
+
+    
+    curr_index = -1
+    for idx, l in enumerate(all_lessons):
+        if l.id == lesson_id:
+            curr_index = idx
+            break
+            
+    if curr_index > 0:
+        prev_lesson = all_lessons[curr_index - 1]
+        progress_res = await db.execute(
+            select(Progress).where(
+                and_(
+                    Progress.ma_dang_ky_hoc == enrollment.id,
+                    Progress.ma_bai_hoc == prev_lesson.id,
+                    Progress.da_hoan_thanh == True
+                )
+            )
+        )
+        if not progress_res.scalars().first():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Bạn phải hoàn thành bài giảng trước: {prev_lesson.tieu_de}."
+            )
+
+    # Load lesson content explicitly to populate LessonResponse's noi_dung field safely
+    lesson_opt_res = await db.execute(
+        select(Lesson)
+        .options(selectinload(Lesson.noi_dung))
+        .where(Lesson.id == lesson.id)
+    )
+    return lesson_opt_res.scalars().one()
 
 
 # ==================== LESSON PROGRESS UPDATE ENDPOINT ====================

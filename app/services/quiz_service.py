@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, func
+from sqlalchemy import select, and_, func, delete
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 from app.models.quiz import Quiz, Question, QuizAttempt, QuestionOption, QuizAttemptAnswer
@@ -7,6 +7,7 @@ from app.models.course import Course, Enrollment
 from app.schemas.quiz import QuizCreate, QuestionCreate, QuizSubmitRequest
 from typing import List, Optional
 from decimal import Decimal
+from datetime import datetime
 
 class QuizService:
     # ==================== QUIZ SERVICES ====================
@@ -159,13 +160,9 @@ class QuizService:
 
     # ==================== ATTEMPT & SUBMISSION SERVICES ====================
     @staticmethod
-    async def submit_quiz(db: AsyncSession, quiz_id: int, submit_in: QuizSubmitRequest, user_id: int):
-        # 1. Lấy quiz kèm các câu hỏi và các lựa chọn đáp án
-        result = await db.execute(
-            select(Quiz)
-            .options(selectinload(Quiz.cau_hoi).selectinload(Question.lua_chon_cau_hoi))
-            .where(Quiz.id == quiz_id)
-        )
+    async def start_quiz(db: AsyncSession, quiz_id: int, user_id: int) -> QuizAttempt:
+        # 1. Lấy quiz
+        result = await db.execute(select(Quiz).where(Quiz.id == quiz_id))
         quiz = result.scalars().first()
         if not quiz:
             raise HTTPException(
@@ -188,23 +185,108 @@ class QuizService:
                 detail="Bạn chưa ghi danh khóa học chứa bài kiểm tra này."
             )
 
-        # 3. Kiểm tra số lần làm bài trắc nghiệm tối đa
+        # 3. Kiểm tra xem học viên có lượt làm bài nào đang ở trạng thái 'started' không
+        active_attempt_res = await db.execute(
+            select(QuizAttempt)
+            .options(
+                selectinload(QuizAttempt.bai_kiem_tra),
+                selectinload(QuizAttempt.cau_tra_loi_chi_tiet)
+            )
+            .where(
+                and_(
+                    QuizAttempt.ma_nguoi_dung == user_id,
+                    QuizAttempt.ma_bai_kiem_tra == quiz_id,
+                    QuizAttempt.trang_thai == "started"
+                )
+            )
+        )
+        active_attempt = active_attempt_res.scalars().first()
+        if active_attempt:
+            return active_attempt
+
+        # 4. Đếm tổng số lượt đã làm thành công ('completed')
         attempts_res = await db.execute(
             select(func.count(QuizAttempt.id)).where(
                 and_(
                     QuizAttempt.ma_nguoi_dung == user_id,
-                    QuizAttempt.ma_bai_kiem_tra == quiz_id
+                    QuizAttempt.ma_bai_kiem_tra == quiz_id,
+                    QuizAttempt.trang_thai == "completed"
                 )
             )
         )
-        attempts_count = attempts_res.scalar() or 0
-        if attempts_count >= quiz.so_luot_lam_toi_da:
+        completed_count = attempts_res.scalar() or 0
+        if completed_count >= quiz.so_luot_lam_toi_da:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Bạn đã vượt quá số lượt làm bài tối đa cho phép ({quiz.so_luot_lam_toi_da} lượt)."
             )
 
-        # 3. Chấm điểm bài thi
+        # 5. Tạo lượt làm bài mới
+        db_attempt = QuizAttempt(
+            ma_nguoi_dung=user_id,
+            ma_bai_kiem_tra=quiz_id,
+            trang_thai="started",
+            ngay_bat_dau=datetime.now()
+        )
+        db.add(db_attempt)
+        await db.commit()
+        
+        # Load lại đầy đủ các quan hệ để trả về chuẩn Schema
+        res_attempt = await db.execute(
+            select(QuizAttempt)
+            .options(
+                selectinload(QuizAttempt.bai_kiem_tra),
+                selectinload(QuizAttempt.cau_tra_loi_chi_tiet)
+            )
+            .where(QuizAttempt.id == db_attempt.id)
+        )
+        return res_attempt.scalars().one()
+
+    @staticmethod
+    async def submit_quiz(db: AsyncSession, quiz_id: int, submit_in: QuizSubmitRequest, user_id: int):
+        # 1. Lấy quiz kèm các câu hỏi và các lựa chọn đáp án
+        result = await db.execute(
+            select(Quiz)
+            .options(selectinload(Quiz.cau_hoi).selectinload(Question.lua_chon_cau_hoi))
+            .where(Quiz.id == quiz_id)
+        )
+        quiz = result.scalars().first()
+        if not quiz:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Bài kiểm tra không tồn tại."
+            )
+
+        # 2. Lấy QuizAttempt theo attempt_id
+        attempt_res = await db.execute(
+            select(QuizAttempt).where(
+                and_(
+                    QuizAttempt.id == submit_in.attempt_id,
+                    QuizAttempt.ma_nguoi_dung == user_id,
+                    QuizAttempt.ma_bai_kiem_tra == quiz_id
+                )
+            )
+        )
+        attempt = attempt_res.scalars().first()
+        if not attempt:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Không tìm thấy lượt làm bài tương ứng."
+            )
+            
+        if attempt.trang_thai != "started":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Lượt làm bài này đã được nộp hoặc không ở trạng thái làm bài."
+            )
+
+        # 3. Kiểm tra thời gian làm bài
+        duration = datetime.now() - attempt.ngay_bat_dau
+        is_timeout = False
+        if quiz.thoi_gian_lam_bai and quiz.thoi_gian_lam_bai > 0:
+            if duration.total_seconds() > (quiz.thoi_gian_lam_bai * 60):
+                is_timeout = True
+
         total_questions = len(quiz.cau_hoi)
         if total_questions == 0:
             raise HTTPException(
@@ -232,41 +314,88 @@ class QuizService:
                     correct_count += 1
 
         # Tính điểm hệ số 10
-        score = Decimal(str(round((correct_count / total_questions) * 10.0, 2)))
-        passed = score >= quiz.diem_dat
+        if is_timeout:
+            score = Decimal("0.00")
+            passed = False
+        else:
+            score = Decimal(str(round((correct_count / total_questions) * 10.0, 2)))
+            passed = score >= quiz.diem_dat
 
-        # 4. Lưu kết quả lượt làm bài
-        db_attempt = QuizAttempt(
-            ma_nguoi_dung=user_id,
-            ma_bai_kiem_tra=quiz_id,
-            diem_dat_duoc=score,
-            da_qua_mon=passed
-        )
-        db.add(db_attempt)
+        # 4. Cập nhật kết quả lượt làm bài
+        attempt.diem_dat_duoc = score
+        attempt.da_qua_mon = passed
+        attempt.trang_thai = "completed"
+        attempt.ngay_lam_bai = datetime.now()
+        db.add(attempt)
         await db.commit()
-        await db.refresh(db_attempt)
 
         # 5. Lưu chi tiết các câu trả lời học viên đã chọn
         for q_id, opt_id in answer_logs:
             db_ans_log = QuizAttemptAnswer(
-                ma_luot_lam=db_attempt.id,
+                ma_luot_lam=attempt.id,
                 ma_cau_hoi=q_id,
                 ma_lua_chon=opt_id
             )
             db.add(db_ans_log)
         await db.commit()
 
-        # 6. KÍCH HOẠT TỰ ĐỘNG CẤP CHỨNG CHỈ (Chạy kiểm tra ngầm)
-        # Import CertService ngay tại đây để tránh vòng lặp circular dependency
-        from app.services.cert_service import CertService
-        await CertService.check_and_issue_certificate(db, user_id, quiz.ma_khoa_hoc)
+        # 6. KÍCH HOẠT TỰ ĐỘNG CẤP CHỨNG CHỈ (Chạy kiểm tra ngầm nếu qua môn)
+        if passed:
+            from app.services.cert_service import CertService
+            await CertService.check_and_issue_certificate(db, user_id, quiz.ma_khoa_hoc)
+
+        # 7. LOGIC RESET TIẾN ĐỘ KHI TRƯỢT 3 LẦN
+        completed_attempts_res = await db.execute(
+            select(QuizAttempt).where(
+                and_(
+                    QuizAttempt.ma_nguoi_dung == user_id,
+                    QuizAttempt.ma_bai_kiem_tra == quiz_id,
+                    QuizAttempt.trang_thai == "completed"
+                )
+            )
+        )
+        completed_attempts = completed_attempts_res.scalars().all()
+        completed_count = len(completed_attempts)
+        any_passed = any(att.da_qua_mon for att in completed_attempts)
+
+        warning_msg = None
+        if completed_count >= quiz.so_luot_lam_toi_da and not any_passed:
+            from app.models.course import Progress
+            # Tìm bản ghi Enrollment liên kết
+            enroll_res = await db.execute(
+                select(Enrollment).where(
+                    and_(
+                        Enrollment.ma_nguoi_dung == user_id,
+                        Enrollment.ma_khoa_hoc == quiz.ma_khoa_hoc
+                    )
+                )
+            )
+            enrollment = enroll_res.scalars().first()
+            if enrollment:
+                # Xóa toàn bộ Progress
+                await db.execute(
+                    delete(Progress).where(Progress.ma_dang_ky_hoc == enrollment.id)
+                )
+                # Xóa toàn bộ các lượt QuizAttempt cũ (kể cả lượt hiện tại) để giải phóng 3 lượt mới
+                await db.execute(
+                    delete(QuizAttempt).where(
+                        and_(
+                            QuizAttempt.ma_nguoi_dung == user_id,
+                            QuizAttempt.ma_bai_kiem_tra == quiz_id
+                        )
+                    )
+                )
+                await db.commit()
+            
+            warning_msg = "Bạn đã thi trượt cả 3 lần. Tiến trình học của bạn đã bị reset về 0%. Vui lòng học lại toàn bộ nội dung khóa học để được thi lại."
 
         return {
-            "attempt_id": db_attempt.id,
+            "attempt_id": attempt.id,
             "score": score,
             "passed": passed,
             "correct_count": correct_count,
-            "total_count": total_questions
+            "total_count": total_questions,
+            "message": warning_msg
         }
 
     @staticmethod

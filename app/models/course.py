@@ -41,6 +41,7 @@ class Course(Base):
     chung_chi = relationship("Certificate", back_populates="khoa_hoc", cascade="all, delete-orphan")
     danh_gia_khoa_hoc = relationship("CourseReview", back_populates="khoa_hoc", cascade="all, delete-orphan")
     danh_sach_yeu_thich = relationship("Wishlist", back_populates="khoa_hoc", cascade="all, delete-orphan")
+    dieu_kien_tien_quyet = relationship("CoursePrerequisite", foreign_keys="[CoursePrerequisite.ma_khoa_hoc_chinh]", back_populates="khoa_hoc_chinh", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Course {self.tieu_de}>"
@@ -71,6 +72,8 @@ class Lesson(Base):
     thoi_luong: Mapped[int] = mapped_column(default=0, nullable=False)  # thời lượng (giây)
     thu_tu: Mapped[int] = mapped_column(default=0, nullable=False)
     xem_truoc: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)  # is_preview
+    da_xuat_ban: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)  # is_published
+
 
     # Relationships
     chuong_hoc = relationship("Section", back_populates="bai_hoc")
@@ -190,5 +193,25 @@ class Wishlist(Base):
 
     def __repr__(self):
         return f"<Wishlist UserID:{self.ma_nguoi_dung} CourseID:{self.ma_khoa_hoc}>"
+
+
+class CoursePrerequisite(Base):
+    __tablename__ = "dieu_kien_tien_quyet"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    ma_khoa_hoc_chinh: Mapped[int] = mapped_column(ForeignKey("khoa_hoc.id", ondelete="CASCADE"), nullable=False)
+    ma_khoa_hoc_tien_quyet: Mapped[int] = mapped_column(ForeignKey("khoa_hoc.id", ondelete="CASCADE"), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("ma_khoa_hoc_chinh", "ma_khoa_hoc_tien_quyet", name="uq_course_prerequisite"),
+    )
+
+    # Relationships
+    khoa_hoc_chinh = relationship("Course", foreign_keys=[ma_khoa_hoc_chinh], back_populates="dieu_kien_tien_quyet")
+    khoa_hoc_tien_quyet = relationship("Course", foreign_keys=[ma_khoa_hoc_tien_quyet])
+
+    def __repr__(self):
+        return f"<CoursePrerequisite Main:{self.ma_khoa_hoc_chinh} Prereq:{self.ma_khoa_hoc_tien_quyet}>"
+
 
 

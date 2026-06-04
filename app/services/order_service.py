@@ -43,6 +43,10 @@ class OrderService:
                 detail="Khóa học không tồn tại."
             )
 
+        # Kiểm tra điều kiện tiên quyết
+        from app.services.course_service import CourseService
+        await CourseService.check_prerequisites(db, user_id, course_id)
+
         # 2. Kiểm tra học viên đã đăng ký học khóa học này chưa (Đã mua thành công)
         enrolled_result = await db.execute(
             select(Enrollment).where(
@@ -191,6 +195,11 @@ class OrderService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Giỏ hàng rỗng. Không thể tiến hành thanh toán."
             )
+
+        # Kiểm tra điều kiện tiên quyết cho toàn bộ sản phẩm trong giỏ hàng
+        from app.services.course_service import CourseService
+        for item in cart_data["chi_tiet_gio_hang"]:
+            await CourseService.check_prerequisites(db, user_id, item.ma_khoa_hoc)
 
         # 1. Tính tổng tiền khóa học gốc
         original_amount = cart_data["tong_tien_tam_tinh"]

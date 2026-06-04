@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.api.deps import get_db, get_current_user
+from app.api.deps import get_db, get_current_user, get_current_user_optional
+from sqlalchemy.orm import attributes
+
 from app.models.user import User
 from app.schemas.course import (
     CategoryCreate, CategoryResponse,
@@ -9,7 +11,7 @@ from app.schemas.course import (
     LessonCreate, LessonUpdate, LessonResponse,
     LessonContentCreate, LessonContentResponse,
     ReviewCreate, ReviewResponse,
-    WishlistResponse
+    WishlistResponse, CoursePrerequisiteResponse, CoursePrerequisiteCreate
 )
 from app.services.course_service import CourseService
 from typing import List, Optional
@@ -225,13 +227,25 @@ async def get_my_wishlist(
 )
 async def get_course_detail(
     course_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
 ):
     course = await CourseService.get_course(db, course_id)
-    # Ẩn các thuộc tính bảo mật của bài học nếu là khóa học thu phí đối với khách vãng lai
-    # Ở đây chúng ta trả về toàn bộ cấu trúc CourseDetailResponse, 
-    # Nhưng trong thực tế, các bài học sẽ ẩn link tài liệu và video nếu is_preview = False (sẽ xử lý ở API học tập).
+    
+    # Kiểm tra xem người dùng hiện tại có phải giảng viên sở hữu hoặc admin không
+    is_owner_or_admin = False
+    if current_user:
+        if current_user.vai_tro == "admin" or course.ma_giang_vien == current_user.id:
+            is_owner_or_admin = True
+            
+    # Nếu không phải chủ sở hữu hoặc admin, ẩn các bài học chưa xuất bản (da_xuat_ban = False)
+    if not is_owner_or_admin:
+        for section in course.chuong_hoc:
+            filtered_lessons = [l for l in section.bai_hoc if l.da_xuat_ban]
+            attributes.set_committed_value(section, "bai_hoc", filtered_lessons)
+            
     return course
+
 
 # ==================== COURSE REVIEW ENDPOINTS ====================
 @router.post(
@@ -274,5 +288,27 @@ async def toggle_course_wishlist(
     added = await CourseService.toggle_wishlist(db, current_user.id, course_id)
     msg = "Đã thêm khóa học vào danh sách yêu thích thành công." if added else "Đã xóa khóa học khỏi danh sách yêu thích."
     return {"added": added, "message": msg}
+
+# ==================== COURSE PREREQUISITE ENDPOINTS ====================
+@router.post(
+    "/courses/{course_id}/prerequisites",
+    response_model=CoursePrerequisiteResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Giảng viên/Admin liên kết khóa học tiên quyết"
+)
+async def add_course_prerequisite(
+    course_id: int,
+    prereq_in: CoursePrerequisiteCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_instructor)
+):
+    # Kiểm tra xem giảng viên có sở hữu khóa học chính này không (hoặc là admin)
+    course = await CourseService.get_course(db, course_id)
+    if current_user.vai_tro != "admin" and course.ma_giang_vien != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn không có quyền chỉnh sửa khóa học này."
+        )
+    return await CourseService.add_course_prerequisite(db, course_id, prereq_in.ma_khoa_hoc_tien_quyet)
 
 

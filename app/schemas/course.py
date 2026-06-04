@@ -8,6 +8,10 @@ class CategoryCreate(BaseModel):
     ten_danh_muc: str = Field(..., min_length=2, description="Tên danh mục")
     mo_ta: Optional[str] = Field(None, description="Mô tả danh mục")
 
+class CategoryUpdate(BaseModel):
+    ten_danh_muc: Optional[str] = Field(None, min_length=2, description="Tên danh mục")
+    mo_ta: Optional[str] = Field(None, description="Mô tả danh mục")
+
 class CategoryResponse(BaseModel):
     id: int
     ten_danh_muc: str
@@ -49,12 +53,14 @@ class LessonCreate(BaseModel):
     thoi_luong: int = Field(0, ge=0, description="Thời lượng bài học tính bằng giây")
     thu_tu: int = Field(0, description="Thứ tự hiển thị bài học")
     xem_truoc: bool = Field(False, description="Cho phép xem thử trước khi mua")
+    da_xuat_ban: Optional[bool] = Field(False, description="Đánh dấu xuất bản bài học")
 
 class LessonUpdate(BaseModel):
     tieu_de: Optional[str] = None
     thoi_luong: Optional[int] = None
     thu_tu: Optional[int] = None
     xem_truoc: Optional[bool] = None
+    da_xuat_ban: Optional[bool] = None
 
 class LessonResponse(BaseModel):
     id: int
@@ -65,6 +71,8 @@ class LessonResponse(BaseModel):
     thoi_luong: int
     thu_tu: int
     xem_truoc: bool
+    da_xuat_ban: bool
+
 
     class Config:
         from_attributes = True
@@ -136,6 +144,13 @@ class ReviewCreate(BaseModel):
     so_sao: int = Field(..., ge=1, le=5, description="Số sao đánh giá (1-5)")
     binh_luan: Optional[str] = Field(None, max_length=1000, description="Bình luận/Nhận xét (Tối đa 1000 ký tự)")
 
+class CourseMinimalResponse(BaseModel):
+    id: int
+    tieu_de: str
+
+    class Config:
+        from_attributes = True
+
 class ReviewResponse(BaseModel):
     id: int
     ma_nguoi_dung: int
@@ -144,6 +159,7 @@ class ReviewResponse(BaseModel):
     binh_luan: Optional[str]
     ngay_tao: datetime
     nguoi_dung: Optional[UserMinimalResponse] = None
+    khoa_hoc: Optional[CourseMinimalResponse] = None
 
     class Config:
         from_attributes = True
@@ -151,6 +167,7 @@ class ReviewResponse(BaseModel):
 class CourseDetailResponse(CourseResponse):
     chuong_hoc: List[SectionResponse] = []
     danh_gia_khoa_hoc: List[ReviewResponse] = []
+    dieu_kien_tien_quyet: List["CoursePrerequisiteResponse"] = []
 
 class WishlistResponse(BaseModel):
     id: int
@@ -161,4 +178,17 @@ class WishlistResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class CoursePrerequisiteResponse(BaseModel):
+    id: int
+    ma_khoa_hoc_chinh: int
+    ma_khoa_hoc_tien_quyet: int
+    khoa_hoc_tien_quyet: CourseResponse
+
+    class Config:
+        from_attributes = True
+
+class CoursePrerequisiteCreate(BaseModel):
+    ma_khoa_hoc_tien_quyet: int
+
 

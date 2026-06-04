@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import jwt
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 from app.core.config import settings
 from app.core.database import async_session_maker
 from app.models.user import User
@@ -47,3 +47,33 @@ async def get_current_user(
         raise credentials_exception
         
     return user
+
+# 3. Dependency lấy thông tin Người dùng tùy chọn (Cho phép truy cập công khai nhưng nhận biết User nếu có)
+async def get_current_user_optional(
+    db: AsyncSession = Depends(get_db), 
+    token: str = Depends(OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login/swagger", auto_error=False))
+) -> Optional[User]:
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            return None
+        result = await db.execute(select(User).where(User.id == int(user_id)))
+        return result.scalars().first()
+    except jwt.PyJWTError:
+        return None
+
+# 4. Dependency lấy thông tin Admin
+async def get_current_admin_user(
+    current_user: User = Depends(get_current_user)
+) -> User:
+    if current_user.vai_tro != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn không có quyền truy cập vào chức năng quản trị.",
+        )
+    return current_user

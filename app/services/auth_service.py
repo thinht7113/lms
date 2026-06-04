@@ -48,11 +48,56 @@ class AuthService:
                 detail="Email hoặc mật khẩu không chính xác."
             )
         
-        # 2. Đối soát mật khẩu đã băm
+        if not user.mat_khau:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Tài khoản này được tạo thông qua mạng xã hội. Vui lòng chọn Đăng nhập bằng Google hoặc Facebook."
+            )
+            
         if not verify_password(mat_khau, user.mat_khau):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Email hoặc mật khẩu không chính xác."
             )
             
+        return user
+
+    @staticmethod
+    async def social_login(db: AsyncSession, social_data: dict) -> User:
+        from app.schemas.user import SocialLoginRequest
+        # Chuyển đổi thành schema nếu cần
+        email = social_data.get("email")
+        provider = social_data.get("provider")
+        provider_id = social_data.get("provider_id")
+        ho_ten = social_data.get("ho_ten")
+        avatar_url = social_data.get("avatar_url")
+
+        # 1. Kiểm tra email đã tồn tại chưa
+        result = await db.execute(select(User).where(User.email == email))
+        user = result.scalars().first()
+
+        if user:
+            # 2a. Nếu đã tồn tại -> Liên kết tài khoản (Merge)
+            if provider == "google" and not user.google_id:
+                user.google_id = provider_id
+            elif provider == "facebook" and not user.facebook_id:
+                user.facebook_id = provider_id
+            
+            if avatar_url and not user.avatar_url:
+                user.avatar_url = avatar_url
+        else:
+            # 2b. Nếu chưa tồn tại -> Tạo tài khoản mới (vai trò mặc định: student)
+            user = User(
+                email=email,
+                ho_ten=ho_ten,
+                vai_tro="student",
+                mat_khau=None,  # Không có mật khẩu
+                google_id=provider_id if provider == "google" else None,
+                facebook_id=provider_id if provider == "facebook" else None,
+                avatar_url=avatar_url
+            )
+            db.add(user)
+
+        await db.commit()
+        await db.refresh(user)
         return user

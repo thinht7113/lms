@@ -65,7 +65,29 @@ async def login_swagger(
         "user": user
     }
 
-# 3. API Lấy thông tin cá nhân (Đòi hỏi đăng nhập)
+# 3. API Đăng nhập Mạng xã hội (Google / Facebook)
+@router.post(
+    "/social",
+    response_model=TokenResponse,
+    summary="Đăng nhập hoặc đăng ký bằng tài khoản mạng xã hội (Google/Facebook)"
+)
+async def social_login(
+    social_data: dict, # Trong thực tế sẽ dùng SocialLoginRequest, tạm dùng dict để dễ test mock
+    db: AsyncSession = Depends(get_db)
+):
+    # Gọi service xử lý logic tự động tạo mới hoặc liên kết tài khoản
+    user = await AuthService.social_login(db, social_data)
+    
+    # Tạo mã JWT bảo mật chứa ID người dùng
+    access_token = create_access_token(subject=user.id)
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": user
+    }
+
+# 4. API Lấy thông tin cá nhân (Đòi hỏi đăng nhập)
 @router.get(
     "/profile", 
     response_model=UserResponse, 

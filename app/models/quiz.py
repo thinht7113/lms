@@ -85,9 +85,11 @@ class QuizAttempt(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     ma_nguoi_dung: Mapped[int] = mapped_column(ForeignKey("nguoi_dung.id", ondelete="CASCADE"), nullable=False)
     ma_bai_kiem_tra: Mapped[int] = mapped_column(ForeignKey("bai_kiem_tra.id", ondelete="CASCADE"), nullable=False)
-    diem_dat_duoc: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
-    da_qua_mon: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    ngay_lam_bai: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    diem_dat_duoc: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 2), nullable=True)
+    da_qua_mon: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    ngay_bat_dau: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    ngay_lam_bai: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    trang_thai: Mapped[str] = mapped_column(String(50), default="started", nullable=False) # 'started', 'completed'
 
     # Relationships
     nguoi_dung = relationship("User", back_populates="lich_su_lam_bai")

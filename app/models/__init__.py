@@ -1,6 +1,6 @@
 from app.models.base import Base
 from app.models.user import User
-from app.models.course import Category, Course, Section, Lesson, Enrollment, Progress, CourseReview, Wishlist
+from app.models.course import Category, Course, Section, Lesson, Enrollment, Progress, CourseReview, Wishlist, CoursePrerequisite
 from app.models.cart import CartItem
 from app.models.order import Coupon, Order, OrderItem
 from app.models.quiz import Quiz, Question, QuestionOption, QuizAttempt, QuizAttemptAnswer
@@ -18,6 +18,7 @@ __all__ = [
     "Progress",
     "CourseReview",
     "Wishlist",
+    "CoursePrerequisite",
     "CartItem",
     "Coupon",
     "Order",

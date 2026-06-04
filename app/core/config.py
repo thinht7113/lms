@@ -30,5 +30,13 @@ class Settings(BaseSettings):
     VNPAY_HASH_SECRET: Optional[str] = None
     VNPAY_URL: Optional[str] = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
 
+    # 3. MinIO Config
+    MINIO_ENDPOINT_URL: str = "http://localhost:9000"
+    MINIO_ACCESS_KEY: str = "minioadmin"
+    MINIO_SECRET_KEY: str = "minioadminpassword"
+    MINIO_BUCKET_NAME: str = "lms-storage"
+    MINIO_PUBLIC_URL: str = "http://localhost:9000"
+
 # Khởi tạo instance duy nhất để import dùng chung toàn dự án
 settings = Settings()
+

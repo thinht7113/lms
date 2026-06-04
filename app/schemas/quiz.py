@@ -64,6 +64,8 @@ class QuizCreate(BaseModel):
     class Config:
         populate_by_name = True
 
+from app.schemas.course import CourseMinimalResponse
+
 class QuizResponse(BaseModel):
     id: int
     ma_khoa_hoc: int
@@ -72,6 +74,7 @@ class QuizResponse(BaseModel):
     thoi_gian_lam_bai: Optional[int] = None
     so_luot_lam_toi_da: int = 3
     ngay_tao: datetime
+    khoa_hoc: Optional[CourseMinimalResponse] = None
     
     class Config:
         from_attributes = True
@@ -87,6 +90,7 @@ class AnswerSubmit(BaseModel):
     chosen_option_id: int
 
 class QuizSubmitRequest(BaseModel):
+    attempt_id: int
     answers: List[AnswerSubmit]
 
 class QuizSubmitResponse(BaseModel):
@@ -95,6 +99,7 @@ class QuizSubmitResponse(BaseModel):
     passed: bool
     correct_count: int
     total_count: int
+    message: Optional[str] = None
 
 class QuizAttemptAnswerResponse(BaseModel):
     id: int
@@ -109,9 +114,11 @@ class QuizAttemptResponse(BaseModel):
     id: int
     ma_nguoi_dung: int
     ma_bai_kiem_tra: int
-    diem_dat_duoc: Decimal
-    da_qua_mon: bool
-    ngay_lam_bai: datetime
+    diem_dat_duoc: Optional[Decimal] = None
+    da_qua_mon: Optional[bool] = None
+    ngay_bat_dau: Optional[datetime] = None
+    ngay_lam_bai: Optional[datetime] = None
+    trang_thai: Optional[str] = "started"
     bai_kiem_tra: Optional[QuizResponse] = None
     cau_tra_loi_chi_tiet: List[QuizAttemptAnswerResponse] = []
 

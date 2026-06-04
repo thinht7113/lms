@@ -79,6 +79,19 @@ async def get_quiz(
     return await QuizService.get_quiz(db, quiz_id, current_user.id)
 
 @router.post(
+    "/quizzes/{quiz_id}/start",
+    response_model=QuizAttemptResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Học viên bắt đầu làm bài kiểm tra trắc nghiệm"
+)
+async def start_quiz(
+    quiz_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return await QuizService.start_quiz(db, quiz_id, current_user.id)
+
+@router.post(
     "/quizzes/{quiz_id}/submit",
     response_model=QuizSubmitResponse,
     summary="Học viên nộp bài kiểm tra và nhận kết quả chấm điểm tự động"

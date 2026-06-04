@@ -10,10 +10,15 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     ho_ten: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
-    mat_khau: Mapped[str] = mapped_column(String(255), nullable=False)
+    mat_khau: Mapped[Optional[str]] = mapped_column(String(255), nullable=True) # Mật khẩu có thể null nếu dùng MXH
     vai_tro: Mapped[str] = mapped_column(String(50), default="student", nullable=False)  # 'student', 'instructor', 'admin'
     trang_thai_hoat_dong: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     ngay_tao: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    
+    # Các cột đăng nhập Mạng xã hội
+    google_id: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True)
+    facebook_id: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True)
+    avatar_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     __table_args__ = (
         CheckConstraint(vai_tro.in_(["student", "instructor", "admin"]), name="cc_user_vai_tro"),

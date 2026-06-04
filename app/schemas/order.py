@@ -42,6 +42,29 @@ class CouponCreate(BaseModel):
     class Config:
         populate_by_name = True
 
+class CouponUpdate(BaseModel):
+    loai_giam_gia: Optional[str] = None
+    gia_tri_giam: Optional[Decimal] = None
+    gia_tri_don_toi_thieu: Optional[Decimal] = None
+    so_luot_dung_toi_da: Optional[int] = None
+    end_date: Optional[datetime] = Field(None, alias="ngay_het_han")
+
+    class Config:
+        populate_by_name = True
+
+class CouponResponse(BaseModel):
+    id: int
+    ma_code: str
+    loai_giam_gia: str
+    gia_tri_giam: Decimal
+    gia_tri_don_toi_thieu: Decimal
+    so_luot_dung_toi_da: Optional[int]
+    so_luot_da_dung: int
+    ngay_het_han: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
 class CouponApplyRequest(BaseModel):
     code: str = Field(..., description="Mã giảm giá cần áp dụng")
     original_amount: Decimal = Field(..., description="Số tiền gốc")
