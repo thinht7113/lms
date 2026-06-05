@@ -14,6 +14,7 @@ class User(Base):
     vai_tro: Mapped[str] = mapped_column(String(50), default="student", nullable=False)  # 'student', 'instructor', 'admin'
     trang_thai_hoat_dong: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     ngay_tao: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    so_dien_thoai: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     
     # Các cột đăng nhập Mạng xã hội
     google_id: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True)

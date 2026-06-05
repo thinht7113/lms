@@ -70,6 +70,7 @@ class CouponApplyRequest(BaseModel):
     original_amount: Decimal = Field(..., description="Số tiền gốc")
 
 class CouponApplyResponse(BaseModel):
+    coupon_id: int
     code: str
     discount_percentage: Decimal  # Tương thích ngược (ví dụ: phan_tram_giam)
     discount_amount: Decimal

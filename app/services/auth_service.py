@@ -2,8 +2,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import HTTPException, status
 from app.models.user import User
-from app.schemas.user import UserRegister
 from app.core.security import get_password_hash, verify_password
+from app.schemas.user import UserRegister, UserUpdate
 
 class AuthService:
     @staticmethod
@@ -28,6 +28,7 @@ class AuthService:
         new_user = User(
             email=user_in.email,
             ho_ten=user_in.ho_ten,
+            so_dien_thoai=user_in.so_dien_thoai,
             mat_khau=get_password_hash(user_in.mat_khau),
             vai_tro=user_in.vai_tro
         )
@@ -60,6 +61,37 @@ class AuthService:
                 detail="Email hoặc mật khẩu không chính xác."
             )
             
+        return user
+
+    @staticmethod
+    async def update_profile(db: AsyncSession, user: User, update_in: UserUpdate) -> User:
+        if update_in.ho_ten is not None:
+            user.ho_ten = update_in.ho_ten
+        if update_in.avatar_url is not None:
+            user.avatar_url = update_in.avatar_url
+        if update_in.so_dien_thoai is not None:
+            user.so_dien_thoai = update_in.so_dien_thoai
+
+        if update_in.mat_khau_moi:
+            if not user.mat_khau:
+                # Tài khoản mạng xã hội chưa có mật khẩu, cho phép đặt mật khẩu mới mà không cần mật khẩu cũ
+                user.mat_khau = get_password_hash(update_in.mat_khau_moi)
+            else:
+                if not update_in.mat_khau_cu:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Vui lòng nhập mật khẩu cũ để đổi mật khẩu mới."
+                    )
+                if not verify_password(update_in.mat_khau_cu, user.mat_khau):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Mật khẩu cũ không chính xác."
+                    )
+                user.mat_khau = get_password_hash(update_in.mat_khau_moi)
+
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
         return user
 
     @staticmethod

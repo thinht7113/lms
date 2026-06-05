@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_db, get_current_user
-from app.schemas.user import UserRegister, UserLogin, UserResponse, TokenResponse
+from app.schemas.user import UserRegister, UserLogin, UserResponse, TokenResponse, UserUpdate
 from app.services.auth_service import AuthService
 from app.core.security import create_access_token
 from app.models.user import User
@@ -97,3 +97,17 @@ async def get_profile(
     current_user: User = Depends(get_current_user)
 ):
     return current_user
+
+# 5. API Sửa thông tin cá nhân (Đòi hỏi đăng nhập)
+@router.put(
+    "/profile", 
+    response_model=UserResponse, 
+    summary="Cập nhật thông tin tài khoản đang đăng nhập"
+)
+async def update_profile(
+    update_in: UserUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    updated_user = await AuthService.update_profile(db, current_user, update_in)
+    return updated_user

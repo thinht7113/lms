@@ -61,6 +61,7 @@ class LessonUpdate(BaseModel):
     thu_tu: Optional[int] = None
     xem_truoc: Optional[bool] = None
     da_xuat_ban: Optional[bool] = None
+    trang_thai_phe_duyet: Optional[str] = None
 
 class LessonResponse(BaseModel):
     id: int
@@ -72,6 +73,7 @@ class LessonResponse(BaseModel):
     thu_tu: int
     xem_truoc: bool
     da_xuat_ban: bool
+    trang_thai_phe_duyet: str
 
 
     class Config:
@@ -116,6 +118,7 @@ class CourseUpdate(BaseModel):
     ma_danh_muc: Optional[int] = None
     trinh_do: Optional[str] = None
     da_xuat_ban: Optional[bool] = None
+    trang_thai_phe_duyet: Optional[str] = None
 
 class CourseResponse(BaseModel):
     id: int
@@ -126,8 +129,10 @@ class CourseResponse(BaseModel):
     gia_tien: Decimal
     trinh_do: str
     da_xuat_ban: bool
+    trang_thai_phe_duyet: str
     danh_gia_trung_binh: Decimal
     ngay_tao: datetime
+    so_luong_hoc_vien: int = Field(0, description="Số lượng học viên")
 
     class Config:
         from_attributes = True
@@ -191,4 +196,32 @@ class CoursePrerequisiteResponse(BaseModel):
 class CoursePrerequisiteCreate(BaseModel):
     ma_khoa_hoc_tien_quyet: int
 
+# ==================== ENROLLMENT SCHEMAS ====================
+class EnrollmentCreate(BaseModel):
+    ma_nguoi_dung: int = Field(..., description="ID Học viên")
+    ma_khoa_hoc: int = Field(..., description="ID Khóa học")
 
+class EnrollmentResponse(BaseModel):
+    id: int
+    ma_nguoi_dung: int
+    ma_khoa_hoc: int
+    ngay_dang_ky: datetime
+    nguoi_dung: Optional[UserMinimalResponse] = None
+    khoa_hoc: Optional[CourseMinimalResponse] = None
+
+    class Config:
+        from_attributes = True
+
+# ==================== CERTIFICATE SCHEMAS ====================
+class CertificateResponse(BaseModel):
+    id: int
+    ma_nguoi_dung: int
+    ma_khoa_hoc: int
+    uuid: Optional[str]
+    duong_dan_chung_chi: str
+    ngay_cap: datetime
+    nguoi_dung: Optional[UserMinimalResponse] = None
+    khoa_hoc: Optional[CourseMinimalResponse] = None
+
+    class Config:
+        from_attributes = True

@@ -77,8 +77,9 @@ app = FastAPI(
 # Cấu hình Middleware CORS (cho phép Frontend kết nối)
 origins = [
     "http://localhost:3000",      # React/Next.js mặc định
+    "http://127.0.0.1:3000",      # Fallback IP
     "http://localhost:5173",      # Vite mặc định
-    "*"                           # Cho phép tất cả trong môi trường phát triển
+    "http://127.0.0.1:5173",      # Fallback IP cho Vite
 ]
 
 app.add_middleware(

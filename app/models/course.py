@@ -27,6 +27,7 @@ class Course(Base):
     gia_tien: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0.00, nullable=False)
     trinh_do: Mapped[str] = mapped_column(String(50), default="beginner", nullable=False)  # 'beginner', 'intermediate', 'advanced'
     da_xuat_ban: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    trang_thai_phe_duyet: Mapped[str] = mapped_column(String(50), default="draft", nullable=False)
     danh_gia_trung_binh: Mapped[Decimal] = mapped_column(Numeric(3, 2), default=0.00, nullable=False)
     ngay_tao: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
@@ -45,6 +46,13 @@ class Course(Base):
 
     def __repr__(self):
         return f"<Course {self.tieu_de}>"
+
+    @property
+    def so_luong_hoc_vien(self) -> int:
+        try:
+            return len(self.dang_ky_hoc)
+        except Exception:
+            return 0
 
 
 class Section(Base):
@@ -73,6 +81,7 @@ class Lesson(Base):
     thu_tu: Mapped[int] = mapped_column(default=0, nullable=False)
     xem_truoc: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)  # is_preview
     da_xuat_ban: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)  # is_published
+    trang_thai_phe_duyet: Mapped[str] = mapped_column(String(50), default="draft", nullable=False)
 
 
     # Relationships

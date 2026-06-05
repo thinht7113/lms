@@ -46,6 +46,7 @@ async def apply_coupon(
         final_amount = Decimal("0.00")
 
     return {
+        "coupon_id": coupon.id,
         "code": coupon.ma_code,
         "discount_percentage": coupon.phan_tram_giam,
         "discount_amount": discount_amount,

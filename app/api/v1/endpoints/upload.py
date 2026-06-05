@@ -23,11 +23,11 @@ MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
     "",
     status_code=status.HTTP_201_CREATED,
     summary="Tải lên tài liệu, hình ảnh hoặc bài giảng video (Lưu trữ MinIO S3)",
-    description="Cho phép Giảng viên hoặc Quản trị viên tải lên tài nguyên. Định dạng được hỗ trợ: PDF, Video, Hình ảnh."
+    description="Cho phép tất cả người dùng tải lên tài nguyên (VD: ảnh đại diện, bài giảng). Định dạng được hỗ trợ: PDF, Video, Hình ảnh."
 )
 async def upload_file(
     file: UploadFile = File(...),
-    current_user: User = Depends(require_instructor_or_admin)
+    current_user: User = Depends(get_current_user)
 ):
     # 1. Kiểm tra kích thước file
     # file.size exists in starlette UploadFile

@@ -5,6 +5,9 @@ from app.models.cart import CartItem
 from app.models.order import Coupon, Order, OrderItem
 from app.models.quiz import Quiz, Question, QuestionOption, QuizAttempt, QuizAttemptAnswer
 from app.models.certificate import Certificate
+from app.models.log import AdminLog
+from app.models.setting import Setting
+from app.models.banner import Banner
 
 # Gom toàn bộ các ORM models lại để import tập trung dễ dàng
 __all__ = [
@@ -28,6 +31,8 @@ __all__ = [
     "QuestionOption",
     "QuizAttempt",
     "QuizAttemptAnswer",
-    "Certificate"
+    "Certificate",
+    "AdminLog",
+    "Banner"
 ]
 

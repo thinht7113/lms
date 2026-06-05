@@ -133,7 +133,10 @@ class CourseService:
     async def get_instructor_courses(db: AsyncSession, instructor_id: int) -> List[Course]:
         result = await db.execute(
             select(Course)
-            .options(selectinload(Course.chuong_hoc))
+            .options(
+                selectinload(Course.chuong_hoc),
+                selectinload(Course.dang_ky_hoc)
+            )
             .where(Course.ma_giang_vien == instructor_id)
         )
         return list(result.scalars().all())

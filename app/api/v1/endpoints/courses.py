@@ -4,6 +4,8 @@ from app.api.deps import get_db, get_current_user, get_current_user_optional
 from sqlalchemy.orm import attributes
 
 from app.models.user import User
+from app.models.course import Enrollment, Course
+from app.schemas.user import UserResponse
 from app.schemas.course import (
     CategoryCreate, CategoryResponse,
     CourseCreate, CourseUpdate, CourseResponse, CourseDetailResponse,
@@ -86,6 +88,36 @@ async def get_instructor_courses(
 ):
     return await CourseService.get_instructor_courses(db, current_user.id)
 
+@router.get(
+    "/instructor/courses/{course_id}/students",
+    response_model=List[UserResponse],
+    summary="Lấy danh sách học viên của khóa học"
+)
+async def get_course_students(
+    course_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_instructor)
+):
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    
+    # Kiểm tra khóa học thuộc về giảng viên
+    result = await db.execute(select(Course).where(Course.id == course_id, Course.ma_giang_vien == current_user.id))
+    course = result.scalars().first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Khóa học không tồn tại hoặc bạn không có quyền.")
+        
+    # Lấy danh sách đăng ký học của khóa học này
+    enroll_result = await db.execute(
+        select(Enrollment)
+        .options(selectinload(Enrollment.nguoi_dung))
+        .where(Enrollment.ma_khoa_hoc == course_id)
+        .order_by(Enrollment.id.desc())
+    )
+    enrollments = enroll_result.scalars().all()
+    
+    return [enrollment.nguoi_dung for enrollment in enrollments]
+
 @router.put(
     "/courses/{course_id}",
     response_model=CourseResponse,
@@ -97,6 +129,12 @@ async def update_course(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_instructor)
 ):
+    if current_user.vai_tro != "admin":
+        if course_in.da_xuat_ban is True or course_in.trang_thai_phe_duyet == "approved":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Chỉ quản trị viên mới có quyền phê duyệt/xuất bản khóa học."
+            )
     return await CourseService.update_course(db, course_id, course_in, current_user.id)
 
 
@@ -142,6 +180,12 @@ async def update_lesson(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_instructor)
 ):
+    if current_user.vai_tro != "admin":
+        if lesson_in.da_xuat_ban is True or lesson_in.trang_thai_phe_duyet == "approved":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Chỉ quản trị viên mới có quyền phê duyệt/xuất bản bài học."
+            )
     return await CourseService.update_lesson(db, lesson_id, lesson_in, current_user.id)
 
 @router.delete(
