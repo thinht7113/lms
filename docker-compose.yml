@@ -1,10 +1,19 @@
+# =============================================================================
+#  Lumina LMS - Docker Compose Production Deployment
+#  Chạy:  docker compose up -d --build
+#  Dừng:  docker compose down
+#  Logs:  docker compose logs -f
+# =============================================================================
+
 services:
 
-  # 2. Bộ nhớ đệm & Lưu trữ Session tạm thời: Redis
+
+
+  # ==================== 2. Redis Cache ====================
   redis:
     image: redis:7-alpine
     container_name: lms_redis
-    restart: always
+    restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
@@ -12,53 +21,84 @@ services:
     networks:
       - lms_network
 
-  # 2b. Lưu trữ đối tượng tương thích S3: MinIO
+  # ==================== 3. MinIO Object Storage ====================
   minio:
     image: minio/minio:RELEASE.2024-01-28T22-35-53Z
     container_name: lms_minio
-    restart: always
+    restart: unless-stopped
     ports:
       - "9000:9000"
       - "9001:9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadminpassword
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadminpassword}
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
     networks:
       - lms_network
 
-  # 3. Ứng dụng Backend API: FastAPI (Python)
-  web:
-    build: .
-    container_name: lms_fastapi_app
-    restart: always
-    # Sử dụng cờ --reload và mount volumes giúp tự động phát hiện code thay đổi trên máy thật và reload container lập tức
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    volumes:
-      - .:/app
+  # ==================== 4. FastAPI Backend ====================
+  backend:
+    build:
+      context: ./lms-backend
+      dockerfile: Dockerfile
+    container_name: lms_backend
+    restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - APP_NAME=LMS Backend (Docker Environment)
-      - APP_ENV=${APP_ENV:-production}
-      - SECRET_KEY=${SECRET_KEY}
-      - MINIO_ENDPOINT_URL=http://minio:9000
+      # Database - kết nối qua host.docker.internal để dùng PostgreSQL local của máy tính (ví dụ: pgAdmin)
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-lms_secret_2026}@host.docker.internal:5432/${POSTGRES_DB:-lms_database}
+      # App
+      APP_NAME: "Lumina LMS API"
+      APP_ENV: production
+      SECRET_KEY: ${SECRET_KEY:-super_secret_jwt_key_change_in_production_2026}
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 1440
+      # MinIO - kết nối nội bộ Docker
+      MINIO_ENDPOINT_URL: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadminpassword}
+      MINIO_BUCKET_NAME: lms-storage
+      MINIO_PUBLIC_URL: http://localhost:9000
     depends_on:
-      - redis
-      - minio
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
     networks:
       - lms_network
 
-# 4. Định nghĩa các phân vùng lưu trữ bền vững (Persistent Volumes) giúp tránh mất dữ liệu khi tắt container
+  # ==================== 5. Next.js Frontend ====================
+  frontend:
+    build:
+      context: ./lms-frontend
+      dockerfile: Dockerfile.dev
+    container_name: lms_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./lms-frontend:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      NEXT_PUBLIC_API_URL: http://127.0.0.1:8000/api/v1
+      WATCHPACK_POLLING: "true"
+    depends_on:
+      - backend
+    networks:
+      - lms_network
+
+# ==================== Persistent Volumes ====================
 volumes:
   redis_data:
+    driver: local
   minio_data:
+    driver: local
 
-# 5. Thiết lập mạng nội bộ phân giải DNS nội bộ giữa các service
+# ==================== Internal Network ====================
 networks:
   lms_network:
     driver: bridge
-

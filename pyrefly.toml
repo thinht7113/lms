@@ -1,2 +1,2 @@
-site-package-path = [".venv/Lib/site-packages"]
-search_path = ["."]
+site-package-path = ["d:/BT/LMS/lms-backend/.venv/Lib/site-packages"]
+search_path = ["d:/BT/LMS/lms-backend"]

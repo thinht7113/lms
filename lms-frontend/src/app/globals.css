@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-be-vietnam), "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
+
+  --color-primary: #0f172a; /* Slate 900 - Đen nhám sang trọng */
+  --color-on-primary: #ffffff;
+  --color-primary-container: #f1f5f9; /* Slate 100 */
+  --color-on-primary-container: #0f172a;
+  
+  --color-secondary: #475569; /* Slate 600 */
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #e2e8f0;
+  --color-on-secondary-container: #1e293b;
+  
+  --color-tertiary: #b49359; /* Gold nhạt làm điểm nhấn sang trọng */
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #fdf6e3;
+  --color-on-tertiary-container: #4a3c22;
+  
+  --color-error: #dc2626; /* Red 600 */
+  --color-on-error: #ffffff;
+  --color-error-container: #fef2f2;
+  --color-on-error-container: #991b1b;
+  
+  --color-success: #22c55e; /* Green 500 */
+  --color-on-success: #ffffff;
+  --color-success-container: #f0fdf4;
+  --color-on-success-container: #166534;
+  
+  --color-warning: #f59e0b; /* Amber 500 */
+  --color-on-warning: #ffffff;
+  --color-warning-container: #fffbeb;
+  --color-on-warning-container: #b45309;
+  
+  --color-background: #f8fafc; /* Nền sáng cực nhạt */
+  --color-on-background: #0f172a;
+  
+  --color-surface: #ffffff;
+  --color-on-surface: #0f172a;
+  
+  --color-surface-variant: #f1f5f9;
+  --color-on-surface-variant: #475569;
+  
+  --color-outline: #94a3b8;
+  --color-outline-variant: #e2e8f0;
+  
+  --color-surface-container-highest: #e2e8f0;
+  --color-surface-container-high: #f1f5f9;
+  --color-surface-container: #f8fafc;
+  --color-surface-container-low: #ffffff;
+  --color-surface-container-lowest: #ffffff;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-on-background);
+  font-family: var(--font-sans);
+  letter-spacing: -0.01em;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.025em;
+  font-weight: 800;
+}
+
+/* ==================== CUSTOM SCROLLBAR ==================== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-surface-container-lowest);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-outline-variant);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-outline);
+}
+
+/* ==================== UTILITIES ==================== */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+.hover-glow:hover {
+  box-shadow: 0 10px 15px -3px rgba(99, 14, 212, 0.1), 0 4px 6px -2px rgba(99, 14, 212, 0.05);
+  border-color: rgba(99, 14, 212, 0.2);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.mask-linear-x {
+  mask-image: linear-gradient(to right, transparent, black 10px, black calc(100% - 10px), transparent);
+}
+
+.mask-image-left {
+  mask-image: linear-gradient(to left, black 60%, transparent 100%);
+}
