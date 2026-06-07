@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Cookie, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -9,7 +9,10 @@ from app.core.database import async_session_maker
 from app.models.user import User
 
 # Thư viện bảo mật lấy Token từ HTTP Header Authorization: Bearer <token>
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login/swagger")
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/api/v1/auth/login/swagger",
+    auto_error=False,
+)
 
 # 1. Dependency lấy Database Session bất đồng bộ
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -21,50 +24,60 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 # 2. Dependency lấy thông tin Người dùng hiện tại từ JWT Token (Dùng để bảo mật API)
 async def get_current_user(
-    db: AsyncSession = Depends(get_db), 
-    token: str = Depends(oauth2_scheme)
+    db: AsyncSession = Depends(get_db),
+    token: Optional[str] = Depends(oauth2_scheme),
+    session_token: Optional[str] = Cookie(default=None, alias=settings.AUTH_COOKIE_NAME),
 ) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Không thể xác thực danh tính. Vui lòng đăng nhập lại.",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    auth_token = token or session_token
+    if not auth_token:
+        raise credentials_exception
+
     try:
         # Giải mã mã JWT Token bằng Secret Key
         payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            auth_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
         user_id: str = payload.get("sub")
         if user_id is None:
             raise credentials_exception
-    except jwt.PyJWTError:
+    except (jwt.PyJWTError, TypeError, ValueError):
         raise credentials_exception
 
     # Truy vấn dữ liệu người dùng từ ID lấy trong token
     result = await db.execute(select(User).where(User.id == int(user_id)))
     user = result.scalars().first()
-    if user is None:
+    if user is None or not user.trang_thai_hoat_dong:
         raise credentials_exception
         
     return user
 
 # 3. Dependency lấy thông tin Người dùng tùy chọn (Cho phép truy cập công khai nhưng nhận biết User nếu có)
 async def get_current_user_optional(
-    db: AsyncSession = Depends(get_db), 
-    token: str = Depends(OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login/swagger", auto_error=False))
+    db: AsyncSession = Depends(get_db),
+    token: Optional[str] = Depends(oauth2_scheme),
+    session_token: Optional[str] = Cookie(default=None, alias=settings.AUTH_COOKIE_NAME),
 ) -> Optional[User]:
-    if not token:
+    auth_token = token or session_token
+    if not auth_token:
         return None
     try:
         payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            auth_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
         user_id: str = payload.get("sub")
         if user_id is None:
             return None
         result = await db.execute(select(User).where(User.id == int(user_id)))
-        return result.scalars().first()
-    except jwt.PyJWTError:
+        user = result.scalars().first()
+        if user is None or not user.trang_thai_hoat_dong:
+            return None
+        return user
+    except (jwt.PyJWTError, TypeError, ValueError):
         return None
 
 # 4. Dependency lấy thông tin Admin

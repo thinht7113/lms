@@ -55,7 +55,6 @@ lms-backend/
 │   │
 │   └── main.py               # Điểm khởi chạy chính của hệ thống FastAPI
 │
-├── alembic/                  # Thư mục chứa các tệp Migration tự động cập nhật database
 ├── .env.example              # File biến mẫu hướng dẫn cấu hình
 ├── .env                      # File biến môi trường thực tế (Không được commit lên Git)
 ├── requirements.txt          # Danh sách thư viện cần thiết

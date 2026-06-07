@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Any
 from decimal import Decimal
 from datetime import datetime
@@ -12,16 +12,14 @@ class OptionResponse(BaseModel):
     id: int
     text: str = Field(..., description="Nội dung lựa chọn")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class OptionDetailResponse(BaseModel):
     id: int
     text: str = Field(..., description="Nội dung lựa chọn")
     is_correct: bool = Field(..., description="Lựa chọn này có đúng hay không")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # ==================== QUESTION SCHEMAS ====================
 class QuestionCreate(BaseModel):
@@ -29,8 +27,11 @@ class QuestionCreate(BaseModel):
     options: List[OptionSchema] = Field(..., alias="cac_lua_chon", description="Danh sách các lựa chọn")
     explanation: Optional[str] = Field(None, alias="giai_thich", description="Giải thích đáp án")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
+
+class QuestionUpdate(BaseModel):
+    noi_dung: Optional[str] = None
+    giai_thich: Optional[str] = None
 
 class QuestionResponse(BaseModel):
     id: int
@@ -38,8 +39,7 @@ class QuestionResponse(BaseModel):
     noi_dung: str
     cac_lua_chon: List[OptionResponse]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class QuestionDetailResponse(BaseModel):
     id: int
@@ -49,9 +49,7 @@ class QuestionDetailResponse(BaseModel):
     dap_an_dung: str
     explanation: Optional[str] = Field(None, alias="giai_thich")
 
-    class Config:
-        from_attributes = True
-        populate_by_name = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 # ==================== QUIZ SCHEMAS ====================
@@ -61,8 +59,13 @@ class QuizCreate(BaseModel):
     time_limit: Optional[int] = Field(None, alias="thoi_gian_lam_bai", description="Thời gian làm bài (phút)")
     max_attempts: Optional[int] = Field(None, alias="so_luot_lam_toi_da", description="Lượt làm tối đa")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
+
+class QuizUpdate(BaseModel):
+    tieu_de: Optional[str] = None
+    diem_dat: Optional[Decimal] = None
+    thoi_gian_lam_bai: Optional[int] = None
+    so_luot_lam_toi_da: Optional[int] = None
 
 from app.schemas.course import CourseMinimalResponse
 
@@ -76,9 +79,7 @@ class QuizResponse(BaseModel):
     ngay_tao: datetime
     khoa_hoc: Optional[CourseMinimalResponse] = None
     
-    class Config:
-        from_attributes = True
-        populate_by_name = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 class QuizDetailResponse(QuizResponse):
     cau_hoi: List[QuestionResponse] = []
@@ -107,8 +108,7 @@ class QuizAttemptAnswerResponse(BaseModel):
     ma_cau_hoi: int
     ma_lua_chon: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class QuizAttemptResponse(BaseModel):
     id: int
@@ -122,5 +122,4 @@ class QuizAttemptResponse(BaseModel):
     bai_kiem_tra: Optional[QuizResponse] = None
     cau_tra_loi_chi_tiet: List[QuizAttemptAnswerResponse] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

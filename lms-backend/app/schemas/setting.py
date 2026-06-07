@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 
 class SettingBase(BaseModel):
@@ -21,8 +21,7 @@ class SettingUpdateBulk(BaseModel):
 class SettingResponse(SettingBase):
     id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class SettingPublicResponse(BaseModel):
     key: str

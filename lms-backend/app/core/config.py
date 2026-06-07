@@ -18,6 +18,12 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "YOUR_SUPER_SECRET_KEY_FOR_JWT_SIGNING_1234567890"  # Đổi trong .env thực tế
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 1 ngày
+    AUTH_COOKIE_NAME: str = "lms_session"
+    ENABLE_MOCK_AUTH: bool = False
+    ENABLE_MOCK_PAYMENTS: bool = False
+    PAYMENT_WEBHOOK_SECRET: Optional[str] = None
+    API_PUBLIC_URL: str = "http://localhost:8000"
+    CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
     
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/lms_database"
 
@@ -39,4 +45,3 @@ class Settings(BaseSettings):
 
 # Khởi tạo instance duy nhất để import dùng chung toàn dự án
 settings = Settings()
-

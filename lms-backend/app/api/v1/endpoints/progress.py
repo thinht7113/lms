@@ -142,6 +142,19 @@ async def get_lesson_learning_content(
 
 
 # ==================== LESSON PROGRESS UPDATE ENDPOINT ====================
+@router.get(
+    "/progress/lessons/{lesson_id}",
+    response_model=ProgressResponse,
+    summary="Lấy trạng thái và vị trí xem gần nhất của bài học",
+)
+async def get_lesson_progress(
+    lesson_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await CertService.get_lesson_progress(db, current_user.id, lesson_id)
+
+
 @router.put(
     "/progress/lessons/{lesson_id}",
     response_model=ProgressResponse,

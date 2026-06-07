@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from datetime import datetime
 from typing import Optional, List, TYPE_CHECKING
 
@@ -62,8 +62,7 @@ class InstructorResponse(BaseModel):
     so_luong_khoa_hoc: int = Field(0, description="Tổng số khóa học đang dạy")
     so_luong_hoc_vien: int = Field(0, description="Tổng số học viên")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # 7. Schema chi tiết Giảng viên kèm danh sách khóa học
 class InstructorDetailResponse(InstructorResponse):

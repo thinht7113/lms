@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from decimal import Decimal
 from datetime import datetime
@@ -8,8 +8,7 @@ from app.schemas.course import CourseResponse
 class CartItemAdd(BaseModel):
     course_id: int = Field(..., alias="ma_khoa_hoc", description="ID Khóa học")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 class CartItemResponse(BaseModel):
     id: int
@@ -18,15 +17,13 @@ class CartItemResponse(BaseModel):
     ngay_them_vao_gio: Optional[datetime] = None
     khoa_hoc: CourseResponse
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class CartResponse(BaseModel):
     chi_tiet_gio_hang: List[CartItemResponse] = []
     tong_tien_tam_tinh: Decimal = Decimal("0.00")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==================== COUPON SCHEMAS ====================
@@ -39,8 +36,7 @@ class CouponCreate(BaseModel):
     so_luot_dung_toi_da: Optional[int] = Field(None, alias="so_luot_dung_toi_da")
     end_date: Optional[datetime] = Field(None, alias="ngay_het_han", description="Ngày hết hạn")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 class CouponUpdate(BaseModel):
     loai_giam_gia: Optional[str] = None
@@ -49,8 +45,7 @@ class CouponUpdate(BaseModel):
     so_luot_dung_toi_da: Optional[int] = None
     end_date: Optional[datetime] = Field(None, alias="ngay_het_han")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 class CouponResponse(BaseModel):
     id: int
@@ -62,8 +57,7 @@ class CouponResponse(BaseModel):
     so_luot_da_dung: int
     ngay_het_han: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class CouponApplyRequest(BaseModel):
     code: str = Field(..., description="Mã giảm giá cần áp dụng")
@@ -72,7 +66,7 @@ class CouponApplyRequest(BaseModel):
 class CouponApplyResponse(BaseModel):
     coupon_id: int
     code: str
-    discount_percentage: Decimal  # Tương thích ngược (ví dụ: phan_tram_giam)
+    discount_percentage: Decimal
     discount_amount: Decimal
     final_amount: Decimal
     loai_giam_gia: Optional[str] = None
@@ -90,8 +84,7 @@ class OrderItemResponse(BaseModel):
     gia_luc_mua: Decimal
     khoa_hoc: Optional[CourseResponse] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class OrderResponse(BaseModel):
     id: int
@@ -102,16 +95,14 @@ class OrderResponse(BaseModel):
     ngay_tao: datetime
     chi_tiet_don_hang: List[OrderItemResponse] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class PaymentMockRequest(BaseModel):
     order_id: int = Field(..., alias="ma_don_hang", description="ID Đơn hàng")
     payment_method: str = Field("visa", alias="phuong_thuc_thanh_toan", description="Phương thức thanh toán")
     transaction_code: Optional[str] = Field("TX12345678", alias="ma_giao_dich", description="Mã giao dịch")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 class PaymentResponse(BaseModel):
     id: int
@@ -120,5 +111,4 @@ class PaymentResponse(BaseModel):
     ma_giao_dich: Optional[str]
     ngay_thanh_toan: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

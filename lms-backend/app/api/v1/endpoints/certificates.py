@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from sqlalchemy.orm import selectinload
@@ -7,9 +7,46 @@ from app.models.user import User
 from app.models.certificate import Certificate
 from app.schemas.certificate import CertificateResponse, CertificateVerifyResponse
 from app.services.cert_service import CertService
+from app.services.certificate_pdf import build_certificate_pdf
 from typing import List
 
 router = APIRouter()
+
+
+@router.get(
+    "/public/{certificate_uuid}/pdf",
+    response_class=Response,
+    summary="Tải bản PDF công khai của chứng chỉ đã xác minh"
+)
+async def get_public_certificate_pdf(
+    certificate_uuid: str,
+    db: AsyncSession = Depends(get_db)
+):
+    verification = await CertService.verify_certificate(db, certificate_uuid)
+    cert = verification.get("certificate")
+    if not verification["valid"] or cert is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Chứng chỉ không tồn tại hoặc đã bị thu hồi."
+        )
+
+    pdf = build_certificate_pdf(
+        student_name=cert.nguoi_dung.ho_ten,
+        course_title=cert.khoa_hoc.tieu_de,
+        certificate_uuid=certificate_uuid,
+        issued_date=cert.ngay_cap.strftime("%Y-%m-%d"),
+    )
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": (
+                f'inline; filename="certificate-{certificate_uuid}.pdf"'
+            ),
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
 
 @router.get(
     "/my-certificates",

@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_, and_, desc, asc, func
 from sqlalchemy.orm import selectinload, attributes
 from fastapi import HTTPException, status
-from app.models.course import Category, Course, Section, Lesson, LessonContent, Enrollment, CourseReview, Wishlist, CoursePrerequisite
+from app.models.course import Category, Course, Section, Lesson, LessonContent, Enrollment, CourseReview, Wishlist
 from app.models.user import User
 from app.schemas.course import CategoryCreate, CourseCreate, CourseUpdate, SectionCreate, LessonCreate, LessonUpdate, LessonContentCreate, ReviewCreate
 from typing import List, Optional
@@ -54,7 +54,7 @@ class CourseService:
 
     @staticmethod
     async def get_course(db: AsyncSession, course_id: int) -> Course:
-        # Load đầy đủ chương học, bài học, đánh giá và điều kiện tiên quyết bằng selectinload
+        # Load đầy đủ chương học, bài học, đánh giá bằng selectinload
         result = await db.execute(
             select(Course)
             .options(
@@ -62,9 +62,7 @@ class CourseService:
                 .selectinload(Section.bai_hoc)
                 .selectinload(Lesson.noi_dung),
                 selectinload(Course.danh_gia_khoa_hoc)
-                .selectinload(CourseReview.nguoi_dung),
-                selectinload(Course.dieu_kien_tien_quyet)
-                .selectinload(CoursePrerequisite.khoa_hoc_tien_quyet)
+                .selectinload(CourseReview.nguoi_dung)
             )
             .where(Course.id == course_id)
         )
@@ -90,7 +88,8 @@ class CourseService:
         sort_by: Optional[str] = "ngay_tao",
         order: Optional[str] = "desc"
     ) -> List[Course]:
-        query = select(Course).where(Course.da_xuat_ban == True)
+        # Pre-fetch dang_ky_hoc to optimize the so_luong_hoc_vien property (avoid N+1)
+        query = select(Course).options(selectinload(Course.dang_ky_hoc)).where(Course.da_xuat_ban == True)
 
         # 1. Filters
         if q:
@@ -212,8 +211,7 @@ class CourseService:
         )
 
         db.add(db_lesson)
-        await db.commit()
-        await db.refresh(db_lesson)
+        await db.flush()
         
         # Thêm các block nội dung nếu có
         for content_in in lesson_in.noi_dung:
@@ -226,8 +224,7 @@ class CourseService:
             )
             db.add(db_content)
         
-        if lesson_in.noi_dung:
-            await db.commit()
+        await db.commit()
         
         # Load lại kèm chuong_hoc và noi_dung để trả về chuẩn Schema
         final_res = await db.execute(
@@ -461,156 +458,3 @@ class CourseService:
             .order_by(desc(Wishlist.ngay_them))
         )
         return list(result.scalars().all())
-
-    # ==================== COURSE PREREQUISITE SERVICES ====================
-    @staticmethod
-    async def add_course_prerequisite(db: AsyncSession, course_id: int, prereq_id: int) -> CoursePrerequisite:
-        if course_id == prereq_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Khóa học không thể tự làm điều kiện tiên quyết của chính nó."
-            )
-            
-        # Kiểm tra sự tồn tại của cả hai khóa học
-        main_course_res = await db.execute(select(Course).where(Course.id == course_id))
-        if not main_course_res.scalars().first():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Khóa học chính không tồn tại."
-            )
-            
-        prereq_course_res = await db.execute(select(Course).where(Course.id == prereq_id))
-        prereq_course = prereq_course_res.scalars().first()
-        if not prereq_course:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Khóa học tiên quyết không tồn tại."
-            )
-            
-        # Kiểm tra xem liên kết đã tồn tại chưa
-        existing = await db.execute(
-            select(CoursePrerequisite).where(
-                and_(
-                    CoursePrerequisite.ma_khoa_hoc_chinh == course_id,
-                    CoursePrerequisite.ma_khoa_hoc_tien_quyet == prereq_id
-                )
-            )
-        )
-        if existing.scalars().first():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Điều kiện tiên quyết này đã tồn tại."
-            )
-            
-        # Kiểm tra tính tuần hoàn: prereq_id có yêu cầu course_id làm tiên quyết không?
-        async def check_circular(start: int, target: int) -> bool:
-            visited = set()
-            queue = [start]
-            while queue:
-                curr = queue.pop(0)
-                if curr == target:
-                    return True
-                if curr in visited:
-                    continue
-                visited.add(curr)
-                res = await db.execute(
-                    select(CoursePrerequisite.ma_khoa_hoc_tien_quyet)
-                    .where(CoursePrerequisite.ma_khoa_hoc_chinh == curr)
-                )
-                for p_id in res.scalars().all():
-                    if p_id not in visited:
-                        queue.append(p_id)
-            return False
-            
-        if await check_circular(prereq_id, course_id):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Không thể tạo liên kết vì sẽ gây ra chu kỳ phụ thuộc điều kiện tiên quyết."
-            )
-            
-        db_prereq = CoursePrerequisite(
-            ma_khoa_hoc_chinh=course_id,
-            ma_khoa_hoc_tien_quyet=prereq_id
-        )
-        db.add(db_prereq)
-        await db.commit()
-        await db.refresh(db_prereq)
-        
-        attributes.set_committed_value(db_prereq, "khoa_hoc_tien_quyet", prereq_course)
-        return db_prereq
-
-    @staticmethod
-    async def delete_course_prerequisite(db: AsyncSession, course_id: int, prereq_id: int) -> bool:
-        # Tìm bản ghi liên kết điều kiện tiên quyết
-        result = await db.execute(
-            select(CoursePrerequisite).where(
-                and_(
-                    CoursePrerequisite.ma_khoa_hoc_chinh == course_id,
-                    CoursePrerequisite.ma_khoa_hoc_tien_quyet == prereq_id
-                )
-            )
-        )
-        db_prereq = result.scalars().first()
-        if not db_prereq:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Mối liên kết điều kiện tiên quyết này không tồn tại."
-            )
-        await db.delete(db_prereq)
-        await db.commit()
-        return True
-
-    @staticmethod
-    async def check_prerequisites(db: AsyncSession, user_id: int, course_id: int):
-        # Lấy tất cả điều kiện tiên quyết của khóa học chính
-        result = await db.execute(
-            select(CoursePrerequisite)
-            .options(selectinload(CoursePrerequisite.khoa_hoc_tien_quyet))
-            .where(CoursePrerequisite.ma_khoa_hoc_chinh == course_id)
-        )
-        prereqs = result.scalars().all()
-        
-        from app.services.cert_service import CertService
-        from app.models.certificate import Certificate
-        
-        for prereq in prereqs:
-            prereq_id = prereq.ma_khoa_hoc_tien_quyet
-            prereq_title = prereq.khoa_hoc_tien_quyet.tieu_de
-            
-            # 1. Kiểm tra xem có chứng chỉ chưa
-            cert_res = await db.execute(
-                select(Certificate).where(
-                    and_(
-                        Certificate.ma_nguoi_dung == user_id,
-                        Certificate.ma_khoa_hoc == prereq_id
-                    )
-                )
-            )
-            if cert_res.scalars().first():
-                continue
-                
-            # 2. Kiểm tra Enrollment
-            enroll_res = await db.execute(
-                select(Enrollment).where(
-                    and_(
-                        Enrollment.ma_nguoi_dung == user_id,
-                        Enrollment.ma_khoa_hoc == prereq_id
-                    )
-                )
-            )
-            enrollment = enroll_res.scalars().first()
-            if not enrollment:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Bạn cần hoàn thành khóa học tiên quyết: {prereq_title} trước khi đăng ký khóa học này."
-                )
-                
-            # 3. Tính tiến độ nếu đã Enrollment
-            progress_data = await CertService.get_course_progress(db, user_id, prereq_id)
-            if progress_data["progress_percentage"] < 100.0:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Bạn cần hoàn thành khóa học tiên quyết: {prereq_title} trước khi đăng ký khóa học này."
-                )
-
-

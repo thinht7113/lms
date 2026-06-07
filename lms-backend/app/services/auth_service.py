@@ -48,6 +48,12 @@ class AuthService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Email hoặc mật khẩu không chính xác."
             )
+
+        if not user.trang_thai_hoat_dong:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên."
+            )
         
         if not user.mat_khau:
             raise HTTPException(

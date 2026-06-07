@@ -1,113 +1,210 @@
 @import "tailwindcss";
 
-@theme {
-  --font-sans: var(--font-be-vietnam), "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-heading: var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
+@theme inline {
+  /* Brand Colors */
+  --color-primary: #2563EB; /* Học viên - Xanh Dương */
+  --color-primary-foreground: #FFFFFF;
+  
+  --color-instructor: #7C3AED; /* Giảng viên - Tím */
+  --color-instructor-foreground: #FFFFFF;
+  
+  --color-admin: #4F46E5; /* Admin - Indigo */
+  --color-admin-foreground: #FFFFFF;
 
-  --color-primary: #0f172a; /* Slate 900 - Đen nhám sang trọng */
-  --color-on-primary: #ffffff;
-  --color-primary-container: #f1f5f9; /* Slate 100 */
-  --color-on-primary-container: #0f172a;
+  /* Status Colors */
+  --color-success: #10B981;
+  --color-success-foreground: #FFFFFF;
   
-  --color-secondary: #475569; /* Slate 600 */
-  --color-on-secondary: #ffffff;
-  --color-secondary-container: #e2e8f0;
-  --color-on-secondary-container: #1e293b;
+  --color-warning: #F59E0B;
+  --color-warning-foreground: #FFFFFF;
   
-  --color-tertiary: #b49359; /* Gold nhạt làm điểm nhấn sang trọng */
-  --color-on-tertiary: #ffffff;
-  --color-tertiary-container: #fdf6e3;
-  --color-on-tertiary-container: #4a3c22;
+  --color-danger: #EF4444;
+  --color-danger-foreground: #FFFFFF;
   
-  --color-error: #dc2626; /* Red 600 */
-  --color-on-error: #ffffff;
-  --color-error-container: #fef2f2;
-  --color-on-error-container: #991b1b;
+  --color-info: #3B82F6;
+  --color-info-foreground: #FFFFFF;
+
+  /* Neutral Colors */
+  --color-background: #FFFFFF;
+  --color-foreground: #111827; /* Text Primary */
   
-  --color-success: #22c55e; /* Green 500 */
-  --color-on-success: #ffffff;
-  --color-success-container: #f0fdf4;
-  --color-on-success-container: #166534;
+  --color-surface: #F9FAFB; /* Card / Block background */
+  --color-muted: #F3F4F6;
+  --color-muted-foreground: #4B5563; /* Text Secondary */
   
-  --color-warning: #f59e0b; /* Amber 500 */
-  --color-on-warning: #ffffff;
-  --color-warning-container: #fffbeb;
-  --color-on-warning-container: #b45309;
-  
-  --color-background: #f8fafc; /* Nền sáng cực nhạt */
-  --color-on-background: #0f172a;
-  
-  --color-surface: #ffffff;
-  --color-on-surface: #0f172a;
-  
-  --color-surface-variant: #f1f5f9;
-  --color-on-surface-variant: #475569;
-  
-  --color-outline: #94a3b8;
-  --color-outline-variant: #e2e8f0;
-  
-  --color-surface-container-highest: #e2e8f0;
-  --color-surface-container-high: #f1f5f9;
-  --color-surface-container: #f8fafc;
-  --color-surface-container-low: #ffffff;
-  --color-surface-container-lowest: #ffffff;
+  --color-border: #E5E7EB;
+  --color-input: #E5E7EB;
+  --color-ring: #2563EB;
+
+  /* Semantic Mappings for generic components */
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-foreground);
+  --color-secondary: var(--color-surface);
+  --color-secondary-foreground: var(--color-primary);
+
+  /* Typography */
+  --font-sans: "Inter", system-ui, sans-serif;
+
+  /* Core Spacing & Radius */
+  --radius: 8px;
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+/* Base resets */
+* {
+  border-color: var(--color-border);
 }
 
 body {
   background-color: var(--color-background);
-  color: var(--color-on-background);
+  color: var(--color-foreground);
   font-family: var(--font-sans);
-  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-heading);
-  letter-spacing: -0.025em;
-  font-weight: 800;
+/* TYPOGRAPHY UTILITIES */
+h1, .h1 {
+  font-size: 32px;
+  font-weight: 700; /* Bold */
+  color: var(--color-foreground);
+  line-height: 1.2;
 }
 
-/* ==================== CUSTOM SCROLLBAR ==================== */
+h2, .h2 {
+  font-size: 24px;
+  font-weight: 600; /* Semi-bold */
+  color: var(--color-foreground);
+  line-height: 1.3;
+}
+
+p, .body-text {
+  font-size: 16px;
+  font-weight: 400; /* Regular */
+  line-height: 1.6;
+}
+
+.caption {
+  font-size: 14px;
+  font-weight: 500; /* Medium */
+  color: var(--color-muted-foreground);
+}
+
+/* BUTTON UTILITIES */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+  font-weight: 600;
+  transition: all 0.3s ease-in-out;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background-color: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+.btn-primary:hover {
+  background-color: #1D4ED8; /* Darker blue */
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+}
+
+.btn-secondary {
+  background-color: var(--color-background);
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
+}
+.btn-secondary:hover {
+  background-color: var(--color-surface);
+  border-color: var(--color-primary);
+}
+
+.btn-admin {
+  background-color: var(--color-admin);
+  color: var(--color-admin-foreground);
+}
+.btn-admin:hover {
+  background-color: #4338CA;
+}
+
+/* COURSE CARD UTILITIES */
+.course-card {
+  background-color: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 16px; /* Hơi to hơn button một chút cho đẹp */
+  overflow: hidden;
+  transition: all 0.3s ease-in-out;
+}
+.course-card:hover {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border-color: var(--color-primary);
+}
+.course-card-image-wrapper {
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+}
+.course-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease-in-out;
+}
+.course-card:hover .course-card-img {
+  transform: scale(1.05);
+}
+
+/* PROGRESS BAR */
+.progress-track {
+  width: 100%;
+  height: 8px;
+  background-color: var(--color-border);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background-color: var(--color-success);
+  transition: width 0.5s ease-out;
+}
+
+/* EFFECTS & MOTION */
+.glass-modal {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.backdrop-blur-overlay {
+  background: rgba(17, 24, 39, 0.4); /* Text Primary with opacity */
+  backdrop-filter: blur(4px);
+}
+
+@keyframes pulse-skeleton {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.skeleton {
+  background-color: var(--color-border);
+  animation: pulse-skeleton 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  border-radius: var(--radius);
+}
+
+/* CUSTOM SCROLLBAR */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--color-surface-container-lowest);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-outline-variant);
+  background: var(--color-border);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-outline);
-}
-
-/* ==================== UTILITIES ==================== */
-.glass-panel {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-}
-
-.hover-glow:hover {
-  box-shadow: 0 10px 15px -3px rgba(99, 14, 212, 0.1), 0 4px 6px -2px rgba(99, 14, 212, 0.05);
-  border-color: rgba(99, 14, 212, 0.2);
-}
-
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.mask-linear-x {
-  mask-image: linear-gradient(to right, transparent, black 10px, black calc(100% - 10px), transparent);
-}
-
-.mask-image-left {
-  mask-image: linear-gradient(to left, black 60%, transparent 100%);
+  background: var(--color-muted-foreground);
 }

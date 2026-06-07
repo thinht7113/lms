@@ -6,6 +6,7 @@ from app.models.course import Course, Section, Lesson, Enrollment, Progress
 from app.models.quiz import Quiz, QuizAttempt
 from app.models.certificate import Certificate
 from app.schemas.certificate import ProgressUpdate
+from app.core.config import settings
 import uuid
 from typing import List, Optional
 from datetime import datetime
@@ -98,13 +99,17 @@ class CertService:
             db_progress = Progress(
                 ma_dang_ky_hoc=enrollment.id,
                 ma_bai_hoc=lesson_id,
-                da_hoan_thanh=progress_in.is_completed,
-                ngay_hoan_thanh=datetime.now() if progress_in.is_completed else None
+                da_hoan_thanh=bool(progress_in.is_completed),
+                ngay_hoan_thanh=datetime.now() if progress_in.is_completed else None,
+                video_resume_seconds=progress_in.video_resume_seconds or 0,
             )
             db.add(db_progress)
         else:
-            db_progress.da_hoan_thanh = progress_in.is_completed
-            db_progress.ngay_hoan_thanh = datetime.now() if progress_in.is_completed else None
+            if progress_in.is_completed is not None:
+                db_progress.da_hoan_thanh = progress_in.is_completed
+                db_progress.ngay_hoan_thanh = datetime.now() if progress_in.is_completed else None
+            if progress_in.video_resume_seconds is not None:
+                db_progress.video_resume_seconds = progress_in.video_resume_seconds
             db.add(db_progress)
 
         await db.commit()
@@ -114,6 +119,26 @@ class CertService:
         await CertService.check_and_issue_certificate(db, user_id, lesson.chuong_hoc.ma_khoa_hoc)
 
         return db_progress
+
+    @staticmethod
+    async def get_lesson_progress(db: AsyncSession, user_id: int, lesson_id: int) -> Progress:
+        result = await db.execute(
+            select(Progress)
+            .join(Enrollment, Progress.ma_dang_ky_hoc == Enrollment.id)
+            .where(
+                and_(
+                    Enrollment.ma_nguoi_dung == user_id,
+                    Progress.ma_bai_hoc == lesson_id,
+                )
+            )
+        )
+        progress = result.scalars().first()
+        if not progress:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Chưa có tiến độ cho bài học này.",
+            )
+        return progress
 
     @staticmethod
     async def get_course_progress(db: AsyncSession, user_id: int, course_id: int) -> dict:
@@ -242,13 +267,16 @@ class CertService:
 
         # 4. Tiến hành cấp chứng chỉ mới
         cert_uuid = str(uuid.uuid4())
-        mock_pdf_path = f"https://lms-storage.local/certificates/cert_{cert_uuid}.pdf"
+        certificate_url = (
+            f"{settings.API_PUBLIC_URL.rstrip('/')}"
+            f"/api/v1/certificates/public/{cert_uuid}/pdf"
+        )
 
         new_cert = Certificate(
             ma_nguoi_dung=user_id,
             ma_khoa_hoc=course_id,
             uuid=cert_uuid,
-            duong_dan_chung_chi=mock_pdf_path
+            duong_dan_chung_chi=certificate_url
         )
         db.add(new_cert)
         await db.commit()

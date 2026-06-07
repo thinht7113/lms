@@ -2,19 +2,11 @@ import uuid
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, status
 from fastapi.concurrency import run_in_threadpool
 from app.api.deps import get_current_user
+from app.core.security_guards import can_upload_content
 from app.models.user import User
 from app.services.storage_service import StorageService
 
 router = APIRouter()
-
-# Helper validation for allowed roles
-def require_instructor_or_admin(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.vai_tro not in ["instructor", "admin"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Yêu cầu quyền giảng viên hoặc quản trị viên để tải lên tài liệu."
-        )
-    return current_user
 
 # Max file size: 50MB for general uploads (videos can be larger, but this is a reasonable default constraint)
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
@@ -38,20 +30,12 @@ async def upload_file(
         )
 
     # 2. Kiểm tra loại tệp
-    allowed_types = ["application/pdf", "image/png", "image/jpeg", "image/jpg", "image/gif", "video/mp4", "video/mpeg", "video/quicktime"]
     content_type = file.content_type or ""
-    
-    # Allow all images, videos, and pdfs
-    is_valid_type = (
-        content_type.startswith("image/") or
-        content_type.startswith("video/") or
-        content_type == "application/pdf"
-    )
-    
-    if not is_valid_type:
+
+    if not can_upload_content(current_user.vai_tro, content_type):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Định dạng tệp không được hỗ trợ. Vui lòng chỉ tải lên tài liệu PDF, hình ảnh hoặc video bài giảng."
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Vai trò hoặc định dạng tệp không được phép tải lên."
         )
 
     # 3. Tạo tên tệp duy nhất để tránh trùng lặp

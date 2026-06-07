@@ -1,307 +1,423 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { apiFetch, formatPrice, levelLabel, getCourseImage } from "@/lib/api";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import WishlistButton from "@/components/WishlistButton";
+import { Search, Filter, Star, RefreshCw, LayoutGrid, List } from "lucide-react";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+import CourseCard from "@/components/CourseCard";
+import { apiService, Course, Category } from "@/services/api";
 
-interface Course {
-    id: number;
-    tieu_de: string;
-    mo_ta: string | null;
-    gia_tien: string;
-    trinh_do: string;
-    da_xuat_ban: boolean;
-    danh_gia_trung_binh: string;
-    ma_danh_muc: number | null;
-}
-
-interface Category {
-    id: number;
-    ten_danh_muc: string;
-}
-
-function CoursesContent() {
-    const searchParams = useSearchParams();
-    const router = useRouter();
-    const pathname = usePathname();
-
-    // URL Params State
-    const query = searchParams.get("q") || "";
-    const categoryId = searchParams.get("category") || "";
-    const level = searchParams.get("level") || "";
-    const minPrice = searchParams.get("min_price") || "";
-    const maxPrice = searchParams.get("max_price") || "";
-    const sortBy = searchParams.get("sort_by") || "ngay_tao";
-    const order = searchParams.get("order") || "desc";
-
-    const [courses, setCourses] = useState<Course[]>([]);
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [showFilter, setShowFilter] = useState(true);
-
-    // Update query params function
-    const updateQueryParams = (updates: Record<string, string | null>) => {
-        const params = new URLSearchParams(searchParams.toString());
-        Object.keys(updates).forEach(key => {
-            if (updates[key]) {
-                params.set(key, updates[key] as string);
-            } else {
-                params.delete(key);
-            }
-        });
-        router.push(pathname + "?" + params.toString(), { scroll: false });
-    };
-
-    useEffect(() => {
-        const load = async () => {
-            setLoading(true);
-            try {
-                if (categories.length === 0) {
-                    const catRes = await apiFetch("/categories");
-                    if (catRes.ok) setCategories(await catRes.json());
-                }
-
-                const params = new URLSearchParams();
-                if (query) params.append("q", query);
-                if (categoryId) params.append("ma_danh_muc", categoryId);
-                if (level) params.append("trinh_do", level);
-                if (minPrice) params.append("gia_min", minPrice);
-                if (maxPrice) params.append("gia_max", maxPrice);
-                if (sortBy) params.append("sort_by", sortBy);
-                if (order) params.append("order", order);
-
-                const cRes = await apiFetch(`/courses?${params.toString()}`);
-                if (cRes.ok) {
-                    setCourses(await cRes.json());
-                }
-            } catch (e) {
-                console.error(e);
-            }
-            setLoading(false);
-        };
-        load();
-    }, [query, categoryId, level, minPrice, maxPrice, sortBy, order]);
-
-    // View Helpers
-    const handlePriceChange = (type: string) => {
-        if (type === "free") updateQueryParams({ min_price: "0", max_price: "0" });
-        else if (type === "paid") updateQueryParams({ min_price: "1", max_price: null });
-        else updateQueryParams({ min_price: null, max_price: null });
-    };
-    const currentPrice = () => {
-        if (minPrice === "0" && maxPrice === "0") return "free";
-        if (minPrice === "1") return "paid";
-        return "all";
-    };
-
-    return (
-        <div className="animate-slide-up pb-12">
-            {/* Top Toolbar (Sort) */}
-            <div className="flex flex-col sm:flex-row items-center justify-between bg-surface p-4 rounded-2xl border border-outline-variant/40 shadow-sm mb-6 gap-4">
-                <div className="flex items-center gap-4 w-full sm:w-auto">
-                    <button
-                        onClick={() => setShowFilter(!showFilter)}
-                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border transition-all ${showFilter
-                            ? "bg-primary/10 border-primary/20 text-primary"
-                            : "bg-surface border-outline-variant text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
-                            }`}
-                    >
-                        <i className={`ph-bold ${showFilter ? "ph-faders-horizontal" : "ph-faders"} text-base`}></i>
-                        {showFilter ? "Ẩn bộ lọc" : "Bộ lọc"}
-                    </button>
-                    <div className="text-sm font-bold text-on-surface-variant flex items-center gap-2">
-                        <i className="ph-fill ph-funnel text-primary text-lg"></i>
-                        Đang hiển thị <span className="text-primary">{courses.length}</span> kết quả
-                    </div>
-                </div>
-                <div className="flex items-center gap-2 text-sm font-bold text-on-surface w-full sm:w-auto justify-end">
-                    Sắp xếp theo:
-                    <select
-                        className="bg-surface-container border border-outline-variant/60 rounded-xl px-4 py-2 font-bold text-on-surface focus:ring-2 focus:ring-primary focus:outline-none transition-all"
-                        value={`${sortBy}-${order}`}
-                        onChange={(e) => {
-                            const [s, o] = e.target.value.split('-');
-                            updateQueryParams({ sort_by: s, order: o });
-                        }}
-                    >
-                        <option value="ngay_tao-desc">Mới nhất</option>
-                        <option value="danh_gia_trung_binh-desc">Đánh giá cao</option>
-                        <option value="gia_tien-asc">Giá thấp đến cao</option>
-                        <option value="gia_tien-desc">Giá cao xuống thấp</option>
-                    </select>
-                </div>
-            </div>
-
-            <div className="flex flex-col lg:flex-row gap-8">
-                {showFilter && (
-                    <aside className="w-full lg:w-[280px] shrink-0 space-y-6 animate-scale-up">
-                        <div className="glass-panel p-6 rounded-[24px] bg-surface border border-outline-variant/50 shadow-sm sticky top-24">
-                            <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-lg font-black text-on-surface flex items-center gap-2">
-                                    <i className="ph-fill ph-faders text-primary"></i> Bộ lọc
-                                </h2>
-                                <button
-                                    onClick={() => router.push('/courses')}
-                                    className="text-xs font-bold text-error hover:bg-error-container px-2 py-1 rounded-lg transition-colors"
-                                >
-                                    Xóa lọc
-                                </button>
-                            </div>
-
-                            {/* Danh mục */}
-                            <div className="mb-6">
-                                <h3 className="text-sm font-bold text-on-surface-variant mb-3 uppercase tracking-wider">Danh mục</h3>
-                                <div className="space-y-2">
-                                    <button
-                                        onClick={() => updateQueryParams({ category: null })}
-                                        className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${!categoryId ? "bg-primary/10 text-primary" : "text-on-surface hover:bg-surface-container"}`}
-                                    >
-                                        {categoryId ? <i className="ph ph-circle"></i> : <i className="ph-fill ph-check-circle"></i>}
-                                        Tất cả
-                                    </button>
-                                    {categories.map(cat => (
-                                        <button
-                                            key={cat.id}
-                                            onClick={() => updateQueryParams({ category: cat.id.toString() })}
-                                            className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${categoryId === cat.id.toString() ? "bg-primary/10 text-primary" : "text-on-surface hover:bg-surface-container"}`}
-                                        >
-                                            {categoryId === cat.id.toString() ? <i className="ph-fill ph-check-circle"></i> : <i className="ph ph-circle"></i>}
-                                            {cat.ten_danh_muc}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Trình độ */}
-                            <div className="mb-6">
-                                <h3 className="text-sm font-bold text-on-surface-variant mb-3 uppercase tracking-wider">Trình độ</h3>
-                                <div className="space-y-2">
-                                    {[
-                                        { value: "", label: "Mọi trình độ" },
-                                        { value: "beginner", label: "Cơ bản" },
-                                        { value: "intermediate", label: "Trung bình" },
-                                        { value: "advanced", label: "Nâng cao" }
-                                    ].map(lvl => (
-                                        <button
-                                            key={lvl.value}
-                                            onClick={() => updateQueryParams({ level: lvl.value || null })}
-                                            className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${level === lvl.value ? "bg-secondary/10 text-secondary" : "text-on-surface hover:bg-surface-container"}`}
-                                        >
-                                            {level === lvl.value ? <i className="ph-fill ph-check-circle"></i> : <i className="ph ph-circle"></i>}
-                                            {lvl.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Giá tiền */}
-                            <div>
-                                <h3 className="text-sm font-bold text-on-surface-variant mb-3 uppercase tracking-wider">Giá tiền</h3>
-                                <div className="grid grid-cols-1 gap-2">
-                                    {[
-                                        { value: "all", label: "Tất cả" },
-                                        { value: "free", label: "Miễn phí" },
-                                        { value: "paid", label: "Trả phí" }
-                                    ].map(p => (
-                                        <button
-                                            key={p.value}
-                                            onClick={() => handlePriceChange(p.value)}
-                                            className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${currentPrice() === p.value ? "bg-tertiary/10 text-tertiary" : "text-on-surface hover:bg-surface-container"}`}
-                                        >
-                                            {currentPrice() === p.value ? <i className="ph-fill ph-check-circle"></i> : <i className="ph ph-circle"></i>}
-                                            {p.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </aside>
-                )}
-
-                {/* CỘT PHẢI: KẾT QUẢ TÌM KIẾM */}
-                <div className="flex-1">
-
-                    {/* Course Grid */}
-                    {loading ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pt-2">
-                            {[1, 2, 3, 4, 5, 6].map(i => (
-                                <div key={i} className="glass-panel rounded-3xl h-[400px] animate-pulse bg-surface-container"></div>
-                            ))}
-                        </div>
-                    ) : courses.length === 0 ? (
-                        <div className="text-center py-20 bg-surface/50 rounded-3xl border border-outline-variant/40 shadow-sm">
-                            <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <i className="ph-fill ph-magnifying-glass text-5xl text-primary drop-shadow-sm"></i>
-                            </div>
-                            <h3 className="text-2xl font-black text-on-surface mb-3">Không tìm thấy khóa học nào</h3>
-                            <p className="text-on-surface-variant font-medium max-w-sm mx-auto">Thử thay đổi từ khóa, xóa bộ lọc giá hoặc chọn trình độ khác xem sao.</p>
-                            <button
-                                onClick={() => router.push('/courses')}
-                                className="mt-6 px-6 py-2 bg-primary text-white rounded-xl font-bold shadow-md hover:opacity-90"
-                            >
-                                Xóa tất cả bộ lọc
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pt-2">
-                            {courses.map((course, idx) => (
-                                <Link
-                                    key={course.id}
-                                    href={`/courses/${course.id}`}
-                                    className="glass-panel group rounded-3xl border border-outline-variant/50 overflow-hidden hover:border-primary/50 transition-all flex flex-col h-full hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10 bg-surface"
-                                    style={{ animationDelay: `${idx * 0.05}s`, animationFillMode: "both" }}
-                                >
-                                    <div className="h-48 relative bg-surface-container-high overflow-hidden">
-                                        <img
-                                            src={getCourseImage(course.tieu_de)}
-                                            alt={course.tieu_de}
-                                            className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                                        />
-                                        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-secondary/10 opacity-70 group-hover:scale-110 transition-transform duration-700"></div>
-                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/25">
-                                            <i className="ph-fill ph-play-circle text-6xl text-white drop-shadow-lg"></i>
-                                        </div>
-                                        <div className="absolute top-3 left-3 flex gap-2 z-10">
-                                            <span className="px-3 py-1 bg-surface/90 backdrop-blur-md text-on-surface text-[10px] font-black rounded-lg shadow-sm border border-outline-variant/30 uppercase tracking-wider">
-                                                {categories.find((cat) => cat.id === course.ma_danh_muc)?.ten_danh_muc || "Khác"}
-                                            </span>
-                                        </div>
-                                        <WishlistButton courseId={course.id} />
-                                        <div className="absolute top-3 right-14 bg-surface/90 backdrop-blur-md px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-sm border border-outline-variant/30 z-10">
-                                            <i className="ph-fill ph-star text-warning text-xs drop-shadow-sm"></i>
-                                            <span className="text-xs font-black text-on-surface">{parseFloat(course.danh_gia_trung_binh).toFixed(1)}</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="p-6 flex flex-col flex-1 relative">
-                                        <h3 className="text-lg font-black text-on-surface mb-2 line-clamp-2 group-hover:text-primary transition-colors leading-tight">{course.tieu_de}</h3>
-                                        <p className="text-sm text-on-surface-variant mb-5 line-clamp-2 flex-1 font-medium leading-relaxed">{course.mo_ta}</p>
-
-                                        <div className="flex items-center justify-between pt-4 border-t border-outline-variant/40 mt-auto">
-                                            <div className="flex items-center gap-1.5 text-[11px] font-black text-on-surface-variant bg-surface-container px-2.5 py-1.5 rounded-md uppercase tracking-wider">
-                                                {levelLabel(course.trinh_do)}
-                                            </div>
-                                            <div className="text-xl font-black text-primary tracking-tight">
-                                                {parseFloat(course.gia_tien) > 0 ? formatPrice(parseFloat(course.gia_tien)) : "Miễn phí"}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-}
 
 export default function CoursesPage() {
-    return (
-        <Suspense fallback={<div className="flex justify-center p-20"><i className="ph ph-spinner-gap animate-spin text-4xl text-primary"></i></div>}>
-            <CoursesContent />
-        </Suspense>
-    );
+  const [searchTerm, setSearchTerm] = useState("");
+  const [dbCategories, setDbCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
+  const [selectedPrice, setSelectedPrice] = useState<"free" | "paid" | null>(null);
+  const [minRating, setMinRating] = useState<number | null>(null);
+  const [sortBy, setSortBy] = useState<string>("popular");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  // Fetch results state
+  const [dbCourses, setDbCourses] = useState<Course[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load Categories on mount
+  useEffect(() => {
+    async function loadCategories() {
+      const cats = await apiService.getCategories();
+      setDbCategories(cats);
+    }
+    loadCategories();
+  }, []);
+
+  // Fetch courses on filter changes
+  useEffect(() => {
+    async function fetchCourses() {
+      setIsLoading(true);
+      try {
+        const queryParams: any = {
+          q: searchTerm || undefined,
+          ma_danh_muc: selectedCategory || undefined,
+          trinh_do: selectedLevel || undefined,
+          sort_by: sortBy === "popular" ? "so_luong_hoc_vien" : sortBy === "rating" ? "danh_gia_trung_binh" : "gia_tien",
+          order: sortBy === "price-asc" ? "asc" : "desc"
+        };
+
+        if (selectedPrice === "free") {
+          queryParams.gia_max = 0;
+        } else if (selectedPrice === "paid") {
+          queryParams.gia_min = 1;
+        }
+
+        const data = await apiService.getCourses(queryParams);
+        setDbCourses(data);
+      } catch (err) {
+        console.error("Error fetching courses:", err);
+      } finally {
+
+
+        setIsLoading(false);
+      }
+    }
+    fetchCourses();
+  }, [searchTerm, selectedCategory, selectedLevel, selectedPrice, sortBy]);
+
+  // Client-side rating filter (API doesn't have min_rating query parameter directly)
+  const finalCourses = useMemo(() => {
+    let result = dbCourses;
+
+    // Pulls strictly from DB, no fallbacks
+
+    if (minRating) {
+      result = result.filter((c) => Number(c.danh_gia_trung_binh || (c as any).rating) >= minRating);
+    }
+
+    return result;
+  }, [dbCourses, minRating]);
+
+  const resetFilters = () => {
+    setSearchTerm("");
+    setSelectedCategory(null);
+    setSelectedLevel(null);
+    setSelectedPrice(null);
+    setMinRating(null);
+    setSortBy("popular");
+  };
+
+  const getGradient = (index: number) => {
+    const gradients = [
+      "from-teal-500 to-cyan-600",
+      "from-purple-500 to-indigo-600",
+      "from-pink-500 to-rose-500",
+      "from-amber-500 to-orange-600",
+      "from-blue-500 to-indigo-500",
+      "from-sky-500 to-blue-600",
+      "from-emerald-400 to-teal-600"
+    ];
+    return gradients[index % gradients.length];
+  };
+
+  const getCategoryName = (catId?: number) => {
+    if (!catId) return "Tổng quan";
+    const found = dbCategories.find((cat) => cat.id === catId);
+    return found ? found.ten_danh_muc : `Danh mục ${catId}`;
+  };
+
+  return (
+    <>
+      <Navbar />
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 pb-6 border-b border-border/60">
+          <div>
+            <h1 className="text-3xl font-extrabold text-foreground tracking-tight">
+              Khám Phá Khóa Học
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1.5">
+              Kết nối trực tiếp Cơ sở dữ liệu Lumina LMS
+            </p>
+          </div>
+          <button
+            onClick={resetFilters}
+            className="mt-4 md:mt-0 inline-flex items-center space-x-2 text-xs font-semibold text-primary/90 hover:text-primary transition-colors cursor-pointer"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            <span>Đặt lại toàn bộ bộ lọc</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* 1. Sidebar Filters */}
+          <aside className="lg:col-span-1 space-y-6">
+            <div className="bg-card text-card-foreground border border-border/60 rounded-2xl p-5 shadow-sm space-y-6">
+              <div className="flex items-center space-x-2 pb-4 border-b border-border/40 text-foreground">
+                <Filter className="h-4 w-4 text-primary" />
+                <h2 className="font-bold text-sm">Bộ lọc nâng cao</h2>
+              </div>
+
+              {/* Keyword Search */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-foreground">Từ khóa tìm kiếm</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Tìm tên, giảng viên..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full bg-secondary text-foreground text-xs rounded-xl py-2.5 pl-4 pr-10 border border-border focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+                  <Search className="absolute right-3 top-3 h-3.5 w-3.5 text-muted-foreground" />
+                </div>
+              </div>
+
+              {/* Category Filter */}
+              <div className="space-y-2.5">
+                <label className="text-xs font-bold text-foreground">Chuyên mục ngành học</label>
+                <div className="flex flex-col space-y-1.5">
+                  <button
+                    onClick={() => setSelectedCategory(null)}
+                    className={`text-left text-xs py-1.5 px-3 rounded-lg transition-all ${selectedCategory === null
+                      ? "bg-primary/10 text-primary font-bold"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                      }`}
+                  >
+                    Tất cả danh mục
+                  </button>
+                  {dbCategories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      onClick={() => setSelectedCategory(cat.id)}
+                      className={`text-left text-xs py-1.5 px-3 rounded-lg transition-all ${selectedCategory === cat.id
+                        ? "bg-primary/10 text-primary font-bold"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                        }`}
+                    >
+                      {cat.ten_danh_muc}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Level Filter */}
+              <div className="space-y-2.5">
+                <label className="text-xs font-bold text-foreground">Cấp độ học viên</label>
+                <div className="flex flex-col space-y-1">
+                  {[
+                    { val: null, label: "Tất cả trình độ" },
+                    { val: "beginner", label: "Cơ bản (Beginner)" },
+                    { val: "intermediate", label: "Trung cấp (Intermediate)" },
+                    { val: "advanced", label: "Chuyên sâu (Advanced)" }
+                  ].map((l) => (
+                    <button
+                      key={l.val || "all"}
+                      onClick={() => setSelectedLevel(l.val)}
+                      className={`text-left text-xs py-1.5 px-3 rounded-lg transition-all ${selectedLevel === l.val
+                        ? "bg-primary/10 text-primary font-bold"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                        }`}
+                    >
+                      {l.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Price Filter */}
+              <div className="space-y-2.5">
+                <label className="text-xs font-bold text-foreground">Mức giá học phí</label>
+                <div className="flex flex-col space-y-1">
+                  {[
+                    { val: null, label: "Tất cả mức giá" },
+                    { val: "free", label: "Miễn phí (Free)" },
+                    { val: "paid", label: "Có phí (Paid)" }
+                  ].map((p) => (
+                    <button
+                      key={p.val || "all"}
+                      onClick={() => setSelectedPrice(p.val as any)}
+                      className={`text-left text-xs py-1.5 px-3 rounded-lg transition-all ${selectedPrice === p.val
+                        ? "bg-primary/10 text-primary font-bold"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                        }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Rating Filter */}
+              <div className="space-y-2.5">
+                <label className="text-xs font-bold text-foreground">Điểm đánh giá học viên</label>
+                <div className="flex flex-col space-y-1">
+                  {[
+                    { val: null, label: "Tất cả đánh giá" },
+                    { val: 4.5, label: "Từ 4.5 sao trở lên" },
+                    { val: 4.0, label: "Từ 4.0 sao trở lên" }
+                  ].map((r) => (
+                    <button
+                      key={r.val || "all"}
+                      onClick={() => setMinRating(r.val)}
+                      className={`text-left text-xs py-1.5 px-3 rounded-lg transition-all flex items-center space-x-1.5 ${minRating === r.val
+                        ? "bg-primary/10 text-primary font-bold"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                        }`}
+                    >
+                      <span>{r.label}</span>
+                      {r.val && <Star className="h-3 w-3 fill-amber-500 text-amber-500" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          {/* 2. Main Area: Course List */}
+          <section className="lg:col-span-3 space-y-6">
+            {/* Sorting Header with Toggle */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-card text-card-foreground border border-border/60 rounded-2xl shadow-sm gap-4">
+              <span className="text-xs text-muted-foreground font-medium">
+                Tìm thấy <span className="text-foreground font-bold">{finalCourses.length}</span> khóa học phù hợp
+              </span>
+
+              <div className="flex items-center space-x-4 self-end sm:self-auto">
+                {/* View Mode Toggle */}
+                <div className="flex items-center bg-secondary p-1 rounded-xl border border-border">
+                  <button
+                    onClick={() => setViewMode("grid")}
+                    className={`p-1.5 rounded-lg transition-all cursor-pointer ${viewMode === "grid"
+                      ? "bg-card text-primary shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    title="Xem dạng lưới"
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode("list")}
+                    className={`p-1.5 rounded-lg transition-all cursor-pointer ${viewMode === "list"
+                      ? "bg-card text-primary shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    title="Xem dạng danh sách"
+                  >
+                    <List className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="flex items-center space-x-2 text-xs">
+                  <span className="text-muted-foreground">Sắp xếp:</span>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="bg-secondary border border-border rounded-lg py-1.5 px-3 focus:outline-none focus:ring-1 focus:ring-primary text-foreground text-xs"
+                  >
+                    <option value="popular">Học viên đông nhất</option>
+                    <option value="rating">Đánh giá cao nhất</option>
+                    <option value="price-asc">Giá thấp đến cao</option>
+                    <option value="price-desc">Giá cao đến thấp</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Courses Display Grid / List */}
+            {isLoading ? (
+              <div className="flex justify-center items-center py-20">
+                <RefreshCw className="h-8 w-8 text-primary animate-spin" />
+              </div>
+            ) : finalCourses.length > 0 ? (
+              viewMode === "grid" ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {finalCourses.map((c: any, index: number) => {
+                    const mapped = {
+                      id: c.id,
+                      title: c.tieu_de || c.title,
+                      instructor: "Giảng viên Lumina",
+                      category: getCategoryName(c.ma_danh_muc),
+                      level: c.trinh_do || c.level,
+                      rating: Number(c.danh_gia_trung_binh || c.rating) || 5.0,
+                      price: Number(c.gia_tien || c.price),
+                      originalPrice: c.originalPrice || (Number(c.gia_tien) > 0 ? Number(c.gia_tien) * 1.5 : undefined),
+                      studentsCount: c.so_luong_hoc_vien || c.studentsCount || 120,
+                      gradient: c.gradient || getGradient(index)
+                    };
+                    return <CourseCard key={mapped.id} {...mapped} />;
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-col space-y-4">
+                  {finalCourses.map((c: any, index: number) => {
+                    const mapped = {
+                      id: c.id,
+                      title: c.tieu_de || c.title,
+                      instructor: "Giảng viên Lumina",
+                      category: getCategoryName(c.ma_danh_muc),
+                      level: c.trinh_do || c.level,
+                      rating: Number(c.danh_gia_trung_binh || c.rating) || 5.0,
+                      price: Number(c.gia_tien || c.price),
+                      originalPrice: Number(c.gia_tien) > 0 ? Number(c.gia_tien) * 1.5 : undefined,
+                      studentsCount: c.so_luong_hoc_vien || c.studentsCount || 120,
+                      gradient: c.gradient || getGradient(index)
+                    };
+
+                    return (
+                      <Link
+                        key={mapped.id}
+                        href={`/courses/${mapped.id}`}
+                        className="flex flex-col sm:flex-row bg-card text-card-foreground border border-border/80 hover:border-primary/20 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all group"
+                      >
+                        {/* Course gradient / image block */}
+                        <div className={`sm:w-56 h-40 shrink-0 bg-gradient-to-br ${mapped.gradient} relative flex items-center justify-center p-4 text-white text-center`}>
+                          <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-all" />
+                          <span className="font-sans font-bold text-sm line-clamp-2 leading-snug drop-shadow-md z-10">
+                            {mapped.title}
+                          </span>
+                        </div>
+                        {/* Course details block */}
+                        <div className="p-5 flex-grow flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-[10px] uppercase font-extrabold tracking-wider text-primary">
+                                {mapped.category}
+                              </span>
+                              <span className="text-[10px] font-bold text-muted-foreground uppercase px-2 py-0.5 rounded-full bg-secondary">
+                                {mapped.level === "beginner" ? "Cơ bản" : mapped.level === "intermediate" ? "Trung cấp" : "Chuyên sâu"}
+                              </span>
+                            </div>
+                            <h3 className="font-bold text-base text-foreground leading-snug group-hover:text-primary transition-colors line-clamp-1 mb-1">
+                              {mapped.title}
+                            </h3>
+                            <p className="text-xs text-muted-foreground mb-3">
+                              Được giảng dạy bởi <span className="font-semibold text-foreground/80">{mapped.instructor}</span> • {mapped.studentsCount} học viên
+                            </p>
+                          </div>
+
+                          <div className="flex items-center justify-between border-t border-border/40 pt-3">
+                            <div className="flex items-center space-x-1">
+                              <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+                              <span className="text-xs font-bold text-foreground">{mapped.rating.toFixed(1)}</span>
+                            </div>
+                            <div className="text-right">
+                              {mapped.originalPrice && (
+                                <span className="text-[10px] text-muted-foreground line-through mr-1.5">
+                                  {mapped.originalPrice.toLocaleString()} đ
+                                </span>
+                              )}
+                              <span className="font-sans font-black text-sm text-primary">
+                                {mapped.price === 0 ? "Miễn phí" : `${mapped.price.toLocaleString()} đ`}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )
+            ) : (
+              <div className="bg-card border border-border/60 rounded-3xl p-12 text-center space-y-4 shadow-sm flex flex-col items-center justify-center">
+                <div className="bg-primary/15 p-4 rounded-full text-primary">
+                  <Filter className="h-10 w-10" />
+                </div>
+                <h3 className="font-sans font-bold text-lg text-foreground">Không tìm thấy khóa học nào</h3>
+                <p className="text-xs text-muted-foreground max-w-sm">
+                  Hãy thử thay đổi từ khóa tìm kiếm hoặc bấm nút đặt lại bộ lọc để xem toàn bộ danh mục khóa học của chúng tôi.
+                </p>
+                <button
+                  onClick={resetFilters}
+                  className="bg-primary hover:bg-violet-600 text-white rounded-xl text-xs font-bold px-5 py-2.5 shadow-md shadow-primary/20 hover:shadow-lg transition-all mt-2 cursor-pointer"
+                >
+                  Đặt lại bộ lọc
+                </button>
+              </div>
+            )}
+          </section>
+        </div>
+      </main>
+
+      <Footer />
+    </>
+  );
 }

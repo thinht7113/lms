@@ -9,13 +9,13 @@ class Coupon(Base):
     __tablename__ = "ma_giam_gia"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    ma_code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    ma_code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
     loai_giam_gia: Mapped[str] = mapped_column(String(20), default="PERCENTAGE", nullable=False)  # 'PERCENTAGE', 'FIXED_AMOUNT'
     gia_tri_giam: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0.00, nullable=False)
     gia_tri_don_toi_thieu: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0.00, nullable=False)
     so_luot_dung_toi_da: Mapped[Optional[int]] = mapped_column(nullable=True)
     so_luot_da_dung: Mapped[int] = mapped_column(default=0, nullable=False)
-    ngay_het_han: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    ngay_het_han: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
 
     # Relationships
     don_hang = relationship("Order", back_populates="ma_giam_gia")
@@ -33,16 +33,16 @@ class Order(Base):
     __tablename__ = "don_hang"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    ma_nguoi_dung: Mapped[Optional[int]] = mapped_column(ForeignKey("nguoi_dung.id", ondelete="SET NULL"), nullable=True)
-    ma_giam_gia_id: Mapped[Optional[int]] = mapped_column(ForeignKey("ma_giam_gia.id", ondelete="SET NULL"), nullable=True)
+    ma_nguoi_dung: Mapped[Optional[int]] = mapped_column(ForeignKey("nguoi_dung.id", ondelete="SET NULL"), nullable=True, index=True)
+    ma_giam_gia_id: Mapped[Optional[int]] = mapped_column(ForeignKey("ma_giam_gia.id", ondelete="SET NULL"), nullable=True, index=True)
     tong_tien: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
-    trang_thai: Mapped[str] = mapped_column(String(50), default="pending", nullable=False)  # 'pending', 'success', 'fail'
-    ngay_tao: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    trang_thai: Mapped[str] = mapped_column(String(50), default="pending", nullable=False, index=True)  # 'pending', 'success', 'fail'
+    ngay_tao: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False, index=True)
     
     # Hợp nhất thông tin thanh toán trực tiếp vào đơn hàng (Chuẩn hóa)
-    phuong_thuc_thanh_toan: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    ma_giao_dich: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    ngay_thanh_toan: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    phuong_thuc_thanh_toan: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
+    ma_giao_dich: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    ngay_thanh_toan: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
 
     # Relationships
     nguoi_dung = relationship("User", back_populates="don_hang")
@@ -61,8 +61,8 @@ class OrderItem(Base):
     __tablename__ = "chi_tiet_don_hang"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    ma_don_hang: Mapped[int] = mapped_column(ForeignKey("don_hang.id", ondelete="CASCADE"), nullable=False)
-    ma_khoa_hoc: Mapped[Optional[int]] = mapped_column(ForeignKey("khoa_hoc.id", ondelete="SET NULL"), nullable=True)
+    ma_don_hang: Mapped[int] = mapped_column(ForeignKey("don_hang.id", ondelete="CASCADE"), nullable=False, index=True)
+    ma_khoa_hoc: Mapped[Optional[int]] = mapped_column(ForeignKey("khoa_hoc.id", ondelete="SET NULL"), nullable=True, index=True)
     gia_luc_mua: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
 
     # Relationships

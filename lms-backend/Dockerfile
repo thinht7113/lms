@@ -29,5 +29,5 @@ COPY . .
 # 7. Mở cổng 8000
 EXPOSE 8000
 
-# 8. Khởi chạy FastAPI với Uvicorn (production mode, 4 workers)
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+# 8. Đồng bộ schema trước khi khởi chạy API production
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4"]

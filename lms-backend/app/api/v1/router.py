@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, courses, cart, orders, progress, quizzes, certificates, upload, admin, instructors, banners, settings
+from app.api.v1.endpoints import auth, courses, cart, orders, progress, quizzes, certificates, upload, admin, instructors, banners, settings, dynamic_admin
 
 # Khởi tạo Router V1 chính
 api_router = APIRouter()
@@ -18,6 +18,7 @@ api_router.include_router(quizzes.router, prefix="", tags=["Quizzes & Grading"])
 api_router.include_router(certificates.router, prefix="/certificates", tags=["Certificates & Verification"])
 api_router.include_router(upload.router, prefix="/upload", tags=["File Storage"])
 api_router.include_router(admin.router, prefix="/admin", tags=["Admin Dashboard"])
+api_router.include_router(dynamic_admin.dynamic_router, prefix="/dynamic-admin", tags=["Dynamic Admin API"])
 api_router.include_router(settings.router, prefix="/settings", tags=["System Settings"])
 
 

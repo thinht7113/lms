@@ -1,299 +1,283 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@/context/user-context";
-import { apiFetch, formatPrice } from "@/lib/api";
 import Link from "next/link";
-
-interface CartCourse {
-  id: number;
-  tieu_de: string;
-  gia_tien: string;
-  trinh_do: string;
-}
-
-interface CartItem {
-  id: number;
-  ma_khoa_hoc: number;
-  khoa_hoc: CartCourse;
-}
-
-interface Cart {
-  chi_tiet_gio_hang: CartItem[];
-  tong_tien_tam_tinh: string;
-}
+import { ShoppingCart, Trash2, Tag, ArrowRight, ShieldCheck, ArrowLeft, RefreshCw, Bookmark } from "lucide-react";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+import { apiService, Cart } from "@/services/api";
 
 export default function CartPage() {
-  const { role, token, isAuthenticated, refreshCartCount } = useUser();
   const router = useRouter();
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
-  const [checkingOut, setCheckingOut] = useState(false);
-  const [checkoutSuccess, setCheckoutSuccess] = useState(false);
-
-  // Coupon state
   const [couponCode, setCouponCode] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState<{ coupon_id: number, code: string, discount_amount: string, final_amount: string } | null>(null);
-  const [applyingCoupon, setApplyingCoupon] = useState(false);
-  const [couponError, setCouponError] = useState("");
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponSuccess, setCouponSuccess] = useState<string | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
 
+  // Load Cart from DB
   const loadCart = async () => {
-    if (!token) return;
     setLoading(true);
     try {
-      const res = await apiFetch("/cart", token);
-      if (res.ok) setCart(await res.json());
-    } catch { /* ignore */ }
-    setLoading(false);
+      const data = await apiService.getCart();
+      setCart(data);
+    } catch (err) {
+      console.error("Error loading cart:", err);
+      // Redirect to login if unauthorized
+      const token = localStorage.getItem("lumina_token");
+      if (!token) {
+        router.push("/login");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { loadCart(); }, [token]);
+  useEffect(() => {
+    loadCart();
+  }, []);
 
-  const removeItem = async (courseId: number) => {
-    if (!token) return;
+  const handleRemove = async (courseId: number) => {
     try {
-      await apiFetch(`/cart/items/${courseId}`, token, { method: "DELETE" });
+      await apiService.removeFromCart(courseId);
       await loadCart();
-      await refreshCartCount();
-    } catch { /* ignore */ }
-  };
-
-  const applyCoupon = async () => {
-    if (!token || !couponCode.trim() || !cart) return;
-    setApplyingCoupon(true);
-    setCouponError("");
-    try {
-      const res = await apiFetch("/coupons/apply", token, {
-        method: "POST",
-        body: JSON.stringify({
-          code: couponCode.trim(),
-          original_amount: cart.tong_tien_tam_tinh,
-        }),
-      });
-      if (res.ok) {
-        setAppliedCoupon(await res.json());
-      } else {
-        const err = await res.json();
-        setCouponError(err.detail || "Mã không hợp lệ");
-        setAppliedCoupon(null);
-      }
-    } catch {
-      setCouponError("Lỗi kết nối");
+      // Reload page to update navbar badge
+      window.location.reload();
+    } catch (err) {
+      console.error("Failed to remove item:", err);
     }
-    setApplyingCoupon(false);
   };
 
-  const handleCheckout = async () => {
-    if (!token || !cart || cart.chi_tiet_gio_hang.length === 0) return;
-    setCheckingOut(true);
+  const handleApplyCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!couponCode.trim() || !cart) return;
+
+    setCouponError(null);
+    setCouponSuccess(null);
+
     try {
-      // Step 1: Checkout
-      const checkoutRes = await apiFetch("/checkout", token, {
-        method: "POST",
-        body: JSON.stringify({ 
-          payment_method: "visa",
-          coupon_id: appliedCoupon ? appliedCoupon.coupon_id : null
-        }),
-      });
-      if (!checkoutRes.ok) {
-        const err = await checkoutRes.json();
-        alert(err.detail || "Lỗi tạo đơn hàng");
-        setCheckingOut(false);
-        return;
-      }
-      const order = await checkoutRes.json();
-
-      // Step 2: Mock Payment
-      const payRes = await apiFetch("/payments/mock", token, {
-        method: "POST",
-        body: JSON.stringify({
-          ma_don_hang: order.id,
-          phuong_thuc_thanh_toan: "visa",
-          ma_giao_dich: `TX${Date.now()}`,
-        }),
-      });
-      if (payRes.ok) {
-        setCheckoutSuccess(true);
-        await refreshCartCount();
-        setTimeout(() => router.push("/my-courses"), 2500);
-      } else {
-        const err = await payRes.json();
-        alert(err.detail || "Lỗi thanh toán");
-      }
-    } catch (e) {
-      alert("Lỗi kết nối");
+      const result = await apiService.applyCoupon(couponCode, cart.tong_tien_tam_tinh);
+      setAppliedCoupon(result);
+      setCouponSuccess(`Áp dụng thành công mã "${result.code}". Giảm ${result.discount_amount.toLocaleString()} đ!`);
+    } catch (err: any) {
+      setCouponError(err.message || "Mã giảm giá không hợp lệ.");
+      setAppliedCoupon(null);
     }
-    setCheckingOut(false);
   };
 
-  if (!isAuthenticated || role !== "student") {
+  const getGradient = (index: number) => {
+    const gradients = [
+      "from-blue-600 to-indigo-700",
+      "from-slate-700 to-slate-900",
+      "from-indigo-500 to-blue-500",
+      "from-blue-400 to-indigo-600"
+    ];
+    return gradients[index % gradients.length];
+  };
+
+  const originalAmount = cart ? Number(cart.tong_tien_tam_tinh) : 0;
+  const discountAmount = appliedCoupon ? Number(appliedCoupon.discount_amount) : 0;
+  const finalAmount = Math.max(0, originalAmount - discountAmount);
+
+  if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] text-center">
-        <div className="w-24 h-24 bg-surface-container-high rounded-full flex items-center justify-center mb-6">
-          <i className="ph-fill ph-shopping-cart text-5xl text-on-surface-variant"></i>
-        </div>
-        <h2 className="text-2xl font-bold text-on-surface mb-2">Giỏ hàng</h2>
-        <p className="text-on-surface-variant mb-8 max-w-md">Bạn cần đăng nhập với tài khoản <strong className="text-primary">Học viên</strong> để sử dụng tính năng giỏ hàng.</p>
-        <Link href="/login" className="px-6 py-3 bg-primary text-on-primary font-bold rounded-xl shadow-md hover:bg-primary/90 transition-colors flex items-center gap-2">
-          <i className="ph-bold ph-sign-in text-lg"></i> Đăng nhập ngay
-        </Link>
-      </div>
+      <>
+        <Navbar />
+        <main className="flex justify-center items-center h-screen bg-background">
+          <RefreshCw className="h-10 w-10 text-primary animate-spin" />
+        </main>
+        <Footer />
+      </>
     );
   }
 
-  if (checkoutSuccess) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] text-center animate-slide-up">
-        <div className="w-24 h-24 bg-success/10 text-success rounded-full flex items-center justify-center mb-6 border border-success/20">
-          <i className="ph-bold ph-check text-5xl"></i>
-        </div>
-        <h2 className="text-3xl font-bold text-on-surface mb-2">Thanh toán thành công!</h2>
-        <p className="text-on-surface-variant mb-8">Đang chuyển hướng đến khóa học của bạn...</p>
-        <div className="w-48 h-1.5 bg-surface-container-high rounded-full overflow-hidden">
-          <div className="h-full bg-success w-full animate-pulse"></div>
-        </div>
-      </div>
-    );
-  }
+  const hasItems = cart && cart.chi_tiet_gio_hang.length > 0;
 
   return (
-    <div className="animate-slide-up">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-sm text-on-surface-variant mb-6">
-        <Link href="/" className="hover:text-primary transition-colors flex items-center gap-1">
-          <i className="ph ph-house"></i> Trang chủ
-        </Link>
-        <i className="ph ph-caret-right text-xs"></i>
-        <span className="text-on-surface font-medium">
-          Giỏ hàng
-        </span>
-      </nav>
+    <>
+      <Navbar />
 
-      <div className="w-full">
-        {loading ? (
-          <div className="flex justify-center items-center h-64 text-on-surface-variant">
-            <i className="ph ph-spinner-gap animate-spin text-3xl text-primary mr-2"></i> Đang tải giỏ hàng...
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20 min-h-[80vh]">
+        <div className="flex items-center space-x-4 mb-10">
+          <div className="bg-primary/10 p-3 rounded-2xl text-primary shrink-0">
+            <ShoppingCart className="h-8 w-8" />
           </div>
-        ) : !cart || cart.chi_tiet_gio_hang.length === 0 ? (
-          <div className="glass-panel border border-outline-variant rounded-2xl p-16 text-center bg-surface-container">
-            <div className="w-20 h-20 bg-surface-container-high rounded-full flex items-center justify-center mx-auto mb-6">
-              <i className="ph ph-shopping-cart text-4xl text-on-surface-variant"></i>
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-black text-foreground tracking-tighter">
+              Giỏ Hàng <span className="text-primary italic">Của Bạn</span>
+            </h1>
+            <p className="text-sm font-medium text-muted-foreground mt-1">Chuẩn bị hành trang kỹ năng cho bước tiến tiếp theo trong sự nghiệp.</p>
+          </div>
+        </div>
+
+        {!hasItems ? (
+          <div className="bg-card border border-dashed border-border/80 rounded-[2rem] p-16 text-center space-y-6 shadow-sm flex flex-col items-center justify-center max-w-2xl mx-auto mt-12">
+            <div className="bg-secondary p-6 rounded-full text-muted-foreground/60 mb-2">
+              <ShoppingCart className="h-16 w-16" />
             </div>
-            <h3 className="text-xl font-bold text-on-surface mb-2">Giỏ hàng trống</h3>
-            <p className="text-on-surface-variant mb-8">Bạn chưa thêm khóa học nào vào giỏ hàng.</p>
+            <div>
+              <h3 className="font-sans font-black text-xl text-foreground">Giỏ hàng đang trống</h3>
+              <p className="text-sm font-medium text-muted-foreground max-w-sm mt-2 leading-relaxed">
+                Đừng bỏ lỡ cơ hội. Hãy khám phá hàng chục khóa học chất lượng cao trên nền tảng Nemo LMS ngay hôm nay.
+              </p>
+            </div>
             <Link
-              href="/"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-surface-container-highest text-on-surface font-bold rounded-xl shadow-sm hover:bg-outline-variant transition-colors"
+              href="/courses"
+              className="mt-4 bg-primary text-white rounded-xl text-xs font-bold uppercase tracking-widest px-8 py-3.5 shadow-lg shadow-primary/20 hover:bg-blue-700 transition-all"
             >
-              <i className="ph-bold ph-magnifying-glass"></i> Khám phá khóa học
+              Khám phá khóa học
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8">
-            {/* Cart Items */}
-            <div className="flex flex-col gap-4">
-              {cart.chi_tiet_gio_hang.map((item, idx) => (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+            {/* Left Column: Cart items list */}
+            <div className="lg:col-span-8 space-y-4">
+              {cart?.chi_tiet_gio_hang.map((item, index) => (
                 <div
                   key={item.id}
-                  className="glass-panel bg-surface border border-outline-variant rounded-2xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 group"
-                  style={{ animationDelay: `${idx * 0.08}s`, animationFillMode: "both" }}
+                  className="group flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-card text-card-foreground border border-border/60 rounded-2xl shadow-sm gap-4 hover:shadow-md transition-all duration-300"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-xl bg-primary-container/20 flex items-center justify-center border border-primary-container/30 text-primary">
-                      <i className="ph-fill ph-book-open text-3xl"></i>
+                  <div className="flex items-center space-x-4 w-full sm:w-auto">
+                    {/* Course preview block */}
+                    <div className={`relative h-20 w-32 rounded-xl shrink-0 bg-gradient-to-br ${getGradient(index)} overflow-hidden flex items-center justify-center p-3 text-white text-center`}>
+                      {item.khoa_hoc.anh_dai_dien ? (
+                          <img src={item.khoa_hoc.anh_dai_dien} alt={item.khoa_hoc.tieu_de} className="absolute inset-0 w-full h-full object-cover" />
+                      ) : (
+                          <div className="absolute inset-0 bg-black/20" />
+                      )}
+                      {!item.khoa_hoc.anh_dai_dien && <span className="relative z-10 font-bold text-[10px] leading-snug line-clamp-2 drop-shadow-sm">{item.khoa_hoc.tieu_de}</span>}
                     </div>
-                    <div>
-                      <h3 className="text-base font-bold text-on-surface group-hover:text-primary transition-colors line-clamp-1">{item.khoa_hoc.tieu_de}</h3>
-                      <span className="text-xs font-medium text-on-surface-variant bg-surface-container px-2 py-0.5 rounded uppercase tracking-wider mt-1 inline-block">
-                        {item.khoa_hoc.trinh_do}
-                      </span>
+                    
+                    <div className="flex-grow space-y-1">
+                      <div className="flex items-center space-x-2">
+                          <span className="text-[9px] font-black uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded-md">
+                              {item.khoa_hoc.trinh_do === "beginner" ? "Cơ bản" : item.khoa_hoc.trinh_do === "intermediate" ? "Trung cấp" : "Nâng cao"}
+                          </span>
+                      </div>
+                      <h3 className="font-bold text-sm text-foreground line-clamp-2 leading-snug group-hover:text-primary transition-colors">
+                        {item.khoa_hoc.tieu_de}
+                      </h3>
+                      <p className="text-[11px] font-medium text-muted-foreground">Giảng viên Nemo</p>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between w-full sm:w-auto sm:justify-end gap-6 sm:gap-4 mt-2 sm:mt-0">
-                    <span className="text-lg font-bold text-primary">{formatPrice(item.khoa_hoc.gia_tien)}</span>
-                    <button
-                      onClick={() => removeItem(item.ma_khoa_hoc)}
-                      className="w-10 h-10 rounded-xl bg-error-container/50 text-error flex items-center justify-center hover:bg-error hover:text-on-error transition-all"
-                      title="Xóa khỏi giỏ hàng"
-                    >
-                      <i className="ph-bold ph-trash text-lg"></i>
-                    </button>
+
+                  <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-6 border-t sm:border-none border-border/40 pt-4 sm:pt-0 mt-2 sm:mt-0 shrink-0">
+                    <span className="font-sans font-black text-lg text-primary tracking-tighter">
+                      {Number(item.khoa_hoc.gia_tien) === 0 ? "Miễn phí" : `${Number(item.khoa_hoc.gia_tien).toLocaleString()} đ`}
+                    </span>
+
+                    <div className="flex items-center space-x-1 border-l border-border/50 pl-4 ml-2">
+                      <button 
+                        onClick={() => handleRemove(item.khoa_hoc.id)}
+                        className="p-2.5 text-muted-foreground hover:bg-rose-100 hover:text-rose-600 rounded-xl transition-colors"
+                        title="Xóa khỏi giỏ hàng"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
+
+              <div className="pt-6">
+                  <Link
+                    href="/courses"
+                    className="inline-flex items-center space-x-2 text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors group"
+                  >
+                    <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+                    <span>Tiếp tục tìm kiếm khóa học</span>
+                  </Link>
+              </div>
             </div>
 
-            {/* Order Summary */}
-            <div>
-              <div className="glass-panel border border-outline-variant bg-surface rounded-2xl p-6 sticky top-24 shadow-lg">
-                <h3 className="text-lg font-bold text-on-surface mb-6 border-b border-outline-variant pb-4">Tóm tắt đơn hàng</h3>
-                
-                <div className="space-y-3 mb-6">
-                  <div className="flex justify-between text-sm text-on-surface-variant">
-                    <span>Số lượng khóa học</span>
-                    <span className="font-semibold text-on-surface">{cart.chi_tiet_gio_hang.length}</span>
-                  </div>
-                  <div className="flex justify-between text-sm text-on-surface-variant">
-                    <span>Tạm tính</span>
-                    <span className="font-semibold text-on-surface">{formatPrice(cart.tong_tien_tam_tinh)}</span>
-                  </div>
-                  {appliedCoupon && (
-                    <div className="flex justify-between text-sm text-success font-bold">
-                      <span>Giảm giá ({appliedCoupon.code})</span>
-                      <span>-{formatPrice(appliedCoupon.discount_amount)}</span>
+            {/* Right Column: Pricing details and coupon */}
+            <div className="lg:col-span-4">
+               <div className="sticky top-28 space-y-6">
+                  {/* Coupon Box */}
+                  <div className="bg-card text-card-foreground border border-border/60 rounded-[1.5rem] p-6 shadow-sm space-y-4">
+                    <div className="flex items-center space-x-2 text-foreground mb-2">
+                      <Tag className="h-5 w-5 text-primary" />
+                      <h3 className="font-black text-sm uppercase tracking-widest">Mã giảm giá</h3>
                     </div>
-                  )}
-                </div>
 
-                {/* Coupon Input */}
-                <div className="mb-6">
-                  <label className="block text-xs font-bold text-on-surface-variant mb-2 uppercase tracking-wider">Mã giảm giá</label>
-                  <div className="flex gap-2">
-                    <input 
-                      type="text" 
-                      value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                      placeholder="Nhập mã..." 
-                      className="flex-1 px-4 py-2.5 rounded-xl border border-outline-variant bg-surface-container-lowest focus:border-primary focus:ring-1 outline-none text-sm font-bold uppercase"
-                    />
-                    <button 
-                      onClick={applyCoupon}
-                      disabled={applyingCoupon || !couponCode.trim()}
-                      className="px-4 py-2.5 bg-secondary text-on-secondary rounded-xl font-bold text-sm hover:bg-secondary/90 transition-colors disabled:opacity-50"
-                    >
-                      {applyingCoupon ? "..." : "Áp dụng"}
-                    </button>
+                    <form onSubmit={handleApplyCoupon} className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Nhập mã CODE..."
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value)}
+                        className="flex-grow bg-secondary text-foreground font-medium text-xs rounded-xl py-3 px-4 border border-border focus:outline-none focus:ring-2 focus:ring-primary/50 uppercase"
+                      />
+                      <button
+                        type="submit"
+                        className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-5 py-3 rounded-xl transition-all cursor-pointer"
+                      >
+                        Áp dụng
+                      </button>
+                    </form>
+
+                    {couponError && (
+                      <p className="text-[11px] font-bold text-destructive bg-destructive/10 border border-destructive/20 p-2 rounded-lg">
+                        {couponError}
+                      </p>
+                    )}
+                    {couponSuccess && (
+                      <p className="text-[11px] font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 p-2 rounded-lg">
+                        {couponSuccess}
+                      </p>
+                    )}
                   </div>
-                  {couponError && <p className="text-xs text-error mt-1.5 font-medium">{couponError}</p>}
-                </div>
 
-                <div className="flex justify-between items-center py-4 border-t border-outline-variant mb-6">
-                  <span className="text-base font-bold text-on-surface">Tổng cộng</span>
-                  <span className="text-2xl font-black text-primary">
-                    {formatPrice(appliedCoupon ? appliedCoupon.final_amount : cart.tong_tien_tam_tinh)}
-                  </span>
-                </div>
+                  {/* Pricing Box */}
+                  <div className="bg-card text-card-foreground border border-border/60 rounded-[2rem] p-8 shadow-2xl space-y-6">
+                    <h3 className="font-black text-base text-foreground border-b border-border/40 pb-4">Hóa đơn tóm tắt</h3>
 
-                <button
-                  onClick={handleCheckout}
-                  disabled={checkingOut}
-                  className="w-full py-3.5 bg-primary hover:bg-primary/90 text-on-primary rounded-xl font-bold text-sm transition-all shadow-md flex items-center justify-center gap-2"
-                >
-                  {checkingOut ? (
-                    <><i className="ph ph-spinner-gap animate-spin text-lg"></i> Đang xử lý...</>
-                  ) : (
-                    <><i className="ph-bold ph-credit-card text-lg"></i> Thanh toán ngay</>
-                  )}
-                </button>
-                <p className="text-xs text-center text-on-surface-variant mt-4 flex items-center justify-center gap-1.5">
-                  <i className="ph-fill ph-shield-check text-success"></i> Thanh toán an toàn và bảo mật
-                </p>
-              </div>
+                    <div className="space-y-4 text-sm font-medium">
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Tổng tiền gốc</span>
+                        <span className="font-bold text-foreground">{originalAmount.toLocaleString()} đ</span>
+                      </div>
+                      
+                      {discountAmount > 0 && (
+                        <div className="flex justify-between items-center text-emerald-600 bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20">
+                          <span className="text-xs font-bold uppercase tracking-widest">Đã giảm trừ</span>
+                          <span className="font-black">-{discountAmount.toLocaleString()} đ</span>
+                        </div>
+                      )}
+                      
+                      <div className="border-t border-border/60 pt-6 mt-4 flex flex-col space-y-2">
+                          <span className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">Tổng thanh toán</span>
+                          <span className="text-4xl font-black text-primary tracking-tighter">{finalAmount.toLocaleString()} đ</span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        const couponQuery = appliedCoupon
+                          ? `&coupon_id=${appliedCoupon.coupon_id}&discount_amount=${appliedCoupon.discount_amount}&code=${appliedCoupon.code}`
+                          : "";
+                        router.push(`/checkout?original_amount=${originalAmount}${couponQuery}`);
+                      }}
+                      className="w-full bg-primary hover:bg-blue-700 text-white font-black py-4 rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all flex items-center justify-center space-x-2 cursor-pointer text-xs uppercase tracking-widest mt-4"
+                    >
+                      <span>Tiến hành thanh toán</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+
+                    <div className="flex items-center justify-center space-x-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground pt-4">
+                      <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
+                      <span>Giao dịch an toàn 100%</span>
+                    </div>
+                  </div>
+               </div>
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </main>
+
+      <Footer />
+    </>
   );
 }

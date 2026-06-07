@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_db, get_current_user
 from app.models.user import User
@@ -7,6 +7,8 @@ from app.schemas.order import (
     CheckoutRequest, OrderResponse, PaymentMockRequest, PaymentResponse
 )
 from app.services.order_service import OrderService
+from app.core.config import settings
+from app.core.security_guards import mock_feature_enabled, verify_webhook_signature
 from typing import List
 from decimal import Decimal
 
@@ -109,6 +111,11 @@ async def pay_mock(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    if not mock_feature_enabled(settings.APP_ENV, settings.ENABLE_MOCK_PAYMENTS):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Thanh toán thử nghiệm chưa được bật."
+        )
     return await OrderService.process_mock_payment(db, payment_in, current_user.id)
 
 @router.post(
@@ -116,29 +123,45 @@ async def pay_mock(
     summary="API nhận tín hiệu thanh toán thành công ngầm từ Momo/VNPay"
 )
 async def payment_webhook(
-    payload: dict,
+    request: Request,
+    signature: str | None = Header(default=None, alias="X-Webhook-Signature"),
     db: AsyncSession = Depends(get_db)
 ):
-    # Webhook giả lập: Đọc order_id và user_id từ payload gửi lên để thanh toán thành công
-    order_id = payload.get("order_id")
-    user_id = payload.get("user_id")
-    payment_method = payload.get("payment_method", "webhook")
-    transaction_code = payload.get("transaction_code", "TXWEBHOOK123456")
-
-    if not order_id or not user_id:
+    raw_body = await request.body()
+    if not verify_webhook_signature(
+        raw_body,
+        signature,
+        settings.PAYMENT_WEBHOOK_SECRET,
+    ):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Thiếu order_id hoặc user_id trong payload."
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Chữ ký webhook không hợp lệ."
         )
 
-    # Khởi tạo mock payment request
-    mock_req = PaymentMockRequest(
-        ma_don_hang=order_id,
-        phuong_thuc_thanh_toan=payment_method,
-        ma_giao_dich=transaction_code
-    )
+    try:
+        payload = await request.json()
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Payload webhook không hợp lệ."
+        ) from exc
 
-    payment = await OrderService.process_mock_payment(db, mock_req, user_id)
+    order_id = payload.get("order_id")
+    payment_method = payload.get("payment_method", "webhook")
+    transaction_code = payload.get("transaction_code")
+
+    if not order_id or not transaction_code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Thiếu order_id hoặc transaction_code trong payload."
+        )
+
+    payment = await OrderService.process_webhook_payment(
+        db,
+        order_id=order_id,
+        payment_method=payment_method,
+        transaction_code=transaction_code,
+    )
     return {
         "status": "success",
         "message": "Instant Payment Notification nhận thành công. Ghi danh hoàn tất.",

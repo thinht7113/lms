@@ -1,23 +1,21 @@
 import type { Metadata } from "next";
-import { Be_Vietnam_Pro, Plus_Jakarta_Sans } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { UserProvider } from "@/context/user-context";
-import MainLayout from "@/components/MainLayout";
+import { ToastProvider } from "@/contexts/ToastContext";
 
-const beVietnamPro = Be_Vietnam_Pro({
-  variable: "--font-be-vietnam",
-  subsets: ["vietnamese", "latin"],
-  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
 });
 
-const plusJakartaSans = Plus_Jakarta_Sans({
-  variable: "--font-plus-jakarta",
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "Lumina LMS | High-Tech Education Secured",
-  description: "Master modern technology skills and earn automated blockchain-verified certificates on Lumina LMS portal.",
+  title: "Lumina LMS - Nền tảng Đào tạo",
+  description: "Hệ thống quản lý khóa học trực tuyến",
 };
 
 export default function RootLayout({
@@ -27,19 +25,13 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="vi"
-      className={`${beVietnamPro.variable} ${plusJakartaSans.variable} h-full antialiased`}
-      suppressHydrationWarning
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <head>
-        <script src="https://unpkg.com/@phosphor-icons/web" async></script>
-      </head>
-      <body className="min-h-full flex flex-col font-sans bg-background text-on-background" suppressHydrationWarning>
-        <UserProvider>
-          <MainLayout>
-            {children}
-          </MainLayout>
-        </UserProvider>
+      <body className="min-h-full flex flex-col">
+        <ToastProvider>
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

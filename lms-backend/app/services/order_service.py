@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, desc
+from sqlalchemy import and_, delete, desc, select
 from sqlalchemy.orm import selectinload, attributes
 from fastapi import HTTPException, status
 from app.models.cart import CartItem
@@ -42,10 +42,6 @@ class OrderService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Khóa học không tồn tại."
             )
-
-        # Kiểm tra điều kiện tiên quyết
-        from app.services.course_service import CourseService
-        await CourseService.check_prerequisites(db, user_id, course_id)
 
         # 2. Kiểm tra học viên đã đăng ký học khóa học này chưa (Đã mua thành công)
         enrolled_result = await db.execute(
@@ -196,11 +192,6 @@ class OrderService:
                 detail="Giỏ hàng rỗng. Không thể tiến hành thanh toán."
             )
 
-        # Kiểm tra điều kiện tiên quyết cho toàn bộ sản phẩm trong giỏ hàng
-        from app.services.course_service import CourseService
-        for item in cart_data["chi_tiet_gio_hang"]:
-            await CourseService.check_prerequisites(db, user_id, item.ma_khoa_hoc)
-
         # 1. Tính tổng tiền khóa học gốc
         original_amount = cart_data["tong_tien_tam_tinh"]
         final_amount = original_amount
@@ -248,8 +239,7 @@ class OrderService:
             trang_thai="pending"
         )
         db.add(db_order)
-        await db.commit()
-        await db.refresh(db_order)
+        await db.flush()
 
         # 4. Tạo chi tiết các OrderItem
         for item in cart_data["chi_tiet_gio_hang"]:
@@ -282,11 +272,11 @@ class OrderService:
 
     @staticmethod
     async def process_mock_payment(db: AsyncSession, payment_in: PaymentMockRequest, user_id: int) -> Order:
-        # 1. Tìm đơn hàng
         result = await db.execute(
             select(Order)
             .options(selectinload(Order.chi_tiet_don_hang))
             .where(Order.id == payment_in.order_id)
+            .with_for_update()
         )
         order = result.scalars().first()
         if not order:
@@ -301,31 +291,94 @@ class OrderService:
                 detail="Bạn không có quyền thanh toán đơn hàng này."
             )
 
+        return await OrderService._finalize_payment(
+            db,
+            order,
+            user_id=user_id,
+            payment_method=payment_in.payment_method,
+            transaction_code=payment_in.transaction_code
+            or f"TXMOCK{int(datetime.now().timestamp())}",
+        )
+
+    @staticmethod
+    async def process_webhook_payment(
+        db: AsyncSession,
+        order_id: int,
+        payment_method: str,
+        transaction_code: str,
+    ) -> Order:
+        result = await db.execute(
+            select(Order)
+            .options(selectinload(Order.chi_tiet_don_hang))
+            .where(Order.id == order_id)
+            .with_for_update()
+        )
+        order = result.scalars().first()
+        if not order or order.ma_nguoi_dung is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Đơn hàng không tồn tại."
+            )
+
+        return await OrderService._finalize_payment(
+            db,
+            order,
+            user_id=order.ma_nguoi_dung,
+            payment_method=payment_method,
+            transaction_code=transaction_code,
+        )
+
+    @staticmethod
+    async def _finalize_payment(
+        db: AsyncSession,
+        order: Order,
+        user_id: int,
+        payment_method: str,
+        transaction_code: str,
+    ) -> Order:
+        if order.trang_thai == "success":
+            if order.ma_giao_dich != transaction_code:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Đơn hàng đã được thanh toán bằng một mã giao dịch khác."
+                )
+            refreshed_result = await db.execute(
+                select(Order)
+                .options(
+                    selectinload(Order.chi_tiet_don_hang)
+                    .selectinload(OrderItem.khoa_hoc)
+                )
+                .where(Order.id == order.id)
+            )
+            return refreshed_result.scalars().one()
+
         if order.trang_thai != "pending":
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=status.HTTP_409_CONFLICT,
                 detail=f"Đơn hàng đã được xử lý (Trạng thái hiện tại: {order.trang_thai})."
             )
 
-        # 2. Cập nhật thông tin thanh toán trực tiếp lên Order (Chuẩn hóa)
-        order.phuong_thuc_thanh_toan = payment_in.payment_method
-        order.ma_giao_dich = payment_in.transaction_code or f"TXMOCK{int(datetime.now().timestamp())}"
+        order.phuong_thuc_thanh_toan = payment_method
+        order.ma_giao_dich = transaction_code
         order.ngay_thanh_toan = datetime.now()
         order.trang_thai = "success"
         db.add(order)
 
-        # Cập nhật số lượt sử dụng của Mã giảm giá nếu có áp dụng
         if order.ma_giam_gia_id:
-            coupon_res = await db.execute(select(Coupon).where(Coupon.id == order.ma_giam_gia_id))
+            coupon_res = await db.execute(
+                select(Coupon)
+                .where(Coupon.id == order.ma_giam_gia_id)
+                .with_for_update()
+            )
             coupon = coupon_res.scalars().first()
             if coupon:
                 coupon.so_luot_da_dung += 1
                 db.add(coupon)
 
-        # 3. Tự động ghi danh (Enrollment) cho học viên vào tất cả khóa học trong đơn hàng
+        purchased_course_ids = []
         for item in order.chi_tiet_don_hang:
             if item.ma_khoa_hoc:
-                # Kiểm tra xem đã ghi danh chưa (đề phòng trùng lặp)
+                purchased_course_ids.append(item.ma_khoa_hoc)
                 enroll_check = await db.execute(
                     select(Enrollment).where(
                         and_(
@@ -341,16 +394,26 @@ class OrderService:
                     )
                     db.add(new_enrollment)
 
-        # 4. DỌN SẠCH GIỎ HÀNG
-        items_result = await db.execute(
-            select(CartItem).where(CartItem.ma_nguoi_dung == user_id)
-        )
-        for item in items_result.scalars().all():
-            await db.delete(item)
+        if purchased_course_ids:
+            await db.execute(
+                delete(CartItem).where(
+                    and_(
+                        CartItem.ma_nguoi_dung == user_id,
+                        CartItem.ma_khoa_hoc.in_(purchased_course_ids),
+                    )
+                )
+            )
 
         await db.commit()
-        await db.refresh(order)
-        return order
+        refreshed_result = await db.execute(
+            select(Order)
+            .options(
+                selectinload(Order.chi_tiet_don_hang)
+                .selectinload(OrderItem.khoa_hoc)
+            )
+            .where(Order.id == order.id)
+        )
+        return refreshed_result.scalars().one()
 
     @staticmethod
     async def refund_order(db: AsyncSession, order_id: int, user_id: int) -> Order:

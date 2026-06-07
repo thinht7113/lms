@@ -1,0 +1,120 @@
+"use client";
+
+import React from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { Star, Users, ArrowRight, BookOpen, Clock, BarChart3 } from "lucide-react";
+
+interface CourseCardProps {
+  id: number;
+  title: string;
+  thumbnail?: string;
+  instructor: string;
+  category: string;
+  level: string;
+  rating: number;
+  price: number;
+  originalPrice?: number;
+  studentsCount?: number;
+  gradient: string;
+}
+
+export default function CourseCard({
+  id,
+  title,
+  thumbnail,
+  instructor,
+  category,
+  level,
+  rating,
+  price,
+  originalPrice,
+  studentsCount = 0,
+  gradient
+}: CourseCardProps) {
+  const formatPrice = (val: number) => {
+    return val === 0 ? "Miễn phí" : new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(val);
+  };
+
+  const levelLabels: Record<string, string> = {
+    beginner: "Cơ bản",
+    intermediate: "Trung cấp",
+    advanced: "Chuyên sâu"
+  };
+
+  return (
+    <div className="group bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl hover:border-primary/20 transition-all duration-500 flex flex-col h-full">
+      {/* Media Block */}
+      <div className="relative h-48 w-full overflow-hidden bg-slate-100">
+        {thumbnail ? (
+          <Image
+            src={thumbnail}
+            alt={title}
+            fill
+            className="object-cover group-hover:scale-110 transition-transform duration-700"
+          />
+        ) : (
+          <div className={`absolute inset-0 bg-gradient-to-br ${gradient} flex items-center justify-center p-8`}>
+             <BookOpen className="w-12 h-12 text-white/40 group-hover:scale-125 transition-transform duration-500" />
+          </div>
+        )}
+        
+        {/* Overlay Badges */}
+        <div className="absolute top-3 left-3 flex flex-col gap-2">
+            <span className="bg-background/90 backdrop-blur-md text-foreground text-[10px] font-black uppercase px-3 py-1 rounded-lg border border-border shadow-sm">
+                {category}
+            </span>
+        </div>
+        
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
+            <p className="text-[10px] text-white font-bold uppercase tracking-widest">Xem chi tiết khóa học</p>
+        </div>
+      </div>
+
+      {/* Content Block */}
+      <div className="p-6 flex flex-col flex-grow space-y-4">
+        <div className="space-y-2 flex-grow">
+            <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">
+                <div className="flex items-center space-x-1">
+                    <BarChart3 className="w-3 h-3 text-primary" />
+                    <span>{levelLabels[level] || level}</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                    <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                    <span className="text-foreground">{rating.toFixed(1)}</span>
+                </div>
+            </div>
+            
+            <h3 className="font-sans font-black text-base text-foreground leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+                {title}
+            </h3>
+            
+            <p className="text-[11px] text-muted-foreground font-medium">
+                Dẫn dắt bởi <span className="text-foreground font-bold">{instructor}</span>
+            </p>
+        </div>
+
+        {/* Footer Meta */}
+        <div className="pt-4 border-t border-border/40 flex items-center justify-between">
+            <div className="flex flex-col">
+                {originalPrice && originalPrice > price && (
+                    <span className="text-[10px] text-muted-foreground line-through decoration-red-500/50">
+                        {formatPrice(originalPrice)}
+                    </span>
+                )}
+                <span className="text-lg font-black text-primary tracking-tighter">
+                    {formatPrice(price)}
+                </span>
+            </div>
+            
+            <Link
+                href={`/courses/${id}`}
+                className="bg-secondary text-foreground p-3 rounded-xl hover:bg-primary hover:text-white transition-all duration-300"
+            >
+                <ArrowRight className="w-4 h-4" />
+            </Link>
+        </div>
+      </div>
+    </div>
+  );
+}

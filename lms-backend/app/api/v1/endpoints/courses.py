@@ -13,7 +13,7 @@ from app.schemas.course import (
     LessonCreate, LessonUpdate, LessonResponse,
     LessonContentCreate, LessonContentResponse,
     ReviewCreate, ReviewResponse,
-    WishlistResponse, CoursePrerequisiteResponse, CoursePrerequisiteCreate
+    WishlistResponse
 )
 from app.services.course_service import CourseService
 from typing import List, Optional
@@ -332,47 +332,5 @@ async def toggle_course_wishlist(
     added = await CourseService.toggle_wishlist(db, current_user.id, course_id)
     msg = "Đã thêm khóa học vào danh sách yêu thích thành công." if added else "Đã xóa khóa học khỏi danh sách yêu thích."
     return {"added": added, "message": msg}
-
-# ==================== COURSE PREREQUISITE ENDPOINTS ====================
-@router.post(
-    "/courses/{course_id}/prerequisites",
-    response_model=CoursePrerequisiteResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Giảng viên/Admin liên kết khóa học tiên quyết"
-)
-async def add_course_prerequisite(
-    course_id: int,
-    prereq_in: CoursePrerequisiteCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_instructor)
-):
-    # Kiểm tra xem giảng viên có sở hữu khóa học chính này không (hoặc là admin)
-    course = await CourseService.get_course(db, course_id)
-    if current_user.vai_tro != "admin" and course.ma_giang_vien != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Bạn không có quyền chỉnh sửa khóa học này."
-        )
-    return await CourseService.add_course_prerequisite(db, course_id, prereq_in.ma_khoa_hoc_tien_quyet)
-
-@router.delete(
-    "/courses/{course_id}/prerequisites/{prereq_id}",
-    summary="Giảng viên/Admin xóa liên kết khóa học tiên quyết"
-)
-async def delete_course_prerequisite(
-    course_id: int,
-    prereq_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_instructor)
-):
-    # Kiểm tra xem giảng viên có sở hữu khóa học chính này không (hoặc là admin)
-    course = await CourseService.get_course(db, course_id)
-    if current_user.vai_tro != "admin" and course.ma_giang_vien != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Bạn không có quyền chỉnh sửa khóa học này."
-        )
-    await CourseService.delete_course_prerequisite(db, course_id, prereq_id)
-    return {"status": "success", "message": "Đã xóa điều kiện tiên quyết thành công."}
 
 

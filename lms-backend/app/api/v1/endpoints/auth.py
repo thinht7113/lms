@@ -1,13 +1,35 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_db, get_current_user
-from app.schemas.user import UserRegister, UserLogin, UserResponse, TokenResponse, UserUpdate
+from app.schemas.user import (
+    SocialLoginRequest,
+    TokenResponse,
+    UserLogin,
+    UserRegister,
+    UserResponse,
+    UserUpdate,
+)
 from app.services.auth_service import AuthService
 from app.core.security import create_access_token
+from app.core.config import settings
+from app.core.security_guards import auth_cookie_secure, mock_feature_enabled
 from app.models.user import User
 
 router = APIRouter()
+
+
+def set_auth_cookie(response: Response, access_token: str) -> None:
+    response.set_cookie(
+        key=settings.AUTH_COOKIE_NAME,
+        value=access_token,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        httponly=True,
+        secure=auth_cookie_secure(settings.APP_ENV),
+        samesite="lax",
+        path="/",
+    )
+
 
 # 1. API Đăng ký tài khoản mới
 @router.post(
@@ -30,13 +52,15 @@ async def register(
     summary="Đăng nhập nhận Token JWT truy cập hệ thống"
 )
 async def login(
-    login_data: UserLogin, 
-    db: AsyncSession = Depends(get_db)
+    login_data: UserLogin,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
 ):
     # Xác thực tài khoản mật khẩu
     user = await AuthService.authenticate(db, login_data.email, login_data.mat_khau)
     # Tạo mã JWT bảo mật chứa ID người dùng
     access_token = create_access_token(subject=user.id)
+    set_auth_cookie(response, access_token)
     
     return {
         "access_token": access_token,
@@ -52,12 +76,14 @@ async def login(
     summary="Đăng nhập dành riêng cho Swagger UI"
 )
 async def login_swagger(
+    response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     # form_data.username đóng vai trò là email trong hệ thống
     user = await AuthService.authenticate(db, form_data.username, form_data.password)
     access_token = create_access_token(subject=user.id)
+    set_auth_cookie(response, access_token)
     
     return {
         "access_token": access_token,
@@ -72,20 +98,40 @@ async def login_swagger(
     summary="Đăng nhập hoặc đăng ký bằng tài khoản mạng xã hội (Google/Facebook)"
 )
 async def social_login(
-    social_data: dict, # Trong thực tế sẽ dùng SocialLoginRequest, tạm dùng dict để dễ test mock
-    db: AsyncSession = Depends(get_db)
+    social_data: SocialLoginRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
 ):
+    if not mock_feature_enabled(settings.APP_ENV, settings.ENABLE_MOCK_AUTH):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Đăng nhập mạng xã hội thử nghiệm chưa được bật."
+        )
+
     # Gọi service xử lý logic tự động tạo mới hoặc liên kết tài khoản
-    user = await AuthService.social_login(db, social_data)
+    user = await AuthService.social_login(db, social_data.model_dump())
     
     # Tạo mã JWT bảo mật chứa ID người dùng
     access_token = create_access_token(subject=user.id)
+    set_auth_cookie(response, access_token)
     
     return {
         "access_token": access_token,
         "token_type": "bearer",
         "user": user
     }
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(response: Response):
+    response.delete_cookie(
+        key=settings.AUTH_COOKIE_NAME,
+        path="/",
+        secure=auth_cookie_secure(settings.APP_ENV),
+        httponly=True,
+        samesite="lax",
+    )
+
 
 # 4. API Lấy thông tin cá nhân (Đòi hỏi đăng nhập)
 @router.get(

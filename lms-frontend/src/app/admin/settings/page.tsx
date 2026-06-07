@@ -1,175 +1,174 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { apiFetch } from "@/lib/api";
+import React, { useState, useEffect } from "react";
+import DynamicTable from "@/components/admin/DynamicTable";
+import { UploadCloud, RefreshCw, Save, CheckCircle2 } from "lucide-react";
+import { tokenHelper } from "@/services/api";
 
-interface Setting {
-    id: number;
-    key: string;
-    value: string;
-    data_type: string;
-    group: string;
-    description: string;
-}
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
-export default function SettingsPage() {
-    const [settings, setSettings] = useState<Setting[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [message, setMessage] = useState<{ type: "success" | "error", text: string } | null>(null);
+export default function AdminSettingsPage() {
+    const [uploadingLogo, setUploadingLogo] = useState(false);
+    const [logoUrl, setLogoUrl] = useState<string | null>(null);
+    const [message, setMessage] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState("general");
+    const columns = [
+        { key: "group", label: "Nhóm cấu hình", type: "text" },
+        { key: "key", label: "Từ khóa", type: "text" },
+        { key: "value", label: "Giá trị", type: "text" },
+        { key: "description", label: "Mô tả", type: "text" },
+    ];
+
+    const formFields = [
+        { key: "group", label: "Nhóm (Ví dụ: PAYMENT, UI, SYSTEM)", type: "text", required: true },
+        { key: "key", label: "Từ khóa (Ví dụ: SYSTEM_LOGO)", type: "text", required: true },
+        { key: "value", label: "Giá trị", type: "textarea", required: true },
+        { key: "description", label: "Mô tả ý nghĩa cấu hình này", type: "text" },
+    ];
 
     useEffect(() => {
-        loadSettings();
+        // Fetch current logo from public settings
+        async function fetchLogo() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/settings/public`);
+                if (res.ok) {
+                    const data = await res.json();
+                    const logoSetting = data.find((s: any) => s.key === "SYSTEM_LOGO");
+                    if (logoSetting) {
+                        setLogoUrl(logoSetting.value);
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+        fetchLogo();
     }, []);
 
-    const loadSettings = async () => {
-        setLoading(true);
-        try {
-            const token = localStorage.getItem("lms_token") || "";
-            const res = await apiFetch("/admin/settings", token);
-            if (res.ok) {
-                const data = await res.json();
-                // Nếu chưa có cấu hình nào trong DB, ta có thể khởi tạo tạm để hiển thị
-                if (data.length === 0) {
-                    setSettings([
-                        { id: 0, key: "site_name", value: "Lumina LMS", data_type: "string", group: "general", description: "Tên trang web" },
-                        { id: 0, key: "allow_registration", value: "true", data_type: "boolean", group: "features", description: "Cho phép đăng ký tài khoản tự do" },
-                        { id: 0, key: "ckeditor_license_key", value: "GPL", data_type: "string", group: "editor", description: "Mã License Key cho trình soạn thảo CKEditor" }
-                    ]);
-                } else {
-                    setSettings(data);
-                }
-            }
-        } catch (error) {
-            console.error(error);
-        }
-        setLoading(false);
-    };
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
 
-    const handleSave = async () => {
-        setSaving(true);
+        setUploadingLogo(true);
         setMessage(null);
         try {
-            const token = localStorage.getItem("lms_token") || "";
-            const updates = settings.map(s => ({ key: s.key, value: s.value }));
-            const res = await apiFetch("/admin/settings", token, {
-                method: "PUT",
-                body: JSON.stringify({ settings: updates })
+            const token = tokenHelper.getToken();
+            const formDataUpload = new FormData();
+            formDataUpload.append("file", file);
+
+            // 1. Upload file
+            const resUpload = await fetch(`${API_BASE_URL}/upload`, {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${token}` },
+                body: formDataUpload
             });
 
-            if (res.ok) {
-                setMessage({ type: "success", text: "Cập nhật cấu hình thành công!" });
-                loadSettings(); // Reload
+            if (!resUpload.ok) throw new Error("Upload ảnh thất bại");
+            const dataUpload = await resUpload.json();
+            const newUrl = dataUpload.url;
+
+            // 2. Cập nhật cấu hình SYSTEM_LOGO qua Dynamic Admin API
+            // Lấy ID của cấu hình SYSTEM_LOGO nếu có, nếu không tạo mới
+            const resFind = await fetch(`${API_BASE_URL}/dynamic-admin/settings?search=SYSTEM_LOGO`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            const dataFind = await resFind.json();
+
+            let resSave;
+            if (dataFind.data && dataFind.data.length > 0) {
+                const existingId = dataFind.data[0].id;
+                resSave = await fetch(`${API_BASE_URL}/dynamic-admin/settings/${existingId}`, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ value: newUrl })
+                });
             } else {
-                setMessage({ type: "error", text: "Có lỗi xảy ra khi lưu cấu hình." });
+                resSave = await fetch(`${API_BASE_URL}/dynamic-admin/settings`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        key: "SYSTEM_LOGO",
+                        value: newUrl,
+                        group: "UI",
+                        description: "Logo toàn hệ thống"
+                    })
+                });
             }
-        } catch (error) {
-            setMessage({ type: "error", text: "Không thể kết nối đến máy chủ." });
+
+            if (!resSave.ok) throw new Error("Lỗi khi lưu cấu hình Logo");
+
+            setLogoUrl(newUrl);
+            setMessage("Đã cập nhật Logo hệ thống thành công!");
+            // Trigger refresh event for other components if needed, or reload
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+
+        } catch (err: any) {
+            alert(err.message || "Lỗi hệ thống");
+        } finally {
+            setUploadingLogo(false);
         }
-        setSaving(false);
     };
-
-    const updateSettingValue = (key: string, newValue: string) => {
-        setSettings(prev => prev.map(s => s.key === key ? { ...s, value: newValue } : s));
-    };
-
-    const groups = Array.from(new Set(settings.map(s => s.group)));
-
-    // Ánh xạ tên nhóm cho thân thiện
-    const groupNames: Record<string, string> = {
-        "general": "Cài đặt chung",
-        "features": "Tính năng",
-        "editor": "Trình soạn thảo",
-        "learning": "Học tập"
-    };
-
-    if (loading) return <div className="p-8 text-center"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div></div>;
 
     return (
-        <div className="max-w-5xl animate-slide-up pb-12">
-            <div className="flex items-center justify-between mb-8">
-                <div>
-                    <h1 className="text-3xl font-black text-on-surface mb-2">Cấu hình hệ thống</h1>
-                    <p className="text-on-surface-variant font-medium">Quản lý các thiết lập toàn cục cho nền tảng LMS</p>
-                </div>
-                <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-on-primary px-6 py-3 rounded-xl font-bold shadow-md hover:shadow-lg transition-all disabled:opacity-70"
-                >
-                    {saving ? <i className="ph ph-spinner animate-spin text-xl"></i> : <i className="ph-fill ph-floppy-disk text-xl"></i>}
-                    Lưu thay đổi
-                </button>
-            </div>
-
-            {message && (
-                <div className={`p-4 rounded-xl mb-6 font-bold flex items-center gap-2 ${message.type === 'success' ? 'bg-success/10 text-success' : 'bg-error/10 text-error'}`}>
-                    <i className={`ph-fill ${message.type === 'success' ? 'ph-check-circle' : 'ph-warning-circle'} text-xl`}></i>
-                    {message.text}
-                </div>
-            )}
-
-            <div className="flex flex-col md:flex-row gap-8">
-                {/* Tabs / Sidebar */}
-                <div className="w-full md:w-64 shrink-0 space-y-2">
-                    {groups.length === 0 && <div className="text-sm text-on-surface-variant italic">Chưa có nhóm cấu hình nào.</div>}
-                    {groups.map(group => (
-                        <button
-                            key={group}
-                            onClick={() => setActiveTab(group)}
-                            className={`w-full text-left px-5 py-3.5 rounded-xl font-bold transition-all ${activeTab === group ? "bg-primary text-on-primary shadow-md" : "bg-surface hover:bg-surface-container text-on-surface"}`}
-                        >
-                            {groupNames[group] || group}
-                        </button>
-                    ))}
+        <div className="h-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Logo Settings Section */}
+            <div className="bg-card border border-border/60 rounded-[2rem] p-8 shadow-sm">
+                <div className="border-b border-border/40 pb-4 mb-6">
+                    <h2 className="text-xl font-black tracking-tight text-foreground">Đổi Logo Hệ Thống</h2>
+                    <p className="text-sm font-medium text-muted-foreground mt-1">Upload hình ảnh logo mới (ưu tiên đuôi .png hoặc .svg trong suốt).</p>
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 glass-panel p-8 rounded-3xl bg-surface border border-outline-variant/50 shadow-sm min-h-[400px]">
-                    <h2 className="text-xl font-black mb-6 text-primary border-b border-outline-variant/30 pb-4">
-                        {groupNames[activeTab] || activeTab}
-                    </h2>
+                <div className="flex flex-col sm:flex-row gap-8 items-start">
+                    <div className="w-full sm:w-1/3 aspect-video bg-secondary rounded-2xl flex items-center justify-center border-2 border-dashed border-border/60 overflow-hidden relative">
+                        {logoUrl ? (
+                            <img src={logoUrl} alt="System Logo" className="max-w-[80%] max-h-[80%] object-contain" />
+                        ) : (
+                            <span className="text-muted-foreground font-bold">Chưa có Logo</span>
+                        )}
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                            <label className="cursor-pointer bg-primary text-white font-bold py-2 px-4 rounded-xl flex items-center space-x-2 shadow-lg">
+                                {uploadingLogo ? <RefreshCw className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
+                                <span>Tải ảnh mới lên</span>
+                                <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={uploadingLogo} />
+                            </label>
+                        </div>
+                    </div>
 
-                    <div className="space-y-6">
-                        {settings.filter(s => s.group === activeTab).map(setting => (
-                            <div key={setting.key} className="flex flex-col gap-2">
-                                <label className="font-bold text-on-surface">{setting.description || setting.key}</label>
-
-                                {setting.data_type === 'boolean' ? (
-                                    <label className="relative inline-flex items-center cursor-pointer mt-1">
-                                        <input
-                                            type="checkbox"
-                                            className="sr-only peer"
-                                            checked={setting.value === "true"}
-                                            onChange={(e) => updateSettingValue(setting.key, e.target.checked ? "true" : "false")}
-                                        />
-                                        <div className="w-14 h-7 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary shadow-inner"></div>
-                                        <span className="ml-3 text-sm font-bold text-on-surface-variant">
-                                            {setting.value === "true" ? "Đang Bật" : "Đang Tắt"}
-                                        </span>
-                                    </label>
-                                ) : (
-                                    <input
-                                        type="text"
-                                        value={setting.value}
-                                        onChange={(e) => updateSettingValue(setting.key, e.target.value)}
-                                        className="w-full px-4 py-3 rounded-xl border border-outline-variant/60 bg-surface-container focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-on-surface font-medium transition-all"
-                                        placeholder={`Nhập giá trị cho ${setting.key}`}
-                                    />
-                                )}
-                                <div className="text-xs font-medium text-on-surface-variant/60">Key: <code>{setting.key}</code></div>
-                            </div>
-                        ))}
-
-                        {settings.filter(s => s.group === activeTab).length === 0 && (
-                            <div className="text-center py-10 text-on-surface-variant">
-                                Không có cấu hình nào trong nhóm này.
+                    <div className="flex-1 space-y-4">
+                        <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl space-y-2">
+                            <p className="text-xs font-bold text-primary uppercase tracking-widest">Quy chuẩn Logo</p>
+                            <ul className="text-sm font-medium text-foreground/80 list-disc list-inside pl-4 space-y-1">
+                                <li>Định dạng khuyên dùng: PNG (Transparent) hoặc SVG.</li>
+                                <li>Kích thước tối đa: 2MB.</li>
+                                <li>Tỷ lệ tốt nhất: 1:1 (Vuông) để tương thích với icon Nemo hiện tại.</li>
+                            </ul>
+                        </div>
+                        {message && (
+                            <div className="flex items-center gap-2 text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 rounded-xl font-bold text-sm">
+                                <CheckCircle2 className="w-5 h-5" />
+                                <span>{message}</span>
                             </div>
                         )}
                     </div>
                 </div>
+            </div>
+
+            {/* Advanced Settings */}
+            <div className="h-[600px]">
+                <DynamicTable
+                    title="Cấu hình Hệ thống (System Settings)"
+                    endpoint="/dynamic-admin/settings"
+                    columns={columns as any}
+                    formFields={formFields as any}
+                />
             </div>
         </div>
     );

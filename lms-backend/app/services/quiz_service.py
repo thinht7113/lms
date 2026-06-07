@@ -134,8 +134,7 @@ class QuizService:
             giai_thich=question_in.explanation
         )
         db.add(db_question)
-        await db.commit()
-        await db.refresh(db_question)
+        await db.flush()
 
         # Lưu các lựa chọn vào bảng QuestionOption (lua_chon_cau_hoi)
         options_list = []
@@ -327,7 +326,6 @@ class QuizService:
         attempt.trang_thai = "completed"
         attempt.ngay_lam_bai = datetime.now()
         db.add(attempt)
-        await db.commit()
 
         # 5. Lưu chi tiết các câu trả lời học viên đã chọn
         for q_id, opt_id in answer_logs:

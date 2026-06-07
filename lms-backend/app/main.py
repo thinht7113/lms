@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 from app.api.v1.router import api_router
 from app.core.database import engine
+from app.core.config import settings
 from app.models.base import Base
 
 # Import toàn bộ models để Base.metadata biết tất cả bảng cần tạo
@@ -13,9 +14,10 @@ import app.models  # noqa: F401
 # Startup & Shutdown lifespan handler
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Tự động tạo bảng trong DB nếu chưa tồn tại
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # Development remains convenient; production schema is managed by Alembic.
+    if settings.APP_ENV.lower() in {"development", "test"}:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
     yield
     # Shutdown: Đóng kết nối engine
     await engine.dispose()
@@ -75,12 +77,7 @@ app = FastAPI(
 )
 
 # Cấu hình Middleware CORS (cho phép Frontend kết nối)
-origins = [
-    "http://localhost:3000",      # React/Next.js mặc định
-    "http://127.0.0.1:3000",      # Fallback IP
-    "http://localhost:5173",      # Vite mặc định
-    "http://127.0.0.1:5173",      # Fallback IP cho Vite
-]
+origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
 
 app.add_middleware(
     CORSMiddleware,

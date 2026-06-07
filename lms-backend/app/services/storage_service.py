@@ -15,7 +15,7 @@ class StorageService:
                 endpoint_url=settings.MINIO_ENDPOINT_URL,
                 aws_access_key_id=settings.MINIO_ACCESS_KEY,
                 aws_secret_access_key=settings.MINIO_SECRET_KEY,
-                config=Config(signature_version="s3v4"),
+                config=Config(signature_version="s3v4", s3={'addressing_style': 'path'}),
                 region_name="us-east-1"
             )
             # 2. Gán client cho thuộc tính class trước khi thực hiện các thiết lập khác

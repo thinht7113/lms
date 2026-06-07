@@ -5,11 +5,12 @@ import string
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
+from decimal import Decimal
 
 from app.api.deps import get_db, get_current_admin_user
-from app.models import User, Course, Order, OrderItem, Enrollment, Category, Coupon
+from app.models import User, Course, Order, OrderItem, Enrollment, Progress, Category, Coupon
 from app.models.setting import Setting
 from app.schemas.course import CategoryUpdate, CategoryResponse, CourseResponse, LessonResponse
 from app.schemas.order import OrderResponse, CouponCreate, CouponUpdate, CouponResponse
@@ -64,14 +65,20 @@ class UserResponse(BaseModel):
     trang_thai_hoat_dong: bool
     ngay_tao: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class RoleUpdateRequest(BaseModel):
     vai_tro: str
 
 class StatusUpdateRequest(BaseModel):
     trang_thai_hoat_dong: bool
+
+
+def month_start(value: datetime, offset: int = 0) -> datetime:
+    month_index = value.year * 12 + value.month - 1 + offset
+    year, zero_based_month = divmod(month_index, 12)
+    return datetime(year, zero_based_month + 1, 1)
+
 
 # --- Endpoints ---
 
@@ -94,35 +101,61 @@ async def get_system_stats(
     courses_res = await db.execute(select(func.count(Course.id)))
     total_courses = courses_res.scalar() or 0
 
-    # Đếm đơn hàng (tạm tính tất cả đơn hàng)
+    # Đếm toàn bộ đơn hàng, kể cả đang chờ xử lý.
     orders_res = await db.execute(select(func.count(Order.id)))
     total_orders = orders_res.scalar() or 0
 
-    # Tính tổng doanh thu
-    revenue_res = await db.execute(select(func.sum(Order.tong_tien)))
+    # Chỉ đơn thanh toán thành công mới được ghi nhận là doanh thu.
+    revenue_res = await db.execute(
+        select(func.sum(Order.tong_tien)).where(Order.trang_thai == "success")
+    )
     total_revenue = float(revenue_res.scalar() or 0)
 
-    from datetime import datetime, timedelta
     from app.models.log import AdminLog
     
     # Doanh thu tháng này
     now = datetime.now()
-    first_day_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    rev_month_res = await db.execute(select(func.sum(Order.tong_tien)).where(Order.ngay_tao >= first_day_of_month))
+    first_day_of_month = month_start(now)
+    first_day_of_next_month = month_start(now, 1)
+    rev_month_res = await db.execute(
+        select(func.sum(Order.tong_tien)).where(
+            Order.trang_thai == "success",
+            Order.ngay_tao >= first_day_of_month,
+            Order.ngay_tao < first_day_of_next_month,
+        )
+    )
     revenue_this_month = float(rev_month_res.scalar() or 0)
 
-    # Tỷ lệ hoàn thành (mock)
-    completion_rate = 78.5
+    progress_total_res = await db.execute(select(func.count(Progress.id)))
+    progress_completed_res = await db.execute(
+        select(func.count(Progress.id)).where(Progress.da_hoan_thanh.is_(True))
+    )
+    progress_total = progress_total_res.scalar() or 0
+    progress_completed = progress_completed_res.scalar() or 0
+    completion_rate = round(progress_completed * 100 / progress_total, 2) if progress_total else 0.0
 
-    # Dữ liệu biểu đồ (mock 6 tháng)
-    chart_data = [
-        {"name": "Th 1", "revenue": 15000000, "students": 120},
-        {"name": "Th 2", "revenue": 18000000, "students": 150},
-        {"name": "Th 3", "revenue": 22000000, "students": 180},
-        {"name": "Th 4", "revenue": 19000000, "students": 160},
-        {"name": "Th 5", "revenue": 25000000, "students": 210},
-        {"name": "Th 6", "revenue": revenue_this_month or 30000000, "students": 250},
-    ]
+    chart_data = []
+    for offset in range(-5, 1):
+        start = month_start(now, offset)
+        end = month_start(now, offset + 1)
+        month_revenue_res = await db.execute(
+            select(func.sum(Order.tong_tien)).where(
+                Order.trang_thai == "success",
+                Order.ngay_tao >= start,
+                Order.ngay_tao < end,
+            )
+        )
+        month_students_res = await db.execute(
+            select(func.count(Enrollment.id)).where(
+                Enrollment.ngay_dang_ky >= start,
+                Enrollment.ngay_dang_ky < end,
+            )
+        )
+        chart_data.append({
+            "name": f"{start.month:02d}/{str(start.year)[2:]}",
+            "revenue": float(month_revenue_res.scalar() or 0),
+            "students": month_students_res.scalar() or 0,
+        })
 
     # Khóa học chờ duyệt
     pending_courses_res = await db.execute(
@@ -151,10 +184,48 @@ async def get_system_stats(
         "nguoi_thuc_hien": a.admin.ho_ten if a.admin else f"ID {a.ma_admin}"
     } for a in recent_activities]
 
-    # Top khóa học
-    top_courses_res = await db.execute(select(Course).order_by(Course.gia_tien.desc()).limit(4))
-    top_courses = top_courses_res.scalars().all()
-    top_courses_mapped = [{"id": c.id, "tieu_de": c.tieu_de, "so_hoc_vien": 100 + c.id * 15, "doanh_thu": float(c.gia_tien or 0) * (100 + c.id * 15)} for c in top_courses]
+    enrollment_totals = (
+        select(
+            Enrollment.ma_khoa_hoc.label("course_id"),
+            func.count(Enrollment.id).label("student_count"),
+        )
+        .group_by(Enrollment.ma_khoa_hoc)
+        .subquery()
+    )
+    course_revenue = (
+        select(
+            OrderItem.ma_khoa_hoc.label("course_id"),
+            func.sum(OrderItem.gia_luc_mua).label("revenue"),
+        )
+        .join(Order, Order.id == OrderItem.ma_don_hang)
+        .where(Order.trang_thai == "success")
+        .group_by(OrderItem.ma_khoa_hoc)
+        .subquery()
+    )
+    top_courses_res = await db.execute(
+        select(
+            Course.id,
+            Course.tieu_de,
+            func.coalesce(enrollment_totals.c.student_count, 0),
+            func.coalesce(course_revenue.c.revenue, 0),
+        )
+        .outerjoin(enrollment_totals, enrollment_totals.c.course_id == Course.id)
+        .outerjoin(course_revenue, course_revenue.c.course_id == Course.id)
+        .order_by(
+            func.coalesce(enrollment_totals.c.student_count, 0).desc(),
+            func.coalesce(course_revenue.c.revenue, 0).desc(),
+        )
+        .limit(4)
+    )
+    top_courses_mapped = [
+        {
+            "id": row[0],
+            "tieu_de": row[1],
+            "so_hoc_vien": row[2],
+            "doanh_thu": float(row[3] or 0),
+        }
+        for row in top_courses_res.all()
+    ]
 
     return SystemStats(
         total_users=total_users,
@@ -566,8 +637,22 @@ async def delete_review_admin(
     review = result.scalars().first()
     if not review:
         raise HTTPException(status_code=404, detail="Không tìm thấy đánh giá.")
-        
+
+    course_id = review.ma_khoa_hoc
     await db.delete(review)
+    await db.flush()
+
+    average_res = await db.execute(
+        select(func.avg(CourseReview.so_sao)).where(
+            CourseReview.ma_khoa_hoc == course_id
+        )
+    )
+    course_res = await db.execute(select(Course).where(Course.id == course_id))
+    course = course_res.scalars().first()
+    if course:
+        average = average_res.scalar()
+        course.danh_gia_trung_binh = Decimal(str(round(float(average), 2))) if average else Decimal("0.00")
+
     await db.commit()
     return {"status": "success", "message": "Đã xóa đánh giá vi phạm thành công."}
 
