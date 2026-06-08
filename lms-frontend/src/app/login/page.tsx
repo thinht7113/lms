@@ -21,7 +21,7 @@ export default function LoginPage() {
 
   // If already logged in, return to the homepage.
   useEffect(() => {
-    if (tokenHelper.getToken()) {
+    if (tokenHelper.getCurrentUser()) {
       router.push("/");
     }
   }, [router]);
