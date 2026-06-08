@@ -2,17 +2,18 @@
 
 import React, { useState, useEffect } from "react";
 import { X, Save, RefreshCw, UploadCloud } from "lucide-react";
-import { tokenHelper } from "@/services/api";
+import { fetchWithAuth } from "@/services/api";
 import { useToast } from "@/contexts/ToastContext";
 
 export interface FormField {
     key: string;
     label: string;
-    type: "text" | "number" | "email" | "password" | "textarea" | "boolean" | "select" | "image";
+    type: "text" | "number" | "email" | "password" | "textarea" | "boolean" | "select" | "image" | "date";
     required?: boolean;
     options?: { value: string | number; label: string }[]; // For select type
     placeholder?: string;
     disabled?: boolean;
+    defaultValue?: any;
 }
 
 interface DynamicFormProps {
@@ -45,7 +46,8 @@ export default function DynamicForm({ title, fields, initialData, endpoint, onSu
             const defaultData: any = { ...(baseData || {}) };
             fields.forEach(field => {
                 if (defaultData[field.key] === undefined) {
-                    if (field.type === "boolean") defaultData[field.key] = false;
+                    if (field.defaultValue !== undefined) defaultData[field.key] = field.defaultValue;
+                    else if (field.type === "boolean") defaultData[field.key] = false;
                     else if (field.type === "number") defaultData[field.key] = 0;
                     else defaultData[field.key] = "";
                 }
@@ -55,7 +57,15 @@ export default function DynamicForm({ title, fields, initialData, endpoint, onSu
     }, [initialData, fields, baseData]);
 
     const handleChange = (key: string, value: any) => {
-        setFormData((prev: any) => ({ ...prev, [key]: value }));
+        let finalValue = value;
+        // Tự động format mã giảm giá: Viết hoa, bỏ dấu, bỏ ký tự đặc biệt
+        if (key === "ma_code" && typeof value === "string") {
+            finalValue = value.toUpperCase()
+                .normalize('NFD') // Tách dấu ra khỏi chữ
+                .replace(/[\u0300-\u036f]/g, '') // Xóa dấu
+                .replace(/[^A-Z0-9]/g, ''); // Chỉ giữ lại chữ cái và số
+        }
+        setFormData((prev: any) => ({ ...prev, [key]: finalValue }));
     };
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldKey: string) => {
@@ -65,13 +75,12 @@ export default function DynamicForm({ title, fields, initialData, endpoint, onSu
         setUploadingImage(true);
         setError(null);
         try {
-            const token = tokenHelper.getToken();
             const formDataUpload = new FormData();
             formDataUpload.append("file", file);
+            formDataUpload.append("asset_type", "image");
 
-            const res = await fetch(`${API_BASE_URL}/upload`, {
+            const res = await fetchWithAuth(`${API_BASE_URL}/upload`, {
                 method: "POST",
-                headers: { "Authorization": `Bearer ${token}` },
                 body: formDataUpload
             });
 
@@ -94,7 +103,6 @@ export default function DynamicForm({ title, fields, initialData, endpoint, onSu
         setError(null);
 
         try {
-            const token = tokenHelper.getToken();
             const url = isEditMode ? `${API_BASE_URL}${endpoint}/${initialData.id}` : `${API_BASE_URL}${endpoint}`;
             const method = isEditMode ? "PUT" : "POST";
 
@@ -102,25 +110,42 @@ export default function DynamicForm({ title, fields, initialData, endpoint, onSu
             const payload = { ...formData };
             if (payload.id) delete payload.id;
 
-            // Ép kiểu number nếu cần
+            for (const field of fields) {
+                const value = payload[field.key];
+                if (field.required && (value === undefined || value === null || value === "")) {
+                    throw new Error(`Vui lòng nhập ${field.label}`);
+                }
+            }
+
+            // Ép kiểu number nếu cần, và chuyển "" thành null cho date
             fields.forEach(f => {
                 if (f.type === "number" && payload[f.key]) {
                     payload[f.key] = Number(payload[f.key]);
                 }
+                // Xử lý chuỗi rỗng của date/datetime thành null để Backend Pydantic không bị lỗi "input is too short"
+                if (payload[f.key] === "" && (f.type === "date" || f.key.includes("ngay") || f.key.includes("date"))) {
+                    payload[f.key] = null;
+                }
             });
 
-            const res = await fetch(url, {
+            const res = await fetchWithAuth(url, {
                 method,
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
                 body: JSON.stringify(payload)
             });
 
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.detail || "Lỗi lưu dữ liệu");
+                let errorMessage = "Lỗi lưu dữ liệu";
+                if (errData.detail) {
+                    if (Array.isArray(errData.detail)) {
+                        // Extract first validation error
+                        const firstError = errData.detail[0];
+                        errorMessage = `Lỗi trường "${firstError.loc[firstError.loc.length - 1]}": ${firstError.msg}`;
+                    } else if (typeof errData.detail === "string") {
+                        errorMessage = errData.detail;
+                    }
+                }
+                throw new Error(errorMessage);
             }
 
             toast.success(isEditMode ? "Cập nhật thành công!" : "Tạo mới thành công!");
@@ -190,7 +215,7 @@ export default function DynamicForm({ title, fields, initialData, endpoint, onSu
                         <div className="relative">
                             <input
                                 type="file"
-                                accept="image/*"
+                                accept="image/png,image/jpeg,image/gif,image/webp"
                                 onChange={(e) => handleImageUpload(e, field.key)}
                                 disabled={field.disabled || isLoading || uploadingImage}
                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"

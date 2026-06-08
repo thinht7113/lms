@@ -20,6 +20,8 @@ interface Question {
   replies: string[];
 }
 
+const normalizeContentType = (value?: string) => (value || "").toLowerCase();
+
 export default function LearnSpacePage() {
   const params = useParams();
   const router = useRouter();
@@ -43,7 +45,7 @@ export default function LearnSpacePage() {
       author: "Trần Văn Nam",
       timestamp: "01:23",
       content: "Cho em hỏi vì sao ở đây connection pool lại đặt size là 10 vậy thầy? Đặt cao hơn có lỗi gì không ạ?",
-      replies: ["Giảng viên Nemo: Chào em, pool size 10 là mức mặc định hợp lý cho dự án vừa. Nếu đặt quá cao mà PostgreSQL không chịu nổi max_connections thì sẽ báo lỗi 'too many clients already'. Nhớ config khớp cả hai nhé."]
+      replies: ["Giảng viên Lumina: Chào em, pool size 10 là mức mặc định hợp lý cho dự án vừa. Nếu đặt quá cao mà PostgreSQL không chịu nổi max_connections thì sẽ báo lỗi 'too many clients already'. Nhớ config khớp cả hai nhé."]
     }
   ]);
   const [newQuestion, setNewQuestion] = useState("");
@@ -118,7 +120,7 @@ export default function LearnSpacePage() {
 
   // Periodic progress autosave for video
   useEffect(() => {
-    if (!activeLessonContent || activeLessonContent.noi_dung?.[0]?.loai_noi_dung !== "VIDEO") return;
+    if (!activeLessonContent || !activeLessonContent.noi_dung?.some((content) => normalizeContentType(content.loai_noi_dung) === "video")) return;
 
     const interval = setInterval(() => {
       if (videoRef.current) {
@@ -215,6 +217,7 @@ export default function LearnSpacePage() {
 
   // Find active content
   const activeContent = activeLessonContent?.noi_dung?.[0];
+  const activeContentType = normalizeContentType(activeContent?.loai_noi_dung);
 
   return (
     <>
@@ -266,24 +269,40 @@ export default function LearnSpacePage() {
                 )}
 
                 {/* Dynamic Content View based on block type */}
-                {!lessonLoading && activeLessonContent && (
+                {!lessonLoading && activeLessonContent && !activeContent && (
+                  <div className="rounded-[2rem] border border-dashed border-border/60 bg-card p-10 text-center shadow-sm">
+                    <FileText className="mx-auto h-12 w-12 text-muted-foreground/40" />
+                    <p className="mt-4 text-sm font-black text-muted-foreground">Bài học này chưa có nội dung.</p>
+                  </div>
+                )}
+
+                {!lessonLoading && activeLessonContent && activeContent && (
                   <div className="bg-card text-card-foreground border border-border/60 rounded-[2rem] overflow-hidden shadow-2xl">
                     {/* VIDEO PLAYER */}
-                    {activeContent?.loai_noi_dung === "VIDEO" && (
+                    {activeContentType === "video" && (
                       <div className="relative bg-slate-900 aspect-video w-full flex flex-col justify-between overflow-hidden group">
-                        <video
-                          ref={videoRef}
-                          src={activeContent.duong_dan_file || "http://techslides.com/demos/sample-videos/small.mp4"}
-                          controls
-                          className="h-full w-full object-contain"
-                          onLoadedMetadata={() => {
-                            if (videoRef.current && videoResumeSeconds > 0) {
-                              videoRef.current.currentTime = videoResumeSeconds;
-                            }
-                          }}
-                        />
+                        {activeContent.duong_dan_file ? (
+                          <video
+                            ref={videoRef}
+                            src={activeContent.duong_dan_file}
+                            controls
+                            className="h-full w-full object-contain"
+                            onLoadedMetadata={() => {
+                              if (videoRef.current && videoResumeSeconds > 0) {
+                                videoRef.current.currentTime = videoResumeSeconds;
+                              }
+                            }}
+                          />
+                        ) : (
+                          <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-white">
+                            <FileText className="h-12 w-12 text-white/40" />
+                            <p className="text-lg font-black">Bài học chưa có video</p>
+                            <p className="max-w-md text-sm text-white/60">Giảng viên chưa tải nội dung video cho bài học này.</p>
+                          </div>
+                        )}
 
                         {/* Top Overlay controls for speed */}
+                        {activeContent.duong_dan_file && (
                         <div className="absolute top-4 right-4 flex items-center space-x-2 bg-black/60 backdrop-blur-md p-1.5 rounded-xl border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                           <span className="text-[10px] font-black text-white uppercase tracking-widest px-2">Tốc độ</span>
                           {[1, 1.25, 1.5, 2].map((s) => (
@@ -298,43 +317,74 @@ export default function LearnSpacePage() {
                             </button>
                           ))}
                         </div>
+                        )}
                       </div>
                     )}
 
                     {/* PDF READER */}
-                    {activeContent?.loai_noi_dung === "PDF" && (
+                    {activeContentType === "pdf" && (
                       <div className="flex flex-col space-y-0 h-[70vh]">
                         <div className="flex items-center justify-between bg-secondary p-4 px-6 border-b border-border/60">
                           <div className="flex items-center space-x-2 text-foreground">
                             <FileText className="h-5 w-5 text-primary" />
                             <span className="text-sm font-bold uppercase tracking-widest">Tài liệu đính kèm (PDF)</span>
                           </div>
-                          <a
-                            href={activeContent.duong_dan_file}
-                            download
-                            className="bg-primary hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-xl flex items-center space-x-2 cursor-pointer text-xs uppercase tracking-widest transition-all shadow-md shadow-primary/20"
-                          >
-                            <Download className="h-4 w-4" />
-                            <span>Tải xuống</span>
-                          </a>
+                          {activeContent.duong_dan_file && (
+                            <a
+                              href={activeContent.duong_dan_file}
+                              download
+                              className="bg-primary hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-xl flex items-center space-x-2 cursor-pointer text-xs uppercase tracking-widest transition-all shadow-md shadow-primary/20"
+                            >
+                              <Download className="h-4 w-4" />
+                              <span>Tải xuống</span>
+                            </a>
+                          )}
                         </div>
-                        {/* Interactive PDF Reader Frame */}
-                        <iframe
-                          src={`${activeContent.duong_dan_file}#toolbar=0`}
-                          className="w-full flex-grow bg-slate-100"
-                        />
+                        {activeContent.duong_dan_file ? (
+                          <iframe
+                            src={`${activeContent.duong_dan_file}#toolbar=0`}
+                            className="w-full flex-grow bg-slate-100"
+                          />
+                        ) : (
+                          <div className="flex flex-grow flex-col items-center justify-center gap-3 bg-slate-100 p-8 text-center">
+                            <FileText className="h-12 w-12 text-slate-300" />
+                            <p className="font-black text-slate-700">Bài học chưa có tài liệu PDF</p>
+                            <p className="max-w-md text-sm text-slate-500">Giảng viên chưa tải tệp PDF cho bài học này.</p>
+                          </div>
+                        )}
                       </div>
                     )}
 
                     {/* TEXT ARTICLE READOUT */}
-                    {activeContent?.loai_noi_dung === "TEXT" && (
+                    {activeContentType === "text" && (
                       <div className="p-10 md:p-16 prose prose-slate dark:prose-invert max-w-none text-base leading-relaxed text-foreground space-y-8">
                         <div className="font-sans text-sm border-l-4 border-primary pl-5 py-3 italic bg-primary/5 rounded-r-2xl font-medium">
-                          Nemo Tips: Hãy đọc kỹ tài liệu lý thuyết này trước khi bắt tay vào thực hành code trên IDE của bạn.
+                          Lumina Tips: Hãy đọc kỹ tài liệu lý thuyết này trước khi bắt tay vào thực hành code trên IDE của bạn.
                         </div>
                         <div className="whitespace-pre-line tracking-wide">
                           {activeContent.noi_dung_text || "Bài đọc hiện chưa có nội dung văn bản cụ thể."}
                         </div>
+                      </div>
+                    )}
+
+                    {activeContentType === "code" && (
+                      <div className="p-8">
+                        <pre className="overflow-x-auto rounded-2xl bg-slate-950 p-6 text-sm leading-relaxed text-slate-100">
+                          <code>{activeContent.noi_dung_text || "Bài học hiện chưa có nội dung code."}</code>
+                        </pre>
+                      </div>
+                    )}
+
+                    {activeContentType === "image" && (
+                      <div className="flex min-h-[60vh] items-center justify-center bg-slate-100 p-8">
+                        {activeContent.duong_dan_file ? (
+                          <img src={activeContent.duong_dan_file} alt={activeLesson?.tieu_de || "Nội dung bài học"} className="max-h-[70vh] max-w-full rounded-2xl object-contain shadow-xl" />
+                        ) : (
+                          <div className="text-center">
+                            <FileText className="mx-auto h-12 w-12 text-slate-300" />
+                            <p className="mt-3 font-black text-slate-700">Bài học chưa có ảnh</p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

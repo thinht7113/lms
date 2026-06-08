@@ -123,3 +123,33 @@ class QuizAttemptResponse(BaseModel):
     cau_tra_loi_chi_tiet: List[QuizAttemptAnswerResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class QuizReviewOptionResponse(BaseModel):
+    id: int
+    text: str
+    is_correct: bool
+
+
+class QuizReviewQuestionResponse(BaseModel):
+    id: int
+    ma_bai_kiem_tra: int
+    noi_dung: str
+    giai_thich: Optional[str] = None
+    cac_lua_chon: List[QuizReviewOptionResponse]
+    user_option_id: Optional[int] = None
+    correct_option_id: Optional[int] = None
+    is_user_correct: bool = False
+
+
+class QuizAttemptReviewResponse(BaseModel):
+    id: int
+    ma_nguoi_dung: int
+    ma_bai_kiem_tra: int
+    diem_dat_duoc: Optional[Decimal] = None
+    da_qua_mon: Optional[bool] = None
+    ngay_bat_dau: Optional[datetime] = None
+    ngay_lam_bai: Optional[datetime] = None
+    trang_thai: Optional[str] = "completed"
+    bai_kiem_tra: QuizResponse
+    cau_hoi_review: List[QuizReviewQuestionResponse]

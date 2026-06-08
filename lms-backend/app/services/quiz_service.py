@@ -4,12 +4,27 @@ from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 from app.models.quiz import Quiz, Question, QuizAttempt, QuestionOption, QuizAttemptAnswer
 from app.models.course import Course, Enrollment
+from app.models.user import User
 from app.schemas.quiz import QuizCreate, QuestionCreate, QuizSubmitRequest
 from typing import List, Optional
 from decimal import Decimal
 from datetime import datetime
 
 class QuizService:
+    @staticmethod
+    async def _can_manage_course(db: AsyncSession, user_id: int, course_id: int) -> bool:
+        result = await db.execute(
+            select(Course, User)
+            .join(User, User.id == user_id)
+            .where(Course.id == course_id)
+        )
+        row = result.first()
+        if not row:
+            return False
+
+        course, user = row
+        return user.vai_tro == "admin" or course.ma_giang_vien == user_id
+
     # ==================== QUIZ SERVICES ====================
     @staticmethod
     async def create_quiz(db: AsyncSession, course_id: int, quiz_in: QuizCreate, instructor_id: int) -> Quiz:
@@ -37,14 +52,37 @@ class QuizService:
         db.add(db_quiz)
         await db.commit()
         await db.refresh(db_quiz)
-        return db_quiz
+
+        # Load khoa_hoc to prevent MissingGreenlet in QuizResponse
+        final_res = await db.execute(
+            select(Quiz).options(selectinload(Quiz.khoa_hoc)).where(Quiz.id == db_quiz.id)
+        )
+        return final_res.scalars().one()
+
+    @staticmethod
+    async def delete_quiz(db: AsyncSession, course_id: int, quiz_id: int, current_user: User):
+        result = await db.execute(
+            select(Quiz).options(selectinload(Quiz.khoa_hoc)).where(and_(Quiz.id == quiz_id, Quiz.ma_khoa_hoc == course_id))
+        )
+        quiz = result.scalars().first()
+        if not quiz:
+            raise HTTPException(status_code=404, detail="Bài kiểm tra không tồn tại.")
+            
+        if current_user.vai_tro != "admin" and quiz.khoa_hoc.ma_giang_vien != current_user.id:
+            raise HTTPException(status_code=403, detail="Không có quyền xóa bài kiểm tra này.")
+            
+        await db.delete(quiz)
+        await db.commit()
 
     @staticmethod
     async def get_quiz(db: AsyncSession, quiz_id: int, user_id: int) -> Quiz:
         # Lấy bài kiểm tra và kiểm tra ghi danh của học viên
         result = await db.execute(
             select(Quiz)
-            .options(selectinload(Quiz.cau_hoi).selectinload(Question.lua_chon_cau_hoi))
+            .options(
+                selectinload(Quiz.khoa_hoc),
+                selectinload(Quiz.cau_hoi).selectinload(Question.lua_chon_cau_hoi)
+            )
             .where(Quiz.id == quiz_id)
         )
         quiz = result.scalars().first()
@@ -55,15 +93,18 @@ class QuizService:
             )
 
         # Kiểm tra ghi danh của học viên
-        enrolled = await db.execute(
-            select(Enrollment).where(
-                and_(
-                    Enrollment.ma_nguoi_dung == user_id,
-                    Enrollment.ma_khoa_hoc == quiz.ma_khoa_hoc
+        can_manage = await QuizService._can_manage_course(db, user_id, quiz.ma_khoa_hoc)
+        enrolled = None
+        if not can_manage:
+            enrolled = await db.execute(
+                select(Enrollment).where(
+                    and_(
+                        Enrollment.ma_nguoi_dung == user_id,
+                        Enrollment.ma_khoa_hoc == quiz.ma_khoa_hoc
+                    )
                 )
             )
-        )
-        if not enrolled.scalars().first():
+        if not can_manage and not enrolled.scalars().first():
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Bạn phải đăng ký khóa học này mới được xem bài kiểm tra."
@@ -75,16 +116,19 @@ class QuizService:
     @staticmethod
     async def get_quiz_by_course(db: AsyncSession, course_id: int, user_id: int) -> List[Quiz]:
         # Kiểm tra ghi danh
-        enrolled = await db.execute(
-            select(Enrollment).where(
-                and_(
-                    Enrollment.ma_nguoi_dung == user_id,
-                    Enrollment.ma_khoa_hoc == course_id
+        can_manage = await QuizService._can_manage_course(db, user_id, course_id)
+        enrolled = None
+        if not can_manage:
+            enrolled = await db.execute(
+                select(Enrollment).where(
+                    and_(
+                        Enrollment.ma_nguoi_dung == user_id,
+                        Enrollment.ma_khoa_hoc == course_id
+                    )
                 )
             )
-        )
 
-        if not enrolled.scalars().first():
+        if not can_manage and not enrolled.scalars().first():
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Bạn phải đăng ký khóa học này mới được xem bài kiểm tra."
@@ -92,14 +136,14 @@ class QuizService:
 
         result = await db.execute(
             select(Quiz)
-            .options(selectinload(Quiz.cau_hoi).selectinload(Question.lua_chon_cau_hoi))
+            .options(selectinload(Quiz.khoa_hoc), selectinload(Quiz.cau_hoi).selectinload(Question.lua_chon_cau_hoi))
             .where(Quiz.ma_khoa_hoc == course_id)
         )
         return list(result.scalars().all())
 
     # ==================== QUESTION SERVICES ====================
     @staticmethod
-    async def create_question(db: AsyncSession, quiz_id: int, question_in: QuestionCreate, instructor_id: int) -> Question:
+    async def create_question(db: AsyncSession, quiz_id: int, question_in: QuestionCreate, current_user: User) -> Question:
         # Kiểm tra bài kiểm tra và khóa học thuộc về giảng viên
         result = await db.execute(
             select(Quiz)
@@ -112,7 +156,7 @@ class QuizService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Bài kiểm tra không tồn tại."
             )
-        if quiz.khoa_hoc.ma_giang_vien != instructor_id:
+        if current_user.vai_tro != "admin" and quiz.khoa_hoc.ma_giang_vien != current_user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Bạn không có quyền chỉnh sửa bài kiểm tra này."
@@ -156,6 +200,27 @@ class QuizService:
             .where(Question.id == db_question.id)
         )
         return final_res.scalars().one()
+
+    @staticmethod
+    async def delete_question(db: AsyncSession, question_id: int, current_user: User):
+        result = await db.execute(
+            select(Question)
+            .options(selectinload(Question.bai_kiem_tra).selectinload(Quiz.khoa_hoc))
+            .where(Question.id == question_id)
+        )
+        question = result.scalars().first()
+        if not question:
+            raise HTTPException(status_code=404, detail="Câu hỏi không tồn tại")
+        
+        if current_user.vai_tro != "admin" and question.bai_kiem_tra.khoa_hoc.ma_giang_vien != current_user.id:
+            raise HTTPException(status_code=403, detail="Không có quyền xóa câu hỏi này")
+        
+        # Xóa các option trước
+        await db.execute(delete(QuestionOption).where(QuestionOption.ma_cau_hoi == question_id))
+        
+        # Xóa câu hỏi
+        await db.execute(delete(Question).where(Question.id == question_id))
+        await db.commit()
 
     # ==================== ATTEMPT & SUBMISSION SERVICES ====================
     @staticmethod
@@ -420,3 +485,67 @@ class QuizService:
             )
 
         return attempt
+
+    @staticmethod
+    async def get_attempt_review(db: AsyncSession, attempt_id: int, user_id: int) -> dict:
+        attempt = await QuizService.get_attempt(db, attempt_id, user_id)
+        if attempt.trang_thai != "completed":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Bài làm này chưa được nộp nên chưa thể xem bảng sửa bài."
+            )
+
+        selected_options = {
+            answer.ma_cau_hoi: answer.ma_lua_chon
+            for answer in attempt.cau_tra_loi_chi_tiet
+        }
+
+        review_questions = []
+        for question in attempt.bai_kiem_tra.cau_hoi:
+            correct_option = next(
+                (option for option in question.lua_chon_cau_hoi if option.la_dap_an_dung),
+                None
+            )
+            user_option_id = selected_options.get(question.id)
+            correct_option_id = correct_option.id if correct_option else None
+
+            review_questions.append({
+                "id": question.id,
+                "ma_bai_kiem_tra": question.ma_bai_kiem_tra,
+                "noi_dung": question.noi_dung,
+                "giai_thich": question.giai_thich,
+                "cac_lua_chon": [
+                    {
+                        "id": option.id,
+                        "text": option.noi_dung_lua_chon,
+                        "is_correct": option.la_dap_an_dung,
+                    }
+                    for option in question.lua_chon_cau_hoi
+                ],
+                "user_option_id": user_option_id,
+                "correct_option_id": correct_option_id,
+                "is_user_correct": bool(user_option_id and user_option_id == correct_option_id),
+            })
+
+        quiz = attempt.bai_kiem_tra
+        return {
+            "id": attempt.id,
+            "ma_nguoi_dung": attempt.ma_nguoi_dung,
+            "ma_bai_kiem_tra": attempt.ma_bai_kiem_tra,
+            "diem_dat_duoc": attempt.diem_dat_duoc,
+            "da_qua_mon": attempt.da_qua_mon,
+            "ngay_bat_dau": attempt.ngay_bat_dau,
+            "ngay_lam_bai": attempt.ngay_lam_bai,
+            "trang_thai": attempt.trang_thai,
+            "bai_kiem_tra": {
+                "id": quiz.id,
+                "ma_khoa_hoc": quiz.ma_khoa_hoc,
+                "tieu_de": quiz.tieu_de,
+                "diem_dat": quiz.diem_dat,
+                "thoi_gian_lam_bai": quiz.thoi_gian_lam_bai,
+                "so_luot_lam_toi_da": quiz.so_luot_lam_toi_da,
+                "ngay_tao": quiz.ngay_tao,
+                "khoa_hoc": None,
+            },
+            "cau_hoi_review": review_questions,
+        }

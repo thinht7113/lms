@@ -8,6 +8,8 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { apiService } from "@/services/api";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+
 export default function CertificatePage() {
   const params = useParams();
   const router = useRouter();
@@ -17,9 +19,11 @@ export default function CertificatePage() {
   const [cert, setCert] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [shareUrl, setShareUrl] = useState("");
 
   useEffect(() => {
     if (!uuid) return;
+    setShareUrl(`${window.location.origin}/certificates/${uuid}`);
 
     async function fetchCert() {
       setLoading(true);
@@ -36,13 +40,13 @@ export default function CertificatePage() {
     fetchCert();
   }, [uuid]);
 
-  const shareUrl = typeof window !== "undefined" ? window.location.href : `http://localhost:3000/certificates/${uuid}`;
+  const effectiveShareUrl = shareUrl || `http://localhost:3000/certificates/${uuid}`;
 
   // QR Code generator API URL
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(shareUrl)}`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(effectiveShareUrl)}`;
 
   const handleShareLinkedIn = () => {
-    const linkedinUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
+    const linkedinUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(effectiveShareUrl)}`;
     window.open(linkedinUrl, "_blank");
   };
 
@@ -96,10 +100,10 @@ export default function CertificatePage() {
             <span>Xác minh chứng chỉ chính thức</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-black text-foreground tracking-tighter">
-            Chứng Chỉ Điện Tử <span className="text-primary italic">Nemo</span>
+            Chứng Chỉ Điện Tử <span className="text-primary italic">Lumina</span>
           </h1>
           <p className="text-sm font-medium text-muted-foreground">
-            Chứng nhận hoàn thành khóa học chuyên nghiệp được cấp bởi hệ thống Nemo LMS.
+            Chứng nhận hoàn thành khóa học chuyên nghiệp được cấp bởi hệ thống Lumina LMS.
           </p>
         </div>
 
@@ -130,7 +134,7 @@ export default function CertificatePage() {
                 </h2>
                 <div className="flex items-center space-x-2 opacity-80">
                     <LayoutGrid className="w-3 h-3 text-primary" />
-                    <p className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">Nemo Learning Management System</p>
+                    <p className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">Lumina Learning Management System</p>
                 </div>
               </div>
 
@@ -155,7 +159,7 @@ export default function CertificatePage() {
                   <p className="font-mono text-slate-300 font-bold bg-slate-800/50 px-2 py-1 rounded inline-block">{uuid.substring(0, 18)}...</p>
                 </div>
                 <div className="text-center space-y-2 border-b border-slate-700/60 pb-2 px-6 w-1/3">
-                  <p className="font-serif italic text-lg sm:text-xl text-slate-200">Nemo Board</p>
+                  <p className="font-serif italic text-lg sm:text-xl text-slate-200">Lumina Board</p>
                   <p className="text-slate-500 font-black tracking-widest text-[8px] sm:text-[9px]">HỘI ĐỒNG GIẢNG VIÊN</p>
                 </div>
                 <div className="text-right space-y-1.5 w-1/3">
@@ -202,10 +206,10 @@ export default function CertificatePage() {
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex flex-col space-y-3 pt-4">
+                {/* Action Buttons */}
+                <div className="flex flex-col space-y-3 pt-4">
                 <a
-                  href={`http://localhost:8000/api/v1/certificates/public/${uuid}/pdf`}
+                  href={`${API_BASE_URL}/certificates/public/${uuid}/pdf`}
                   download
                   target="_blank"
                   className="w-full bg-primary hover:bg-blue-700 text-white font-black py-4 rounded-2xl shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all flex items-center justify-center space-x-2 text-xs uppercase tracking-widest cursor-pointer"

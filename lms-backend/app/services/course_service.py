@@ -4,7 +4,13 @@ from sqlalchemy.orm import selectinload, attributes
 from fastapi import HTTPException, status
 from app.models.course import Category, Course, Section, Lesson, LessonContent, Enrollment, CourseReview, Wishlist
 from app.models.user import User
-from app.schemas.course import CategoryCreate, CourseCreate, CourseUpdate, SectionCreate, LessonCreate, LessonUpdate, LessonContentCreate, ReviewCreate
+from app.schemas.course import (
+    CategoryCreate, CourseCreate, CourseUpdate,
+    SectionCreate, SectionUpdate,
+    LessonCreate, LessonUpdate,
+    LessonContentCreate, LessonContentUpdate,
+    ReviewCreate,
+)
 from typing import List, Optional
 from decimal import Decimal
 
@@ -30,8 +36,8 @@ class CourseService:
     @staticmethod
     async def create_course(db: AsyncSession, course_in: CourseCreate, instructor_id: int) -> Course:
         # Kiểm tra danh mục tồn tại nếu được cung cấp
-        if course_in.category_id:
-            result = await db.execute(select(Category).where(Category.id == course_in.category_id))
+        if course_in.ma_danh_muc:
+            result = await db.execute(select(Category).where(Category.id == course_in.ma_danh_muc))
             if not result.scalars().first():
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
@@ -40,11 +46,12 @@ class CourseService:
 
         db_course = Course(
             ma_giang_vien=instructor_id,
-            ma_danh_muc=course_in.category_id,
-            tieu_de=course_in.title,
-            mo_ta=course_in.description,
-            gia_tien=course_in.price,
-            trinh_do=course_in.level,
+            ma_danh_muc=course_in.ma_danh_muc,
+            tieu_de=course_in.tieu_de,
+            mo_ta=course_in.mo_ta,
+            gia_tien=course_in.gia_tien,
+            trinh_do=course_in.trinh_do,
+            anh_dai_dien=course_in.anh_dai_dien,
             da_xuat_ban=False
         )
         db.add(db_course)
@@ -89,7 +96,10 @@ class CourseService:
         order: Optional[str] = "desc"
     ) -> List[Course]:
         # Pre-fetch dang_ky_hoc to optimize the so_luong_hoc_vien property (avoid N+1)
-        query = select(Course).options(selectinload(Course.dang_ky_hoc)).where(Course.da_xuat_ban == True)
+        query = select(Course).options(selectinload(Course.dang_ky_hoc)).where(
+            Course.da_xuat_ban == True,
+            Course.trang_thai_phe_duyet == "approved"
+        )
 
         # 1. Filters
         if q:
@@ -171,7 +181,7 @@ class CourseService:
         db_section = Section(
             ma_khoa_hoc=course_id,
             tieu_de=section_in.tieu_de,
-            thu_tu=section_in.sort_order
+            thu_tu=section_in.thu_tu
         )
         db.add(db_section)
         await db.commit()
@@ -179,6 +189,57 @@ class CourseService:
         # Sử dụng set_committed_value của SQLAlchemy để tránh kích hoạt lazy-loading
         attributes.set_committed_value(db_section, "bai_hoc", [])
         return db_section
+
+    @staticmethod
+    async def update_section(db: AsyncSession, section_id: int, section_in: SectionUpdate, instructor_id: int) -> Section:
+        result = await db.execute(
+            select(Section)
+            .options(selectinload(Section.khoa_hoc), selectinload(Section.bai_hoc))
+            .where(Section.id == section_id)
+        )
+        section = result.scalars().first()
+        if not section:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Chương học không tồn tại."
+            )
+        if section.khoa_hoc.ma_giang_vien != instructor_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Bạn không có quyền chỉnh sửa chương học này."
+            )
+
+        update_data = section_in.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(section, field, value)
+
+        db.add(section)
+        await db.commit()
+        await db.refresh(section)
+        return section
+
+    @staticmethod
+    async def delete_section(db: AsyncSession, section_id: int, instructor_id: int) -> bool:
+        result = await db.execute(
+            select(Section)
+            .options(selectinload(Section.khoa_hoc))
+            .where(Section.id == section_id)
+        )
+        section = result.scalars().first()
+        if not section:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Chương học không tồn tại."
+            )
+        if section.khoa_hoc.ma_giang_vien != instructor_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Bạn không có quyền xóa chương học này."
+            )
+
+        await db.delete(section)
+        await db.commit()
+        return True
 
     # ==================== LESSON SERVICES ====================
     @staticmethod
@@ -333,6 +394,28 @@ class CourseService:
         await db.delete(content)
         await db.commit()
         return True
+
+    @staticmethod
+    async def update_lesson_content(db: AsyncSession, content_id: int, content_in: LessonContentUpdate, instructor_id: int) -> LessonContent:
+        result = await db.execute(
+            select(LessonContent)
+            .options(selectinload(LessonContent.bai_hoc).selectinload(Lesson.chuong_hoc).selectinload(Section.khoa_hoc))
+            .where(LessonContent.id == content_id)
+        )
+        content = result.scalars().first()
+        if not content:
+            raise HTTPException(status_code=404, detail="Nội dung không tồn tại.")
+        if content.bai_hoc.chuong_hoc.khoa_hoc.ma_giang_vien != instructor_id:
+            raise HTTPException(status_code=403, detail="Không có quyền chỉnh sửa.")
+
+        update_data = content_in.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(content, field, value)
+
+        db.add(content)
+        await db.commit()
+        await db.refresh(content)
+        return content
 
     # ==================== COURSE REVIEW SERVICES ====================
     @staticmethod

@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import { Search, ChevronLeft, ChevronRight, Edit, Trash2, Plus, RefreshCw } from "lucide-react";
-import { tokenHelper } from "@/services/api";
+import { fetchWithAuth } from "@/services/api";
 import DynamicForm, { FormField } from "./DynamicForm";
 import { useToast } from "@/contexts/ToastContext";
 
-interface Column {
+export interface Column {
     key: string;
     label: string;
     type?: "text" | "number" | "boolean" | "date" | "image";
@@ -27,6 +27,7 @@ interface DynamicTableProps {
     customActions?: CustomAction[]; // Nút chức năng tùy biến ngoài Edit/Delete
     disableCreate?: boolean; // Tùy chọn ẩn nút Thêm mới
     disableEdit?: boolean; // Tùy chọn ẩn nút Sửa
+    disableDelete?: boolean; // Tùy chọn ẩn nút Xóa
     filterCol?: string; // Optional: filter data by a column
     filterVal?: string; // Optional: value for the filter column
     hideIdColumn?: boolean; // Tùy chọn ẩn cột ID
@@ -34,12 +35,12 @@ interface DynamicTableProps {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
-export default function DynamicTable({ title, endpoint, columns, formFields, customActions, disableCreate = false, disableEdit = false, filterCol, filterVal, hideIdColumn = false }: DynamicTableProps) {
+export default function DynamicTable({ title, endpoint, columns, formFields, customActions, disableCreate = false, disableEdit = false, disableDelete = false, filterCol, filterVal, hideIdColumn = false }: DynamicTableProps) {
     const toast = useToast();
     const [data, setData] = useState<any[]>([]);
     const [total, setTotal] = useState(0);
     const [skip, setSkip] = useState(0);
-    const [limit, setLimit] = useState(10);
+    const [limit] = useState(10);
     const [search, setSearch] = useState("");
     const [isLoading, setIsLoading] = useState(false);
 
@@ -49,7 +50,6 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const token = tokenHelper.getToken();
             const url = new URL(`${API_BASE_URL}${endpoint}`);
             url.searchParams.append("skip", skip.toString());
             url.searchParams.append("limit", limit.toString());
@@ -59,15 +59,14 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                 url.searchParams.append("filter_val", filterVal);
             }
 
-            const res = await fetch(url.toString(), {
-                headers: { "Authorization": `Bearer ${token}` }
-            });
+            const res = await fetchWithAuth(url.toString());
+
             if (!res.ok) {
                 const errText = await res.text();
                 throw new Error(`Failed to fetch data: ${res.status} - ${errText}`);
             }
             const result = await res.json();
-            
+
             // Handle if result is wrapped in {"data": [], "total": ...} or just an array
             if (result && Array.isArray(result.data)) {
                 setData(result.data);
@@ -93,10 +92,8 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
     const handleDelete = async (id: number) => {
         if (!confirm("Bạn có chắc chắn muốn xóa bản ghi này?")) return;
         try {
-            const token = tokenHelper.getToken();
-            const res = await fetch(`${API_BASE_URL}${endpoint}/${id}`, {
-                method: "DELETE",
-                headers: { "Authorization": `Bearer ${token}` }
+            const res = await fetchWithAuth(`${API_BASE_URL}${endpoint}/${id}`, {
+                method: "DELETE"
             });
             if (!res.ok) throw new Error("Failed to delete");
             toast.success("Xóa bản ghi thành công");
@@ -125,7 +122,7 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
     const renderCell = (item: any, col: Column) => {
         const val = item[col.key];
         if (val === null || val === undefined) return "-";
-        
+
         if (col.type === "boolean") {
             return (
                 <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${val ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-slate-500/10 text-slate-500 border border-slate-500/20'}`}>
@@ -137,27 +134,31 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
             return new Date(val).toLocaleDateString("vi-VN");
         }
         if (col.type === "image") {
-             return <img src={val} className="w-10 h-10 rounded-lg object-cover bg-secondary" alt="" />;
+             return (
+                <a href={val} target="_blank" rel="noreferrer" className="block w-28">
+                    <img src={val} className="h-14 w-28 rounded-xl object-cover bg-secondary border border-border/50 shadow-sm" alt="" />
+                </a>
+             );
         }
-        
+
         // Truncate long text
         if (typeof val === "string" && val.length > 50) {
             return <span title={val}>{val.substring(0, 50)}...</span>;
         }
-        
+
         return val.toString();
     };
 
     // Pagination calculations
     const currentPage = Math.floor(skip / limit) + 1;
     const totalPages = Math.ceil(total / limit) || 1;
-    
+
     const renderPageNumbers = () => {
         const pages = [];
         // Hiển thị tối đa 5 nút trang
         let startPage = Math.max(1, currentPage - 2);
-        let endPage = Math.min(totalPages, startPage + 4);
-        
+        const endPage = Math.min(totalPages, startPage + 4);
+
         if (endPage - startPage < 4) {
             startPage = Math.max(1, endPage - 4);
         }
@@ -168,8 +169,8 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                     key={i}
                     onClick={() => setSkip((i - 1) * limit)}
                     className={`min-w-[32px] h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-colors ${
-                        currentPage === i 
-                        ? "bg-primary text-white shadow-md shadow-primary/20" 
+                        currentPage === i
+                        ? "bg-primary text-white shadow-md shadow-primary/20"
                         : "bg-white border border-border/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
                     }`}
                 >
@@ -189,7 +190,7 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                         {title}
                         <span className="text-xs font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">{total}</span>
                     </h2>
-                    
+
                     <div className="flex flex-col sm:flex-row items-center gap-4">
                         <div className="relative w-full sm:w-64">
                             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -202,7 +203,7 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                             />
                         </div>
                         {formFields && formFields.length > 0 && !disableCreate && (
-                            <button 
+                            <button
                                 onClick={handleCreate}
                                 className="w-full sm:w-auto bg-primary text-white text-xs font-bold uppercase tracking-widest px-6 py-2.5 rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 hover:bg-blue-700 transition-all"
                             >
@@ -264,10 +265,10 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                                                         </button>
                                                     );
                                                 })}
-                                                
+
                                                 {/* Nút Sửa gốc (Ẩn hoàn toàn đối với bảng users) */}
-                                                {formFields && formFields.length > 0 && !endpoint.includes("/users") && (
-                                                    <button 
+                                                {formFields && formFields.length > 0 && !disableEdit && !endpoint.includes("/users") && (
+                                                    <button
                                                         onClick={() => handleEdit(item)}
                                                         className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
                                                         title="Sửa"
@@ -275,15 +276,17 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                                                         <Edit className="h-4 w-4" />
                                                     </button>
                                                 )}
-                                                
+
                                                 {/* Nút Xóa gốc */}
-                                                <button 
-                                                    onClick={() => handleDelete(item.id)}
-                                                    className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors"
-                                                    title="Xóa"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </button>
+                                                {!disableDelete && (
+                                                    <button
+                                                        onClick={() => handleDelete(item.id)}
+                                                        className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors"
+                                                        title="Xóa"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -299,18 +302,18 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                         Đang xem {skip + 1}-{Math.min(skip + limit, total)} trên tổng số {total}
                     </span>
                     <div className="flex items-center space-x-2">
-                        <button 
+                        <button
                             onClick={() => setSkip(Math.max(0, skip - limit))}
                             disabled={skip === 0}
                             className="p-2 border border-border/60 rounded-lg bg-white disabled:opacity-50 hover:bg-secondary transition-colors"
                         >
                             <ChevronLeft className="h-4 w-4 text-foreground" />
                         </button>
-                        
+
                         {/* Page Numbers */}
                         {renderPageNumbers()}
 
-                        <button 
+                        <button
                             onClick={() => setSkip(skip + limit)}
                             disabled={skip + limit >= total}
                             className="p-2 border border-border/60 rounded-lg bg-white disabled:opacity-50 hover:bg-secondary transition-colors"
@@ -323,7 +326,7 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
 
             {/* Form Modal */}
             {isFormOpen && formFields && formFields.length > 0 && (
-                <DynamicForm 
+                <DynamicForm
                     title={editingItem ? `Chỉnh sửa ${title}` : `Thêm mới ${title}`}
                     endpoint={endpoint}
                     fields={formFields}

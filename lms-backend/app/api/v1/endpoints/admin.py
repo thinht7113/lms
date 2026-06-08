@@ -534,7 +534,7 @@ async def get_all_courses_admin(
     current_admin: User = Depends(get_current_admin_user)
 ):
     # Trả về tất cả khóa học kể cả chưa xuất bản để Admin duyệt
-    query = select(Course).order_by(Course.id.desc()).offset(skip).limit(limit)
+    query = select(Course).options(selectinload(Course.dang_ky_hoc)).order_by(Course.id.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
     return result.scalars().all()
 

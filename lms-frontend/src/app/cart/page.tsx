@@ -43,8 +43,7 @@ export default function CartPage() {
     try {
       await apiService.removeFromCart(courseId);
       await loadCart();
-      // Reload page to update navbar badge
-      window.location.reload();
+      window.dispatchEvent(new Event("lumina-cart-updated"));
     } catch (err) {
       console.error("Failed to remove item:", err);
     }
@@ -120,7 +119,7 @@ export default function CartPage() {
             <div>
               <h3 className="font-sans font-black text-xl text-foreground">Giỏ hàng đang trống</h3>
               <p className="text-sm font-medium text-muted-foreground max-w-sm mt-2 leading-relaxed">
-                Đừng bỏ lỡ cơ hội. Hãy khám phá hàng chục khóa học chất lượng cao trên nền tảng Nemo LMS ngay hôm nay.
+                Đừng bỏ lỡ cơ hội. Hãy khám phá hàng chục khóa học chất lượng cao trên nền tảng Lumina LMS ngay hôm nay.
               </p>
             </div>
             <Link
@@ -159,7 +158,7 @@ export default function CartPage() {
                       <h3 className="font-bold text-sm text-foreground line-clamp-2 leading-snug group-hover:text-primary transition-colors">
                         {item.khoa_hoc.tieu_de}
                       </h3>
-                      <p className="text-[11px] font-medium text-muted-foreground">Giảng viên Nemo</p>
+                      <p className="text-[11px] font-medium text-muted-foreground">Giảng viên Lumina</p>
                     </div>
                   </div>
 

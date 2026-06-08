@@ -5,7 +5,8 @@ from app.models.user import User
 from app.schemas.quiz import (
     QuizCreate, QuizResponse, QuizDetailResponse,
     QuestionCreate, QuestionResponse,
-    QuizSubmitRequest, QuizSubmitResponse, QuizAttemptResponse
+    QuizSubmitRequest, QuizSubmitResponse, QuizAttemptResponse,
+    QuizAttemptReviewResponse
 )
 from app.services.quiz_service import QuizService
 import copy
@@ -38,6 +39,20 @@ async def create_quiz(
 ):
     return await QuizService.create_quiz(db, course_id, quiz_in, current_user.id)
 
+@router.delete(
+    "/courses/{course_id}/quizzes/{quiz_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Giảng viên xóa bài kiểm tra"
+)
+async def delete_quiz(
+    course_id: int,
+    quiz_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_instructor)
+):
+    await QuizService.delete_quiz(db, course_id, quiz_id, current_user)
+    return None
+
 @router.post(
     "/quizzes/{quiz_id}/questions",
     response_model=QuestionResponse,
@@ -50,7 +65,20 @@ async def create_question(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_instructor)
 ):
-    return await QuizService.create_question(db, quiz_id, question_in, current_user.id)
+    return await QuizService.create_question(db, quiz_id, question_in, current_user)
+
+@router.delete(
+    "/questions/{question_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Giảng viên xóa câu hỏi"
+)
+async def delete_question(
+    question_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_instructor)
+):
+    await QuizService.delete_question(db, question_id, current_user)
+    return None
 
 
 # ==================== STUDENT QUIZ ENDPOINTS ====================
@@ -115,3 +143,16 @@ async def get_attempt(
     current_user: User = Depends(get_current_user)
 ):
     return await QuizService.get_attempt(db, attempt_id, current_user.id)
+
+
+@router.get(
+    "/quizzes/attempts/{attempt_id}/review",
+    response_model=QuizAttemptReviewResponse,
+    summary="Học viên xem bảng sửa bài sau khi đã nộp bài kiểm tra"
+)
+async def get_attempt_review(
+    attempt_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return await QuizService.get_attempt_review(db, attempt_id, current_user.id)

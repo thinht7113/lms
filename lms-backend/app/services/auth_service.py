@@ -8,12 +8,9 @@ from app.schemas.user import UserRegister, UserUpdate
 class AuthService:
     @staticmethod
     async def register(db: AsyncSession, user_in: UserRegister) -> User:
-        # 0. Bảo mật: Không cho phép đăng ký vai trò Quản trị viên (Admin) qua cổng công khai
-        if user_in.vai_tro == "admin":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Không cho phép đăng ký vai trò Quản trị viên (Admin) qua cổng công khai."
-            )
+        # 0. Bảo mật: Mọi tài khoản đăng ký qua cổng công khai đều bị ép kiểu thành học viên (student).
+        # Khóa hoàn toàn khả năng đăng ký làm giảng viên (instructor) hoặc admin.
+        user_in.vai_tro = "student"
 
         # 1. Kiểm tra xem email đã được đăng ký trước đó chưa
         result = await db.execute(select(User).where(User.email == user_in.email))

@@ -9,9 +9,9 @@ from app.schemas.user import UserResponse
 from app.schemas.course import (
     CategoryCreate, CategoryResponse,
     CourseCreate, CourseUpdate, CourseResponse, CourseDetailResponse,
-    SectionCreate, SectionResponse,
+    SectionCreate, SectionUpdate, SectionResponse,
     LessonCreate, LessonUpdate, LessonResponse,
-    LessonContentCreate, LessonContentResponse,
+    LessonContentCreate, LessonContentUpdate, LessonContentResponse,
     ReviewCreate, ReviewResponse,
     WishlistResponse
 )
@@ -153,6 +153,31 @@ async def create_section(
 ):
     return await CourseService.create_section(db, course_id, section_in, current_user.id)
 
+@router.put(
+    "/sections/{section_id}",
+    response_model=SectionResponse,
+    summary="Giảng viên cập nhật chương học"
+)
+async def update_section(
+    section_id: int,
+    section_in: SectionUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_instructor)
+):
+    return await CourseService.update_section(db, section_id, section_in, current_user.id)
+
+@router.delete(
+    "/sections/{section_id}",
+    summary="Giảng viên xóa chương học"
+)
+async def delete_section(
+    section_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_instructor)
+):
+    await CourseService.delete_section(db, section_id, current_user.id)
+    return {"status": "success", "message": "Đã xóa chương học thành công."}
+
 
 # ==================== LESSON ENDPOINTS ====================
 @router.post(
@@ -214,6 +239,19 @@ async def create_lesson_content(
     current_user: User = Depends(require_instructor)
 ):
     return await CourseService.create_lesson_content(db, lesson_id, content_in, current_user.id)
+
+@router.put(
+    "/lesson-contents/{content_id}",
+    response_model=LessonContentResponse,
+    summary="Giảng viên cập nhật block nội dung bài học"
+)
+async def update_lesson_content(
+    content_id: int,
+    content_in: LessonContentUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_instructor)
+):
+    return await CourseService.update_lesson_content(db, content_id, content_in, current_user.id)
 
 @router.delete(
     "/lesson-contents/{content_id}",
@@ -281,6 +319,12 @@ async def get_course_detail(
     if current_user:
         if current_user.vai_tro == "admin" or course.ma_giang_vien == current_user.id:
             is_owner_or_admin = True
+
+    if not is_owner_or_admin and (not course.da_xuat_ban or course.trang_thai_phe_duyet != "approved"):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Không tìm thấy khóa học."
+        )
             
     # Nếu không phải chủ sở hữu hoặc admin, ẩn các bài học chưa xuất bản (da_xuat_ban = False)
     if not is_owner_or_admin:
@@ -332,5 +376,3 @@ async def toggle_course_wishlist(
     added = await CourseService.toggle_wishlist(db, current_user.id, course_id)
     msg = "Đã thêm khóa học vào danh sách yêu thích thành công." if added else "Đã xóa khóa học khỏi danh sách yêu thích."
     return {"added": added, "message": msg}
-
-

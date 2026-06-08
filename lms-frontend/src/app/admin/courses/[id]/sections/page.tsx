@@ -55,9 +55,6 @@ export default function AdminSectionsPage() {
                     hideIdColumn={true}
                 />
             </div>
-            <div className="text-xs text-muted-foreground p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-700 font-medium">
-                <strong>Lưu ý:</strong> Khi thêm mới Chương học, hãy đảm bảo nhập đúng ID Khóa học là <strong>{courseId}</strong>.
-            </div>
         </div>
     );
 }

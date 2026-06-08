@@ -55,6 +55,7 @@ export default function AdminSettingsPage() {
             const token = tokenHelper.getToken();
             const formDataUpload = new FormData();
             formDataUpload.append("file", file);
+            formDataUpload.append("asset_type", "image");
 
             // 1. Upload file
             const resUpload = await fetch(`${API_BASE_URL}/upload`, {
@@ -137,7 +138,7 @@ export default function AdminSettingsPage() {
                             <label className="cursor-pointer bg-primary text-white font-bold py-2 px-4 rounded-xl flex items-center space-x-2 shadow-lg">
                                 {uploadingLogo ? <RefreshCw className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
                                 <span>Tải ảnh mới lên</span>
-                                <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={uploadingLogo} />
+                                <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden" onChange={handleLogoUpload} disabled={uploadingLogo} />
                             </label>
                         </div>
                     </div>
@@ -148,7 +149,7 @@ export default function AdminSettingsPage() {
                             <ul className="text-sm font-medium text-foreground/80 list-disc list-inside pl-4 space-y-1">
                                 <li>Định dạng khuyên dùng: PNG (Transparent) hoặc SVG.</li>
                                 <li>Kích thước tối đa: 2MB.</li>
-                                <li>Tỷ lệ tốt nhất: 1:1 (Vuông) để tương thích với icon Nemo hiện tại.</li>
+                                <li>Tỷ lệ tốt nhất: 1:1 (Vuông) để tương thích với icon Lumina hiện tại.</li>
                             </ul>
                         </div>
                         {message && (

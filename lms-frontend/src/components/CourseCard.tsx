@@ -14,7 +14,6 @@ interface CourseCardProps {
   level: string;
   rating: number;
   price: number;
-  originalPrice?: number;
   studentsCount?: number;
   gradient: string;
 }
@@ -28,7 +27,6 @@ export default function CourseCard({
   level,
   rating,
   price,
-  originalPrice,
   studentsCount = 0,
   gradient
 }: CourseCardProps) {
@@ -51,6 +49,7 @@ export default function CourseCard({
             src={thumbnail}
             alt={title}
             fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className="object-cover group-hover:scale-110 transition-transform duration-700"
           />
         ) : (
@@ -97,11 +96,6 @@ export default function CourseCard({
         {/* Footer Meta */}
         <div className="pt-4 border-t border-border/40 flex items-center justify-between">
             <div className="flex flex-col">
-                {originalPrice && originalPrice > price && (
-                    <span className="text-[10px] text-muted-foreground line-through decoration-red-500/50">
-                        {formatPrice(originalPrice)}
-                    </span>
-                )}
                 <span className="text-lg font-black text-primary tracking-tighter">
                     {formatPrice(price)}
                 </span>

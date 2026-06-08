@@ -70,7 +70,7 @@ async def get_lesson_learning_content(
             )
 
     # Nếu bài học được xem trước và đã xuất bản thì cho phép xem luôn
-    if lesson.xem_truoc:
+    if lesson.xem_truoc and lesson.da_xuat_ban:
         lesson_opt_res = await db.execute(
             select(Lesson)
             .options(selectinload(Lesson.noi_dung))
@@ -78,7 +78,17 @@ async def get_lesson_learning_content(
         )
         return lesson_opt_res.scalars().one()
 
-    # 2. Kiểm tra học viên đã mua khóa học chưa
+    # 2. Kiểm tra quyền sở hữu (Admin/Giảng viên tạo khóa học được miễn enroll và drip content)
+    is_owner = current_user.vai_tro == "admin" or lesson.chuong_hoc.khoa_hoc.ma_giang_vien == current_user.id
+    if is_owner:
+        lesson_opt_res = await db.execute(
+            select(Lesson)
+            .options(selectinload(Lesson.noi_dung))
+            .where(Lesson.id == lesson.id)
+        )
+        return lesson_opt_res.scalars().one()
+
+    # 3. Kiểm tra học viên đã mua khóa học chưa
     enroll_result = await db.execute(
         select(Enrollment).where(
             and_(
@@ -94,7 +104,7 @@ async def get_lesson_learning_content(
             detail="Bạn chưa mua khóa học này. Hãy thanh toán để bắt đầu học bài giảng."
         )
 
-    # 3. Học bài giảng tuần tự (Drip Content) - Chỉ tính các bài học đã xuất bản
+    # 4. Học bài giảng tuần tự (Drip Content) - Chỉ tính các bài học đã xuất bản
     lessons_result = await db.execute(
         select(Lesson)
         .join(Section, Lesson.ma_chuong_hoc == Section.id)

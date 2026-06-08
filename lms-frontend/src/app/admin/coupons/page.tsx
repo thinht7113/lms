@@ -22,7 +22,7 @@ export default function AdminCouponsPage() {
         { key: "gia_tri_giam", label: "Giá trị giảm", type: "number", required: true },
         { key: "gia_tri_don_toi_thieu", label: "Giá trị đơn tối thiểu để áp dụng", type: "number" },
         { key: "so_luot_dung_toi_da", label: "Số lượt dùng tối đa (Bỏ trống = Không giới hạn)", type: "number" },
-        { key: "ngay_het_han", label: "Ngày hết hạn (YYYY-MM-DD)", type: "text" },
+        { key: "ngay_het_han", label: "Ngày hết hạn", type: "date" },
     ];
 
     return (

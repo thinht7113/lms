@@ -1,27 +1,54 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Search, Filter, Star, RefreshCw, LayoutGrid, List } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import CourseCard from "@/components/CourseCard";
 import { apiService, Course, Category } from "@/services/api";
 
+function CoursesContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-export default function CoursesPage() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [dbCategories, setDbCategories] = useState<Category[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
-  const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
-  const [selectedPrice, setSelectedPrice] = useState<"free" | "paid" | null>(null);
+  // Initialize state from URL params
+  const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "");
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(
+      searchParams.get("ma_danh_muc") ? Number(searchParams.get("ma_danh_muc")) : null
+  );
+  const [selectedLevel, setSelectedLevel] = useState<string | null>(searchParams.get("trinh_do") || null);
+
+  // Custom price filter based on URL
+  const initialPrice = searchParams.get("gia_max") === "0" ? "free" : null;
+  const [selectedPrice, setSelectedPrice] = useState<"free" | "paid" | null>(initialPrice);
+
   const [minRating, setMinRating] = useState<number | null>(null);
-  const [sortBy, setSortBy] = useState<string>("popular");
+
+  // Determine initial sort based on URL order param
+  let initialSort = "popular";
+  if (searchParams.get("order") === "price-asc") initialSort = "price-asc";
+  const [sortBy, setSortBy] = useState<string>(initialSort);
+
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   // Fetch results state
+  const [dbCategories, setDbCategories] = useState<Category[]>([]);
   const [dbCourses, setDbCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Sync URL changes to state (if user clicks menu while already on /courses)
+  useEffect(() => {
+    setSearchTerm(searchParams.get("q") || "");
+    setSelectedCategory(searchParams.get("ma_danh_muc") ? Number(searchParams.get("ma_danh_muc")) : null);
+    setSelectedPrice(searchParams.get("gia_max") === "0" ? "free" : null);
+    if (searchParams.get("order") === "price-asc") {
+        setSortBy("price-asc");
+    } else {
+        setSortBy("popular");
+    }
+  }, [searchParams]);
 
   // Load Categories on mount
   useEffect(() => {
@@ -56,24 +83,18 @@ export default function CoursesPage() {
       } catch (err) {
         console.error("Error fetching courses:", err);
       } finally {
-
-
         setIsLoading(false);
       }
     }
     fetchCourses();
   }, [searchTerm, selectedCategory, selectedLevel, selectedPrice, sortBy]);
 
-  // Client-side rating filter (API doesn't have min_rating query parameter directly)
+  // Client-side rating filter
   const finalCourses = useMemo(() => {
     let result = dbCourses;
-
-    // Pulls strictly from DB, no fallbacks
-
     if (minRating) {
-      result = result.filter((c) => Number(c.danh_gia_trung_binh || (c as any).rating) >= minRating);
+      result = result.filter((c) => Number(c.danh_gia_trung_binh || 0) >= minRating);
     }
-
     return result;
   }, [dbCourses, minRating]);
 
@@ -84,6 +105,7 @@ export default function CoursesPage() {
     setSelectedPrice(null);
     setMinRating(null);
     setSortBy("popular");
+    router.push("/courses");
   };
 
   const getGradient = (index: number) => {
@@ -92,331 +114,255 @@ export default function CoursesPage() {
       "from-purple-500 to-indigo-600",
       "from-pink-500 to-rose-500",
       "from-amber-500 to-orange-600",
-      "from-blue-500 to-indigo-500",
-      "from-sky-500 to-blue-600",
-      "from-emerald-400 to-teal-600"
+      "from-blue-500 to-indigo-500"
     ];
     return gradients[index % gradients.length];
   };
 
-  const getCategoryName = (catId?: number) => {
-    if (!catId) return "Tổng quan";
-    const found = dbCategories.find((cat) => cat.id === catId);
-    return found ? found.ten_danh_muc : `Danh mục ${catId}`;
-  };
+  const mapDbCourse = (c: Course, index: number) => ({
+    id: c.id,
+    title: c.tieu_de,
+    thumbnail: c.anh_dai_dien,
+    instructor: `Giảng viên ID: ${c.ma_giang_vien || 1}`,
+    category: dbCategories.find(cat => cat.id === c.ma_danh_muc)?.ten_danh_muc || "Lập trình",
+    level: c.trinh_do,
+    rating: Number(c.danh_gia_trung_binh) || 5.0,
+    price: Number(c.gia_tien),
+    studentsCount: c.so_luong_hoc_vien || 0,
+    gradient: getGradient(index)
+  });
 
+  return (
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16">
+      <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 pb-6 border-b border-border/60">
+        <div>
+        </div>
+        <button
+          onClick={resetFilters}
+          className="mt-4 md:mt-0 inline-flex items-center space-x-2 text-xs font-semibold text-primary/90 hover:text-primary transition-colors cursor-pointer"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          <span>Đặt lại toàn bộ bộ lọc</span>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        {/* 1. Sidebar Filters */}
+        <aside className="lg:col-span-1 space-y-6">
+          <div className="bg-card text-card-foreground border border-border/60 rounded-2xl p-5 shadow-sm space-y-6">
+            <div className="flex items-center space-x-2 pb-4 border-b border-border/40 text-foreground">
+              <Filter className="h-4 w-4 text-primary" />
+              <h2 className="font-bold text-sm">Bộ lọc nâng cao</h2>
+            </div>
+
+            {/* Keyword Search */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-foreground">Từ khóa</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm khóa học..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-secondary text-foreground text-xs rounded-xl py-2.5 pl-4 pr-10 border border-border focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+                <Search className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
+
+            {/* Category Filter */}
+            <div className="space-y-3">
+              <label className="text-xs font-bold text-foreground">Danh mục chuyên ngành</label>
+              <div className="space-y-2.5">
+                {dbCategories.map((cat) => (
+                  <label key={cat.id} className="flex items-center space-x-3 cursor-pointer group">
+                    <input
+                      type="radio"
+                      name="category"
+                      checked={selectedCategory === cat.id}
+                      onChange={() => setSelectedCategory(cat.id)}
+                      className="w-4 h-4 text-primary bg-secondary border-border focus:ring-primary/50"
+                    />
+                    <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{cat.ten_danh_muc}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t border-border/40 my-2" />
+
+            {/* Level Filter */}
+            <div className="space-y-3">
+              <label className="text-xs font-bold text-foreground">Trình độ kỹ năng</label>
+              <div className="space-y-2.5">
+                {[
+                  { id: "beginner", label: "Cơ bản (Beginner)" },
+                  { id: "intermediate", label: "Trung cấp (Intermediate)" },
+                  { id: "advanced", label: "Chuyên sâu (Advanced)" }
+                ].map((lvl) => (
+                  <label key={lvl.id} className="flex items-center space-x-3 cursor-pointer group">
+                    <input
+                      type="radio"
+                      name="level"
+                      checked={selectedLevel === lvl.id}
+                      onChange={() => setSelectedLevel(lvl.id)}
+                      className="w-4 h-4 text-primary bg-secondary border-border focus:ring-primary/50"
+                    />
+                    <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{lvl.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t border-border/40 my-2" />
+
+            {/* Price Filter */}
+            <div className="space-y-3">
+              <label className="text-xs font-bold text-foreground">Giá bán</label>
+              <div className="space-y-2.5">
+                <label className="flex items-center space-x-3 cursor-pointer group">
+                  <input
+                    type="radio"
+                    name="price"
+                    checked={selectedPrice === "free"}
+                    onChange={() => setSelectedPrice("free")}
+                    className="w-4 h-4 text-primary bg-secondary border-border focus:ring-primary/50"
+                  />
+                  <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">Miễn phí</span>
+                </label>
+                <label className="flex items-center space-x-3 cursor-pointer group">
+                  <input
+                    type="radio"
+                    name="price"
+                    checked={selectedPrice === "paid"}
+                    onChange={() => setSelectedPrice("paid")}
+                    className="w-4 h-4 text-primary bg-secondary border-border focus:ring-primary/50"
+                  />
+                  <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">Có phí (Premium)</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="border-t border-border/40 my-2" />
+
+            {/* Rating Filter */}
+            <div className="space-y-3">
+              <label className="text-xs font-bold text-foreground">Đánh giá tối thiểu</label>
+              <div className="space-y-2.5">
+                {[4.5, 4.0, 3.5].map((rating) => (
+                  <label key={rating} className="flex items-center space-x-3 cursor-pointer group">
+                    <input
+                      type="radio"
+                      name="rating"
+                      checked={minRating === rating}
+                      onChange={() => setMinRating(rating)}
+                      className="w-4 h-4 text-primary bg-secondary border-border focus:ring-primary/50"
+                    />
+                    <div className="flex items-center text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+                      <span className="mr-1">{rating}</span>
+                      <div className="flex">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className={`h-3.5 w-3.5 ${i < Math.floor(rating) ? "text-amber-400 fill-current" : "text-border"}`} />
+                        ))}
+                      </div>
+                      <span className="ml-1">& up</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        {/* 2. Results Area */}
+        <div className="lg:col-span-3 space-y-6">
+          <div className="bg-card border border-border/60 p-3 rounded-2xl shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
+            <p className="text-xs font-medium text-muted-foreground px-2">
+              Tìm thấy <strong className="text-foreground">{finalCourses.length}</strong> khóa học phù hợp
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center space-x-2 bg-secondary rounded-lg p-1 border border-border">
+                <button
+                  onClick={() => setSortBy("popular")}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${sortBy === "popular" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  Phổ biến nhất
+                </button>
+                <button
+                  onClick={() => setSortBy("rating")}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${sortBy === "rating" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  Đánh giá cao
+                </button>
+                <button
+                  onClick={() => setSortBy("price-asc")}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${sortBy === "price-asc" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  Giá thấp đến cao
+                </button>
+              </div>
+
+              {/* View Toggle */}
+              <div className="flex bg-secondary border border-border rounded-lg p-1 hidden sm:flex">
+                <button
+                  onClick={() => setViewMode("grid")}
+                  className={`p-1.5 rounded-md transition-all ${viewMode === "grid" ? "bg-white shadow-sm text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode("list")}
+                  className={`p-1.5 rounded-md transition-all ${viewMode === "list" ? "bg-white shadow-sm text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <List className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {isLoading ? (
+            <div className="py-20 flex flex-col items-center justify-center space-y-4">
+              <RefreshCw className="h-10 w-10 text-primary animate-spin" />
+              <p className="text-sm font-bold text-muted-foreground animate-pulse">Đang tải dữ liệu từ CSDL...</p>
+            </div>
+          ) : finalCourses.length > 0 ? (
+            <div className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3" : "grid-cols-1"}`}>
+              {finalCourses.map((c, i) => (
+                <div key={c.id} className={viewMode === "list" ? "w-full max-w-none" : ""}>
+                    <CourseCard {...mapDbCourse(c, i)} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-card border border-border/60 rounded-3xl p-16 text-center shadow-sm">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-secondary mb-4">
+                <Search className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-bold text-foreground mb-2">Không tìm thấy khóa học nào</h3>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                Rất tiếc, chúng tôi không tìm thấy kết quả nào phù hợp với bộ lọc hiện tại. Hãy thử thay đổi từ khóa hoặc điều chỉnh các tiêu chí tìm kiếm.
+              </p>
+              <button
+                onClick={resetFilters}
+                className="mt-6 bg-primary text-white font-bold text-xs uppercase tracking-widest px-6 py-2.5 rounded-xl shadow-lg shadow-primary/20 hover:bg-blue-700 transition-all"
+              >
+                Xóa tất cả bộ lọc
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </main>
+  );
+}
+
+export default function CoursesPage() {
   return (
     <>
       <Navbar />
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16">
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 pb-6 border-b border-border/60">
-          <div>
-            <h1 className="text-3xl font-extrabold text-foreground tracking-tight">
-              Khám Phá Khóa Học
-            </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1.5">
-              Kết nối trực tiếp Cơ sở dữ liệu Lumina LMS
-            </p>
-          </div>
-          <button
-            onClick={resetFilters}
-            className="mt-4 md:mt-0 inline-flex items-center space-x-2 text-xs font-semibold text-primary/90 hover:text-primary transition-colors cursor-pointer"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            <span>Đặt lại toàn bộ bộ lọc</span>
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* 1. Sidebar Filters */}
-          <aside className="lg:col-span-1 space-y-6">
-            <div className="bg-card text-card-foreground border border-border/60 rounded-2xl p-5 shadow-sm space-y-6">
-              <div className="flex items-center space-x-2 pb-4 border-b border-border/40 text-foreground">
-                <Filter className="h-4 w-4 text-primary" />
-                <h2 className="font-bold text-sm">Bộ lọc nâng cao</h2>
-              </div>
-
-              {/* Keyword Search */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-foreground">Từ khóa tìm kiếm</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Tìm tên, giảng viên..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-secondary text-foreground text-xs rounded-xl py-2.5 pl-4 pr-10 border border-border focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  />
-                  <Search className="absolute right-3 top-3 h-3.5 w-3.5 text-muted-foreground" />
-                </div>
-              </div>
-
-              {/* Category Filter */}
-              <div className="space-y-2.5">
-                <label className="text-xs font-bold text-foreground">Chuyên mục ngành học</label>
-                <div className="flex flex-col space-y-1.5">
-                  <button
-                    onClick={() => setSelectedCategory(null)}
-                    className={`text-left text-xs py-1.5 px-3 rounded-lg transition-all ${selectedCategory === null
-                      ? "bg-primary/10 text-primary font-bold"
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                      }`}
-                  >
-                    Tất cả danh mục
-                  </button>
-                  {dbCategories.map((cat) => (
-                    <button
-                      key={cat.id}
-                      onClick={() => setSelectedCategory(cat.id)}
-                      className={`text-left text-xs py-1.5 px-3 rounded-lg transition-all ${selectedCategory === cat.id
-                        ? "bg-primary/10 text-primary font-bold"
-                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                        }`}
-                    >
-                      {cat.ten_danh_muc}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Level Filter */}
-              <div className="space-y-2.5">
-                <label className="text-xs font-bold text-foreground">Cấp độ học viên</label>
-                <div className="flex flex-col space-y-1">
-                  {[
-                    { val: null, label: "Tất cả trình độ" },
-                    { val: "beginner", label: "Cơ bản (Beginner)" },
-                    { val: "intermediate", label: "Trung cấp (Intermediate)" },
-                    { val: "advanced", label: "Chuyên sâu (Advanced)" }
-                  ].map((l) => (
-                    <button
-                      key={l.val || "all"}
-                      onClick={() => setSelectedLevel(l.val)}
-                      className={`text-left text-xs py-1.5 px-3 rounded-lg transition-all ${selectedLevel === l.val
-                        ? "bg-primary/10 text-primary font-bold"
-                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                        }`}
-                    >
-                      {l.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Price Filter */}
-              <div className="space-y-2.5">
-                <label className="text-xs font-bold text-foreground">Mức giá học phí</label>
-                <div className="flex flex-col space-y-1">
-                  {[
-                    { val: null, label: "Tất cả mức giá" },
-                    { val: "free", label: "Miễn phí (Free)" },
-                    { val: "paid", label: "Có phí (Paid)" }
-                  ].map((p) => (
-                    <button
-                      key={p.val || "all"}
-                      onClick={() => setSelectedPrice(p.val as any)}
-                      className={`text-left text-xs py-1.5 px-3 rounded-lg transition-all ${selectedPrice === p.val
-                        ? "bg-primary/10 text-primary font-bold"
-                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                        }`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Rating Filter */}
-              <div className="space-y-2.5">
-                <label className="text-xs font-bold text-foreground">Điểm đánh giá học viên</label>
-                <div className="flex flex-col space-y-1">
-                  {[
-                    { val: null, label: "Tất cả đánh giá" },
-                    { val: 4.5, label: "Từ 4.5 sao trở lên" },
-                    { val: 4.0, label: "Từ 4.0 sao trở lên" }
-                  ].map((r) => (
-                    <button
-                      key={r.val || "all"}
-                      onClick={() => setMinRating(r.val)}
-                      className={`text-left text-xs py-1.5 px-3 rounded-lg transition-all flex items-center space-x-1.5 ${minRating === r.val
-                        ? "bg-primary/10 text-primary font-bold"
-                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                        }`}
-                    >
-                      <span>{r.label}</span>
-                      {r.val && <Star className="h-3 w-3 fill-amber-500 text-amber-500" />}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </aside>
-
-          {/* 2. Main Area: Course List */}
-          <section className="lg:col-span-3 space-y-6">
-            {/* Sorting Header with Toggle */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-card text-card-foreground border border-border/60 rounded-2xl shadow-sm gap-4">
-              <span className="text-xs text-muted-foreground font-medium">
-                Tìm thấy <span className="text-foreground font-bold">{finalCourses.length}</span> khóa học phù hợp
-              </span>
-
-              <div className="flex items-center space-x-4 self-end sm:self-auto">
-                {/* View Mode Toggle */}
-                <div className="flex items-center bg-secondary p-1 rounded-xl border border-border">
-                  <button
-                    onClick={() => setViewMode("grid")}
-                    className={`p-1.5 rounded-lg transition-all cursor-pointer ${viewMode === "grid"
-                      ? "bg-card text-primary shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                      }`}
-                    title="Xem dạng lưới"
-                  >
-                    <LayoutGrid className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => setViewMode("list")}
-                    className={`p-1.5 rounded-lg transition-all cursor-pointer ${viewMode === "list"
-                      ? "bg-card text-primary shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                      }`}
-                    title="Xem dạng danh sách"
-                  >
-                    <List className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <div className="flex items-center space-x-2 text-xs">
-                  <span className="text-muted-foreground">Sắp xếp:</span>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="bg-secondary border border-border rounded-lg py-1.5 px-3 focus:outline-none focus:ring-1 focus:ring-primary text-foreground text-xs"
-                  >
-                    <option value="popular">Học viên đông nhất</option>
-                    <option value="rating">Đánh giá cao nhất</option>
-                    <option value="price-asc">Giá thấp đến cao</option>
-                    <option value="price-desc">Giá cao đến thấp</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Courses Display Grid / List */}
-            {isLoading ? (
-              <div className="flex justify-center items-center py-20">
-                <RefreshCw className="h-8 w-8 text-primary animate-spin" />
-              </div>
-            ) : finalCourses.length > 0 ? (
-              viewMode === "grid" ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {finalCourses.map((c: any, index: number) => {
-                    const mapped = {
-                      id: c.id,
-                      title: c.tieu_de || c.title,
-                      instructor: "Giảng viên Lumina",
-                      category: getCategoryName(c.ma_danh_muc),
-                      level: c.trinh_do || c.level,
-                      rating: Number(c.danh_gia_trung_binh || c.rating) || 5.0,
-                      price: Number(c.gia_tien || c.price),
-                      originalPrice: c.originalPrice || (Number(c.gia_tien) > 0 ? Number(c.gia_tien) * 1.5 : undefined),
-                      studentsCount: c.so_luong_hoc_vien || c.studentsCount || 120,
-                      gradient: c.gradient || getGradient(index)
-                    };
-                    return <CourseCard key={mapped.id} {...mapped} />;
-                  })}
-                </div>
-              ) : (
-                <div className="flex flex-col space-y-4">
-                  {finalCourses.map((c: any, index: number) => {
-                    const mapped = {
-                      id: c.id,
-                      title: c.tieu_de || c.title,
-                      instructor: "Giảng viên Lumina",
-                      category: getCategoryName(c.ma_danh_muc),
-                      level: c.trinh_do || c.level,
-                      rating: Number(c.danh_gia_trung_binh || c.rating) || 5.0,
-                      price: Number(c.gia_tien || c.price),
-                      originalPrice: Number(c.gia_tien) > 0 ? Number(c.gia_tien) * 1.5 : undefined,
-                      studentsCount: c.so_luong_hoc_vien || c.studentsCount || 120,
-                      gradient: c.gradient || getGradient(index)
-                    };
-
-                    return (
-                      <Link
-                        key={mapped.id}
-                        href={`/courses/${mapped.id}`}
-                        className="flex flex-col sm:flex-row bg-card text-card-foreground border border-border/80 hover:border-primary/20 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all group"
-                      >
-                        {/* Course gradient / image block */}
-                        <div className={`sm:w-56 h-40 shrink-0 bg-gradient-to-br ${mapped.gradient} relative flex items-center justify-center p-4 text-white text-center`}>
-                          <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-all" />
-                          <span className="font-sans font-bold text-sm line-clamp-2 leading-snug drop-shadow-md z-10">
-                            {mapped.title}
-                          </span>
-                        </div>
-                        {/* Course details block */}
-                        <div className="p-5 flex-grow flex flex-col justify-between">
-                          <div>
-                            <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-[10px] uppercase font-extrabold tracking-wider text-primary">
-                                {mapped.category}
-                              </span>
-                              <span className="text-[10px] font-bold text-muted-foreground uppercase px-2 py-0.5 rounded-full bg-secondary">
-                                {mapped.level === "beginner" ? "Cơ bản" : mapped.level === "intermediate" ? "Trung cấp" : "Chuyên sâu"}
-                              </span>
-                            </div>
-                            <h3 className="font-bold text-base text-foreground leading-snug group-hover:text-primary transition-colors line-clamp-1 mb-1">
-                              {mapped.title}
-                            </h3>
-                            <p className="text-xs text-muted-foreground mb-3">
-                              Được giảng dạy bởi <span className="font-semibold text-foreground/80">{mapped.instructor}</span> • {mapped.studentsCount} học viên
-                            </p>
-                          </div>
-
-                          <div className="flex items-center justify-between border-t border-border/40 pt-3">
-                            <div className="flex items-center space-x-1">
-                              <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
-                              <span className="text-xs font-bold text-foreground">{mapped.rating.toFixed(1)}</span>
-                            </div>
-                            <div className="text-right">
-                              {mapped.originalPrice && (
-                                <span className="text-[10px] text-muted-foreground line-through mr-1.5">
-                                  {mapped.originalPrice.toLocaleString()} đ
-                                </span>
-                              )}
-                              <span className="font-sans font-black text-sm text-primary">
-                                {mapped.price === 0 ? "Miễn phí" : `${mapped.price.toLocaleString()} đ`}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )
-            ) : (
-              <div className="bg-card border border-border/60 rounded-3xl p-12 text-center space-y-4 shadow-sm flex flex-col items-center justify-center">
-                <div className="bg-primary/15 p-4 rounded-full text-primary">
-                  <Filter className="h-10 w-10" />
-                </div>
-                <h3 className="font-sans font-bold text-lg text-foreground">Không tìm thấy khóa học nào</h3>
-                <p className="text-xs text-muted-foreground max-w-sm">
-                  Hãy thử thay đổi từ khóa tìm kiếm hoặc bấm nút đặt lại bộ lọc để xem toàn bộ danh mục khóa học của chúng tôi.
-                </p>
-                <button
-                  onClick={resetFilters}
-                  className="bg-primary hover:bg-violet-600 text-white rounded-xl text-xs font-bold px-5 py-2.5 shadow-md shadow-primary/20 hover:shadow-lg transition-all mt-2 cursor-pointer"
-                >
-                  Đặt lại bộ lọc
-                </button>
-              </div>
-            )}
-          </section>
-        </div>
-      </main>
-
+      <Suspense fallback={<div className="min-h-screen pt-32 text-center"><RefreshCw className="w-8 h-8 animate-spin mx-auto text-primary" /></div>}>
+        <CoursesContent />
+      </Suspense>
       <Footer />
     </>
   );

@@ -56,7 +56,7 @@ class StorageService:
                 print(f"Warning: Could not create or configure bucket '{bucket}': {e}. S3 server might be down or unreachable.")
 
     @classmethod
-    def upload_fileobj(cls, fileobj, filename: str, content_type: str) -> str:
+    def upload_fileobj(cls, fileobj, filename: str, content_type: str, content_disposition: str = "inline") -> str:
         s3 = cls.get_client()
         bucket = settings.MINIO_BUCKET_NAME
         
@@ -65,7 +65,7 @@ class StorageService:
             fileobj,
             bucket,
             filename,
-            ExtraArgs={"ContentType": content_type}
+            ExtraArgs={"ContentType": content_type, "ContentDisposition": content_disposition}
         )
         
         # Build the public access URL

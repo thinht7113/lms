@@ -28,24 +28,21 @@ class CartResponse(BaseModel):
 
 # ==================== COUPON SCHEMAS ====================
 class CouponCreate(BaseModel):
-    code: str = Field(..., alias="ma_code", description="Mã giảm giá")
-    discount_value: Optional[Decimal] = Field(None, alias="phan_tram_giam", description="Giá trị phần trăm giảm (Tương thích ngược)")
+    ma_code: str = Field(..., description="Mã giảm giá")
+    phan_tram_giam: Optional[Decimal] = Field(None, description="Giá trị phần trăm giảm (Tương thích ngược)")
     loai_giam_gia: Optional[str] = Field("PERCENTAGE", description="PERCENTAGE hoặc FIXED_AMOUNT")
     gia_tri_giam: Optional[Decimal] = Field(None, description="Giá trị giảm thực tế")
-    gia_tri_don_toi_thieu: Optional[Decimal] = Field(Decimal("0.00"), alias="gia_tri_don_toi_thieu")
-    so_luot_dung_toi_da: Optional[int] = Field(None, alias="so_luot_dung_toi_da")
-    end_date: Optional[datetime] = Field(None, alias="ngay_het_han", description="Ngày hết hạn")
-
-    model_config = ConfigDict(populate_by_name=True)
+    gia_tri_don_toi_thieu: Optional[Decimal] = Field(Decimal("0.00"))
+    so_luot_dung_toi_da: Optional[int] = Field(None)
+    ngay_het_han: Optional[datetime] = Field(None, description="Ngày hết hạn")
 
 class CouponUpdate(BaseModel):
+    ma_code: Optional[str] = None
     loai_giam_gia: Optional[str] = None
     gia_tri_giam: Optional[Decimal] = None
     gia_tri_don_toi_thieu: Optional[Decimal] = None
     so_luot_dung_toi_da: Optional[int] = None
-    end_date: Optional[datetime] = Field(None, alias="ngay_het_han")
-
-    model_config = ConfigDict(populate_by_name=True)
+    ngay_het_han: Optional[datetime] = None
 
 class CouponResponse(BaseModel):
     id: int
@@ -94,6 +91,16 @@ class OrderResponse(BaseModel):
     trang_thai: str  # 'pending', 'success', 'fail'
     ngay_tao: datetime
     chi_tiet_don_hang: List[OrderItemResponse] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+class OrderAdminResponse(BaseModel):
+    id: int
+    ma_nguoi_dung: Optional[int]
+    ma_giam_gia_id: Optional[int]
+    tong_tien: Decimal
+    trang_thai: str  # 'pending', 'success', 'fail'
+    ngay_tao: datetime
 
     model_config = ConfigDict(from_attributes=True)
 

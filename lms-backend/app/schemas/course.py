@@ -1,7 +1,31 @@
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from typing import Optional, List
 from decimal import Decimal
 from datetime import datetime
+from urllib.parse import urlparse
+
+ALLOWED_LESSON_CONTENT_TYPES = {"video", "pdf", "text", "code", "image"}
+
+
+def validate_lesson_file_url(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    normalized = value.strip()
+    if not normalized:
+        return None
+    parsed = urlparse(normalized)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ValueError("Link file phải là URL http/https hợp lệ.")
+    return normalized
+
+
+def validate_lesson_content_type(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    normalized = value.strip().lower()
+    if normalized not in ALLOWED_LESSON_CONTENT_TYPES:
+        raise ValueError("Loại nội dung chỉ được là video, pdf, text, code hoặc image.")
+    return normalized
 
 # ==================== CATEGORY SCHEMAS ====================
 class CategoryCreate(BaseModel):
@@ -28,12 +52,18 @@ class LessonContentCreate(BaseModel):
     duong_dan_file: Optional[str] = Field(None, description="Link file nếu có")
     thu_tu: int = Field(0, description="Thứ tự hiển thị block")
 
+    _validate_type = field_validator("loai_noi_dung")(validate_lesson_content_type)
+    _validate_url = field_validator("duong_dan_file")(validate_lesson_file_url)
+
 class LessonContentUpdate(BaseModel):
     ma_bai_hoc: Optional[int] = None
     loai_noi_dung: Optional[str] = None
     noi_dung_text: Optional[str] = None
     duong_dan_file: Optional[str] = None
     thu_tu: Optional[int] = None
+
+    _validate_type = field_validator("loai_noi_dung")(validate_lesson_content_type)
+    _validate_url = field_validator("duong_dan_file")(validate_lesson_file_url)
 
 class LessonContentResponse(BaseModel):
     id: int

@@ -13,6 +13,20 @@ from datetime import datetime, timezone
 class OrderService:
     # ==================== CART SERVICES ====================
     @staticmethod
+    def _ensure_course_purchasable(course: Course, user_id: int) -> None:
+        if course.ma_giang_vien == user_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Bạn không thể mua khóa học do chính mình giảng dạy."
+            )
+
+        if not course.da_xuat_ban or course.trang_thai_phe_duyet != "approved":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Khóa học này chưa sẵn sàng để mua."
+            )
+
+    @staticmethod
     async def get_cart(db: AsyncSession, user_id: int):
         result = await db.execute(
             select(CartItem)
@@ -43,7 +57,9 @@ class OrderService:
                 detail="Khóa học không tồn tại."
             )
 
-        # 2. Kiểm tra học viên đã đăng ký học khóa học này chưa (Đã mua thành công)
+        OrderService._ensure_course_purchasable(course, user_id)
+
+        # 2. Kiểm tra người dùng đã đăng ký học khóa học này chưa (Đã mua thành công)
         enrolled_result = await db.execute(
             select(Enrollment).where(
                 and_(
@@ -192,6 +208,14 @@ class OrderService:
                 detail="Giỏ hàng rỗng. Không thể tiến hành thanh toán."
             )
 
+        for item in cart_data["chi_tiet_gio_hang"]:
+            if not item.khoa_hoc:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Giỏ hàng có khóa học không hợp lệ."
+                )
+            OrderService._ensure_course_purchasable(item.khoa_hoc, user_id)
+
         # 1. Tính tổng tiền khóa học gốc
         original_amount = cart_data["tong_tien_tam_tinh"]
         final_amount = original_amount
@@ -201,35 +225,58 @@ class OrderService:
         if checkout_in.coupon_id:
             coupon_result = await db.execute(select(Coupon).where(Coupon.id == checkout_in.coupon_id))
             coupon = coupon_result.scalars().first()
-            if coupon:
-                # Kiểm tra đầy đủ các điều kiện trước khi giảm trừ
-                is_expired = coupon.ngay_het_han and coupon.ngay_het_han < datetime.now()
-                is_below_min = original_amount < coupon.gia_tri_don_toi_thieu
-                is_limit_reached = coupon.so_luot_dung_toi_da is not None and coupon.so_luot_da_dung >= coupon.so_luot_dung_toi_da
-                
-                # Kiểm tra xem user đã dùng mã này chưa
-                used_res = await db.execute(
-                    select(Order).where(
-                        and_(
-                            Order.ma_nguoi_dung == user_id,
-                            Order.ma_giam_gia_id == coupon.id,
-                            Order.trang_thai == "success"
-                        )
+            if not coupon:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Mã giảm giá không hợp lệ."
+                )
+
+            is_expired = coupon.ngay_het_han and coupon.ngay_het_han < datetime.now()
+            is_below_min = original_amount < coupon.gia_tri_don_toi_thieu
+            is_limit_reached = coupon.so_luot_dung_toi_da is not None and coupon.so_luot_da_dung >= coupon.so_luot_dung_toi_da
+
+            used_res = await db.execute(
+                select(Order).where(
+                    and_(
+                        Order.ma_nguoi_dung == user_id,
+                        Order.ma_giam_gia_id == coupon.id,
+                        Order.trang_thai == "success"
                     )
                 )
-                is_already_used = used_res.scalars().first() is not None
-                
-                if not is_expired and not is_below_min and not is_limit_reached and not is_already_used:
-                    coupon_id = coupon.id
-                    if coupon.loai_giam_gia == "PERCENTAGE":
-                        discount_ratio = coupon.gia_tri_giam / Decimal("100.00")
-                        discount_amount = original_amount * discount_ratio
-                    else:  # FIXED_AMOUNT
-                        discount_amount = coupon.gia_tri_giam
-                        
-                    final_amount = original_amount - discount_amount
-                    if final_amount < Decimal("0.00"):
-                        final_amount = Decimal("0.00")
+            )
+            is_already_used = used_res.scalars().first() is not None
+
+            if is_expired:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Mã giảm giá này đã hết hạn sử dụng."
+                )
+            if is_below_min:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Đơn hàng của bạn chưa đạt giá trị tối thiểu để áp dụng mã này (Tối thiểu: {coupon.gia_tri_don_toi_thieu} VND)."
+                )
+            if is_limit_reached:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Mã giảm giá này đã hết số lần sử dụng cho phép."
+                )
+            if is_already_used:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Bạn đã sử dụng mã giảm giá này cho một đơn hàng trước đó."
+                )
+
+            coupon_id = coupon.id
+            if coupon.loai_giam_gia == "PERCENTAGE":
+                discount_ratio = coupon.gia_tri_giam / Decimal("100.00")
+                discount_amount = original_amount * discount_ratio
+            else:  # FIXED_AMOUNT
+                discount_amount = coupon.gia_tri_giam
+
+            final_amount = original_amount - discount_amount
+            if final_amount < Decimal("0.00"):
+                final_amount = Decimal("0.00")
 
         # 3. Tạo Đơn hàng ở trạng thái PENDING
         db_order = Order(

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, XCircle, ArrowRight, ShieldCheck, RefreshCw, FileText, LayoutGrid } from "lucide-react";
+import { CheckCircle2, XCircle, ShieldCheck, RefreshCw, FileText, LayoutGrid } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { apiService } from "@/services/api";
@@ -14,7 +14,6 @@ function PaymentResultContent() {
   const [status, setStatus] = useState<"processing" | "success" | "fail">("processing");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [txCode, setTxCode] = useState("");
-  const [amount, setAmount] = useState(0);
 
   const orderId = searchParams?.get("order_id") ? Number(searchParams.get("order_id")) : null;
   const paymentMethod = searchParams?.get("payment_method") || "visa";
@@ -28,17 +27,12 @@ function PaymentResultContent() {
       }
 
       setStatus("processing");
-      // Add a small artificial delay of 1.5s to simulate contacting the payment provider
-      await new Promise((resolve) => setTimeout(resolve, 1500));
 
       try {
-        const transCode = "TX" + Math.floor(Math.random() * 100000000);
-        // Call backend mock payment endpoint
+        const transCode = `TX${orderId}-${Date.now()}`;
         const res = await apiService.payMock(orderId, paymentMethod, transCode);
         setTxCode(res.ma_giao_dich || transCode);
-        
-        // Load order details to show correct final amount
-        // Wait, payMock works, now let's query orders history or just display mock success
+        window.dispatchEvent(new Event("lumina-cart-updated"));
         setStatus("success");
       } catch (err: any) {
         console.error("Payment error:", err);
@@ -70,7 +64,7 @@ function PaymentResultContent() {
             <div className="space-y-3">
               <h2 className="text-2xl font-black text-foreground tracking-tighter">Đang kết nối cổng thanh toán...</h2>
               <p className="text-xs font-medium text-muted-foreground max-w-xs mx-auto leading-relaxed">
-                Đang bảo mật giao dịch qua <span className="uppercase font-black text-primary bg-primary/10 px-2 py-0.5 rounded-md">{paymentMethod}</span>. Vui lòng không đóng trình duyệt.
+                Backend đang xác nhận giao dịch qua <span className="uppercase font-black text-primary bg-primary/10 px-2 py-0.5 rounded-md">{paymentMethod}</span>. Vui lòng không đóng trình duyệt.
               </p>
             </div>
           </div>
@@ -119,7 +113,7 @@ function PaymentResultContent() {
 
             <div className="flex flex-col gap-3 w-full">
               <Link
-                href="/dashboard"
+                href="/my-courses"
                 className="bg-primary hover:bg-blue-700 text-white font-black py-4 px-8 rounded-2xl shadow-xl shadow-primary/20 hover:shadow-primary/40 transition-all flex items-center justify-center space-x-2 text-xs uppercase tracking-widest cursor-pointer"
               >
                 <LayoutGrid className="h-4 w-4" />

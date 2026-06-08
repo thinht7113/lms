@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
     LayoutDashboard, Users, BookOpen, ShoppingCart,
     Settings, LogOut, Menu, X, LayoutGrid, ChevronRight,
-    Award, Layers, FileText, CreditCard
+    Award, Layers, FileText, CreditCard, ImageIcon
 } from "lucide-react";
 import { tokenHelper } from "@/services/api";
 import SystemLogo from "@/components/SystemLogo";
@@ -28,7 +28,9 @@ const sidebarGroups = [
         title: "Nội dung & Đào tạo",
         items: [
             { name: "Danh mục", href: "/admin/categories", icon: Layers },
+            { name: "Banner trang chủ", href: "/admin/banners", icon: ImageIcon },
             { name: "Khóa học", href: "/admin/courses", icon: BookOpen },
+            { name: "Ghi danh", href: "/admin/enrollments", icon: Award },
             { name: "Kiểm duyệt nội dung", href: "/admin/moderation", icon: FileText },
         ]
     },
@@ -43,7 +45,7 @@ const sidebarGroups = [
         title: "Hệ thống",
         items: [
             { name: "Cấu hình chung", href: "/admin/settings", icon: Settings },
-            { name: "Lịch sử thao tác", href: "/admin/logs", icon: FileText },
+            { name: "Nhật ký hệ thống (Audit)", href: "/admin/logs", icon: FileText },
         ]
     }
 ];
@@ -52,6 +54,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const pathname = usePathname();
     const router = useRouter();
     const [isSidebarOpen, setSidebarOpen] = useState(true);
+    const [hasMounted, setHasMounted] = useState(false);
+
+    useEffect(() => {
+        setHasMounted(true);
+    }, []);
 
     const handleLogout = () => {
         tokenHelper.removeToken();
@@ -83,7 +90,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                 </h3>
                                 <div className="space-y-1">
                                     {group.items.map((item) => {
-                                        const isActive = pathname === item.href || (pathname.startsWith(item.href) && item.href !== "/admin");
+                                        const isActive = hasMounted && (pathname === item.href || (pathname.startsWith(item.href) && item.href !== "/admin"));
                                         const Icon = item.icon;
                                         return (
                                             <Link

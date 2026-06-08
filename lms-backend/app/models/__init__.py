@@ -8,6 +8,7 @@ from app.models.certificate import Certificate
 from app.models.log import AdminLog
 from app.models.setting import Setting
 from app.models.banner import Banner
+from app.models.payout import PayoutRequest
 
 # Gom toàn bộ các ORM models lại để import tập trung dễ dàng
 __all__ = [
@@ -34,6 +35,7 @@ __all__ = [
     "Certificate",
     "AdminLog",
     "Banner",
-    "Setting"
+    "Setting",
+    "PayoutRequest"
 ]
 

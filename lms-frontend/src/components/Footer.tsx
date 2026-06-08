@@ -71,7 +71,7 @@ export default function Footer() {
             </h3>
             <ul className="space-y-3">
               <li>
-                <Link href="/dashboard" className="text-sm text-muted-foreground font-medium hover:text-primary transition-colors">
+                <Link href="/my-courses" className="text-sm text-muted-foreground font-medium hover:text-primary transition-colors">
                   Phòng học của tôi
                 </Link>
               </li>
@@ -82,7 +82,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link href="/certificates" className="text-sm text-muted-foreground font-medium hover:text-primary transition-colors">
-                  Xác minh chứng chỉ Nemo
+                  Xác minh chứng chỉ Lumina
                 </Link>
               </li>
               <li>
@@ -100,7 +100,7 @@ export default function Footer() {
             </h3>
             <div className="flex items-start space-x-3 text-sm font-medium text-muted-foreground">
               <MapPin className="h-5 w-5 text-primary shrink-0" />
-              <span>Nemo Tower, Khu Công nghệ cao, Quận 9, TP.HCM</span>
+              <span>Lumina Tower, Khu Công nghệ cao, Quận 9, TP.HCM</span>
             </div>
             <div className="flex items-center space-x-3 text-sm font-medium text-muted-foreground">
               <Phone className="h-5 w-5 text-primary shrink-0" />
@@ -108,13 +108,13 @@ export default function Footer() {
             </div>
             <div className="flex items-center space-x-3 text-sm font-medium text-muted-foreground">
               <Mail className="h-5 w-5 text-primary shrink-0" />
-              <span>hello@nemolms.vn</span>
+              <span>hello@luminalms.vn</span>
             </div>
           </div>
         </div>
 
         <div className="border-t border-border mt-12 pt-8 flex flex-col sm:flex-row justify-between items-center text-xs font-bold text-muted-foreground uppercase tracking-widest">
-          <p>© 2026 NEMO LMS. ALL RIGHTS RESERVED.</p>
+          <p>© 2026 LUMINA LMS. ALL RIGHTS RESERVED.</p>
           <div className="flex space-x-6 mt-4 sm:mt-0">
             <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500" /> Hệ thống hoạt động bình thường</span>
           </div>

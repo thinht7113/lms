@@ -160,7 +160,7 @@ export default function TakeQuizPage() {
             <h3 className="font-black text-xl text-foreground tracking-tighter">Lỗi làm bài thi</h3>
             <p className="text-sm font-medium text-muted-foreground leading-relaxed">{error}</p>
             <Link
-              href="/dashboard"
+              href="/my-courses"
               className="bg-primary hover:bg-blue-700 text-white rounded-xl text-xs font-bold uppercase tracking-widest px-8 py-3.5 transition-all shadow-lg shadow-primary/20"
             >
               Quay lại Bảng điều khiển

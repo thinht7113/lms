@@ -2,25 +2,43 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { BookOpen, Search, ShoppingCart, User, Menu, X, Heart, LogOut } from "lucide-react";
+import { useRouter, usePathname } from "next/navigation";
+import {
+  Award,
+  Bell,
+  BookOpen,
+  ChevronDown,
+  Heart,
+  LogOut,
+  Menu,
+  Search,
+  ShieldCheck,
+  ShoppingCart,
+  User,
+  X,
+} from "lucide-react";
 import { apiService, tokenHelper } from "@/services/api";
 import SystemLogo from "@/components/SystemLogo";
 
 export default function Navbar() {
   const router = useRouter();
+  const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [queryString, setQueryString] = useState("");
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const isInstructor = currentUser?.vai_tro === "instructor";
+  const isAdmin = currentUser?.vai_tro === "admin";
 
   useEffect(() => {
-    const cachedUser = tokenHelper.getCurrentUser();
-    if (cachedUser) setCurrentUser(cachedUser);
-
     const token = tokenHelper.getToken();
     if (token) {
+      const cachedUser = tokenHelper.getCurrentUser();
+      if (cachedUser) setCurrentUser(cachedUser);
+
       apiService.getProfile()
         .then(user => setCurrentUser(user))
         .catch(() => {
@@ -34,6 +52,10 @@ export default function Navbar() {
           setCartCount(cartData.chi_tiet_gio_hang?.length || 0);
         })
         .catch(err => console.warn("Navbar cart count error:", err));
+    } else {
+      tokenHelper.removeCurrentUser();
+      setCurrentUser(null);
+      setCartCount(0);
     }
   }, []);
 
@@ -45,6 +67,73 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  useEffect(() => {
+    setQueryString(window.location.search);
+    setIsAccountMenuOpen(false);
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    const refreshCartCount = () => {
+      if (!tokenHelper.getToken()) {
+        setCartCount(0);
+        return;
+      }
+
+      apiService.getCart()
+        .then(cartData => {
+          setCartCount(cartData.chi_tiet_gio_hang?.length || 0);
+        })
+        .catch(err => console.warn("Navbar cart count error:", err));
+    };
+
+    const refreshCurrentUser = () => {
+      setCurrentUser(tokenHelper.getCurrentUser());
+    };
+
+    window.addEventListener("lumina-cart-updated", refreshCartCount);
+    window.addEventListener("lumina-user-updated", refreshCurrentUser);
+
+    return () => {
+      window.removeEventListener("lumina-cart-updated", refreshCartCount);
+      window.removeEventListener("lumina-user-updated", refreshCurrentUser);
+    };
+  }, []);
+
+  // Hàm helper để check active state
+  const isActive = (href: string) => {
+    const currentParams = new URLSearchParams(queryString);
+    if (href === "/") return pathname === "/";
+    if (href === "/courses") return pathname === "/courses" && !currentParams.get("order") && !currentParams.get("gia_max");
+    if (href.includes("order=price-asc")) return pathname === "/courses" && currentParams.get("order") === "price-asc";
+    if (href.includes("gia_max=0")) return pathname === "/courses" && currentParams.get("gia_max") === "0";
+    if (href === "/about") return pathname === "/about";
+    return false;
+  };
+
+  const handleLogout = async () => {
+    await apiService.logout();
+    setCurrentUser(null);
+    setCartCount(0);
+    setIsAccountMenuOpen(false);
+    setIsMobileMenuOpen(false);
+    router.push("/login");
+  };
+
+  const accountMenuItems = [
+    { href: "/wishlist", label: "Danh sách yêu thích", icon: Heart },
+    { href: "/my-courses", label: "Khóa học của tôi", icon: BookOpen },
+    { href: "/orders", label: "Đơn hàng", icon: ShoppingCart },
+    { href: "/certificates", label: "Chứng chỉ", icon: ShieldCheck },
+    { href: "/notifications", label: "Thông báo", icon: Bell },
+    { href: "/profile", label: "Hồ sơ", icon: User },
+    ...(isAdmin
+      ? [{ href: "/admin", label: "Quản trị", icon: Award }]
+      : isInstructor
+        ? [{ href: "/instructor/dashboard", label: "Quản lý", icon: Award }]
+        : []),
+  ];
+
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
@@ -55,32 +144,49 @@ export default function Navbar() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between">
-          {/* Logo Nemo Style */}
-          <div className="flex items-center">
+          {/* Logo Lumina Style */}
+          <div className="flex items-center flex-shrink-0 mr-8 lg:mr-12">
             <Link href="/">
               <SystemLogo />
             </Link>
           </div>
 
           {/* Main Nav */}
-          <nav className="hidden md:flex items-center space-x-10">
+          <nav className="hidden md:flex items-center space-x-8">
+            <Link
+              href="/"
+              className={`text-[13px] font-bold uppercase tracking-widest transition-colors relative group ${isActive("/") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
+            >
+              Trang chủ
+              {isActive("/") && <span className="absolute -bottom-2 left-0 w-full h-0.5 bg-primary rounded-full"></span>}
+            </Link>
             <Link
               href="/courses"
-              className="text-[13px] font-bold uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
+              className={`text-[13px] font-bold uppercase tracking-widest transition-colors relative group ${isActive("/courses") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
             >
-              Danh mục
+              Khóa học
+              {isActive("/courses") && <span className="absolute -bottom-2 left-0 w-full h-0.5 bg-primary rounded-full"></span>}
             </Link>
             <Link
-              href="/dashboard"
-              className="text-[13px] font-bold uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
+              href="/courses?order=price-asc"
+              className={`text-[13px] font-bold uppercase tracking-widest transition-colors relative group ${isActive("/courses?order=price-asc") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
             >
-              Học tập
+              Khóa Học Rẻ
+              {isActive("/courses?order=price-asc") && <span className="absolute -bottom-2 left-0 w-full h-0.5 bg-primary rounded-full"></span>}
             </Link>
             <Link
-              href="/instructor/dashboard"
-              className="text-[13px] font-bold uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
+              href="/courses?gia_max=0"
+              className={`text-[13px] font-bold uppercase tracking-widest transition-colors relative group ${isActive("/courses?gia_max=0") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
             >
-              Giảng dạy
+              Khóa học Free
+              {isActive("/courses?gia_max=0") && <span className="absolute -bottom-2 left-0 w-full h-0.5 bg-primary rounded-full"></span>}
+            </Link>
+            <Link
+              href="/about"
+              className={`text-[13px] font-bold uppercase tracking-widest transition-colors relative group ${isActive("/about") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
+            >
+              Giới thiệu
+              {isActive("/about") && <span className="absolute -bottom-2 left-0 w-full h-0.5 bg-primary rounded-full"></span>}
             </Link>
           </nav>
 
@@ -104,9 +210,6 @@ export default function Navbar() {
             </form>
 
             <div className="flex items-center space-x-1">
-              <Link href="/dashboard?tab=wishlist" className="p-2 text-muted-foreground hover:text-primary transition-colors">
-                <Heart className="h-5 w-5" />
-              </Link>
               <Link href="/cart" className="p-2 text-muted-foreground hover:text-primary transition-colors relative">
                 <ShoppingCart className="h-5 w-5" />
                 {cartCount > 0 && (
@@ -120,28 +223,60 @@ export default function Navbar() {
             <div className="h-6 w-px bg-border/60 mx-2" />
 
             {currentUser ? (
-              <div className="flex items-center space-x-3">
-                <Link
-                  href="/dashboard"
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsAccountMenuOpen((open) => !open)}
                   className="flex items-center space-x-2.5 bg-card border border-border px-3 py-1.5 rounded-xl hover:shadow-md transition-all"
+                  aria-expanded={isAccountMenuOpen}
+                  aria-haspopup="menu"
                 >
                   <img 
                     src={currentUser.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser.ho_ten}`} 
+                    alt={currentUser.ho_ten || "Avatar"}
                     className="h-6 w-6 rounded-lg bg-primary/10 object-cover"
                   />
                   <span className="text-xs font-bold text-foreground">
                     {currentUser.ho_ten.split(' ').pop()}
                   </span>
-                </Link>
-                <button
-                  onClick={async () => {
-                    await apiService.logout();
-                    router.push("/login");
-                  }}
-                  className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
-                >
-                  <LogOut className="h-4 w-4" />
+                  <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isAccountMenuOpen ? "rotate-180" : ""}`} />
                 </button>
+                {isAccountMenuOpen && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 top-full mt-3 w-72 overflow-hidden rounded-2xl border border-border bg-card shadow-2xl shadow-slate-900/10"
+                  >
+                    <div className="border-b border-border/70 p-4">
+                      <p className="text-sm font-black text-foreground line-clamp-1">{currentUser.ho_ten}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-1">{currentUser.email}</p>
+                    </div>
+                    <div className="p-2">
+                      {accountMenuItems.map((item) => (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => setIsAccountMenuOpen(false)}
+                          className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
+                          role="menuitem"
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.label}</span>
+                        </Link>
+                      ))}
+                    </div>
+                    <div className="border-t border-border/70 p-2">
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold text-destructive transition-colors hover:bg-destructive/10"
+                        role="menuitem"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        <span>Thoát</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <Link
@@ -180,14 +315,26 @@ export default function Navbar() {
               </div>
               <nav className="flex flex-col space-y-2">
                 <Link href="/courses" className="text-lg font-black py-4 border-b border-border/50">Danh mục khóa học</Link>
-                <Link href="/dashboard" className="text-lg font-black py-4 border-b border-border/50">Phòng học của tôi</Link>
-                <Link href="/instructor/dashboard" className="text-lg font-black py-4 border-b border-border/50">Kênh giảng viên</Link>
+                {currentUser && accountMenuItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="flex items-center gap-3 text-lg font-black py-4 border-b border-border/50"
+                  >
+                    <item.icon className="h-5 w-5 text-primary" />
+                    <span>{item.label}</span>
+                  </Link>
+                ))}
               </nav>
               <div className="pt-6">
                 {currentUser ? (
-                  <button className="w-full bg-destructive/10 text-destructive py-4 rounded-2xl font-bold flex items-center justify-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="w-full bg-destructive/10 text-destructive py-4 rounded-2xl font-bold flex items-center justify-center space-x-2"
+                  >
                     <LogOut className="h-5 w-5" />
-                    <span>Đăng xuất tài khoản</span>
+                    <span>Thoát</span>
                   </button>
                 ) : (
                   <Link href="/login" className="block w-full bg-primary text-white text-center py-4 rounded-2xl font-bold shadow-xl shadow-primary/20">Bắt đầu học ngay</Link>

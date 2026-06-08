@@ -14,11 +14,12 @@ export default function AdminLogsPage() {
     return (
         <div className="h-full">
             <DynamicTable 
-                title="Lịch sử thao tác"
+                title="Nhật ký Hệ thống (Audit Logs)"
                 endpoint="/dynamic-admin/logs"
                 columns={columns as any}
                 disableCreate={true}
                 disableEdit={true}
+                disableDelete={true}
             />
         </div>
     );

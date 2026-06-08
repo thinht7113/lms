@@ -2,25 +2,21 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Search, Flame, ArrowRight, Award, Star, BookOpen, GraduationCap, CheckCircle, TrendingUp, Zap, Shield, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, BookOpen, Layers, Star, Zap, Briefcase, Building, ArrowRight, ImageIcon } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import CourseCard from "@/components/CourseCard";
-import { apiService, Course, Banner } from "@/services/api";
+import { apiService, Course, Banner, Category } from "@/services/api";
 
 export default function HomePage() {
-  const router = useRouter();
-  const [activeTab, setActiveTab] = useState("bestseller");
-  const [searchQuery, setSearchQuery] = useState("");
-  
   // Real DB states
-  const [dbBanners, setDbBanners] = useState<Banner[]>([]);
-  const [dbFlashSale, setDbFlashSale] = useState<Course[]>([]);
-  const [dbBestSellers, setDbBestSellers] = useState<Course[]>([]);
-  const [dbNewCourses, setDbNewCourses] = useState<Course[]>([]);
-  const [dbFreeCourses, setDbFreeCourses] = useState<Course[]>([]);
-  const [dbInstructors, setDbInstructors] = useState<any[]>([]);
+  const [banners, setBanners] = useState<Banner[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [affordableCourses, setAffordableCourses] = useState<Course[]>([]);
+  const [popularCourses, setPopularCourses] = useState<Course[]>([]);
+  const [newCourses, setNewCourses] = useState<Course[]>([]);
+
+  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch from DB on mount
@@ -28,23 +24,30 @@ export default function HomePage() {
     async function loadData() {
       setIsLoading(true);
       try {
-        const [bannersData, allDbCourses, instructorsData] = await Promise.all([
+        const [bannersData, catsData, allDbCourses] = await Promise.all([
           apiService.getBanners(),
-          apiService.getCourses(),
-          apiService.getPublicInstructors()
+          apiService.getCategories(),
+          apiService.getCourses({ limit: 24 }) // Enough for homepage sections without over-fetching
         ]);
-        
-        setDbBanners(bannersData);
-        setDbInstructors(instructorsData);
+
+        // Lọc banner đang hiển thị và sắp xếp theo thu_tu
+        setBanners(bannersData.filter(b => b.trang_thai).sort((a, b) => a.thu_tu - b.thu_tu));
+        setCategories(catsData.slice(0, 8)); // Lấy 8 danh mục đầu
 
         if (allDbCourses.length > 0) {
-          setDbFlashSale(allDbCourses.slice(0, 4));
-          const sortedBest = [...allDbCourses].sort((a, b) => b.danh_gia_trung_binh - a.danh_gia_trung_binh);
-          setDbBestSellers(sortedBest.slice(0, 3));
-          const sortedNew = [...allDbCourses].sort((a, b) => new Date(b.ngay_tao).getTime() - new Date(a.ngay_tao).getTime());
-          setDbNewCourses(sortedNew.slice(0, 3));
-          const free = allDbCourses.filter((c) => Number(c.gia_tien) === 0);
-          setDbFreeCourses(free.slice(0, 3));
+          // Khóa học giá tốt dựa trên giá bán thật trong CSDL
+          const affordable = [...allDbCourses]
+            .filter(c => Number(c.gia_tien) > 0)
+            .sort((a, b) => Number(a.gia_tien) - Number(b.gia_tien));
+          setAffordableCourses(affordable.slice(0, 4));
+
+          // Khóa học được học nhiều
+          const sortedPop = [...allDbCourses].sort((a, b) => (b.so_luong_hoc_vien || 0) - (a.so_luong_hoc_vien || 0));
+          setPopularCourses(sortedPop.slice(0, 4));
+
+          // Khóa học mới xuất bản (Sắp xếp theo id giảm dần hoặc ngay_tao)
+          const sortedNew = [...allDbCourses].sort((a, b) => b.id - a.id);
+          setNewCourses(sortedNew.slice(0, 4));
         }
       } catch (err) {
         console.error("Error loading DB data:", err);
@@ -55,12 +58,25 @@ export default function HomePage() {
     loadData();
   }, []);
 
+  // Banner Auto Slide
+  useEffect(() => {
+    if (banners.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentBannerIndex((prev) => (prev + 1) % banners.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [banners.length]);
+
+  const nextBanner = () => setCurrentBannerIndex((p) => (p + 1) % banners.length);
+  const prevBanner = () => setCurrentBannerIndex((p) => (p - 1 + banners.length) % banners.length);
+
+  // Helper cho CourseCard
   const getGradient = (index: number) => {
     const gradients = [
       "from-blue-600 to-indigo-700",
       "from-slate-700 to-slate-900",
-      "from-indigo-500 to-blue-500",
-      "from-blue-400 to-indigo-600"
+      "from-teal-500 to-cyan-600",
+      "from-purple-500 to-pink-600"
     ];
     return gradients[index % gradients.length];
   };
@@ -69,231 +85,238 @@ export default function HomePage() {
     id: c.id,
     title: c.tieu_de,
     thumbnail: c.anh_dai_dien,
-    instructor: "Giảng viên Nemo",
-    category: c.ma_danh_muc ? `Chuyên ngành ${c.ma_danh_muc}` : "Lập trình",
+    instructor: `Giảng viên ID: ${c.ma_giang_vien || 1}`,
+    category: categories.find(cat => cat.id === c.ma_danh_muc)?.ten_danh_muc || "Lập trình",
     level: c.trinh_do,
     rating: Number(c.danh_gia_trung_binh) || 5.0,
     price: Number(c.gia_tien),
-    originalPrice: Number(c.gia_tien) > 0 ? Number(c.gia_tien) * 1.2 : undefined,
     studentsCount: c.so_luong_hoc_vien || 0,
     gradient: getGradient(index)
   });
-
-  const getActiveTabCourses = () => {
-    if (activeTab === "new") return dbNewCourses.map((c, i) => mapDbCourse(c, i));
-    if (activeTab === "free") return dbFreeCourses.map((c, i) => mapDbCourse(c, i));
-    return dbBestSellers.map((c, i) => mapDbCourse(c, i));
-  };
 
   return (
     <>
       <Navbar />
 
-      <main className="flex-grow bg-background">
-        {/* HERO SECTION - Nemo Style */}
-        <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden border-b border-border/40">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.08),transparent)] -z-10" />
-          <div className="absolute top-0 left-0 w-full h-full bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))] opacity-20 -z-10" />
-          
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col items-center text-center space-y-10">
-              {/* Badge */}
-              <div className="inline-flex items-center space-x-2 bg-primary/10 border border-primary/20 px-4 py-1.5 rounded-full text-[11px] font-bold text-primary uppercase tracking-widest animate-fade-in">
-                <Zap className="h-3.5 w-3.5 fill-primary" />
-                <span>Nền tảng học tập thế hệ mới</span>
-              </div>
+      <main className="flex-grow bg-background pt-24 pb-20 space-y-20">
 
-              {/* Title */}
-              <h1 className="max-w-4xl font-sans font-black text-5xl sm:text-6xl lg:text-7xl tracking-tighter leading-[0.9] text-foreground">
-                Khai phá tiềm năng <br />
-                <span className="text-primary italic">Lập trình</span> của bạn
-              </h1>
-
-              {/* Subtitle */}
-              <p className="max-w-2xl text-base sm:text-lg text-muted-foreground font-medium leading-relaxed">
-                Trải nghiệm lộ trình học tập Nemo được thiết kế tinh gọn, thực chiến và kết nối trực tiếp với nhu cầu tuyển dụng thực tế của doanh nghiệp.
-              </p>
-
-              {/* CTA & Search */}
-              <div className="w-full max-w-2xl space-y-6">
-                <div className="relative group">
-                  <div className="absolute -inset-1 bg-gradient-to-r from-primary to-blue-400 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200" />
-                  <form 
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (searchQuery.trim()) router.push(`/courses?q=${encodeURIComponent(searchQuery)}`);
-                    }}
-                    className="relative flex items-center bg-card border border-border shadow-2xl rounded-2xl p-2"
-                  >
-                    <div className="flex-grow flex items-center px-4">
-                      <Search className="h-5 w-5 text-muted-foreground mr-3" />
-                      <input
-                        type="text"
-                        placeholder="Tìm kiếm khóa học, kỹ năng hoặc giảng viên..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-transparent border-none outline-none text-sm font-medium py-3"
-                      />
+        {/* 1. BANNER SLIDER SECTION */}
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="relative w-full aspect-[21/9] sm:aspect-[3/1] bg-secondary rounded-3xl overflow-hidden shadow-xl border border-border/60 group">
+                {banners.length > 0 ? (
+                    <>
+                        {banners.map((banner, idx) => (
+                            <Link
+                                href={banner.duong_dan || "#"}
+                                key={banner.id}
+                                className={`absolute inset-0 transition-opacity duration-1000 ${idx === currentBannerIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
+                            >
+                                <img
+                                    src={banner.hinh_anh_url}
+                                    alt={`Banner ${idx}`}
+                                    loading={idx === currentBannerIndex ? "eager" : "lazy"}
+                                    decoding="async"
+                                    className="w-full h-full object-cover"
+                                />
+                            </Link>
+                        ))}
+                        {/* Navigation Arrows */}
+                        {banners.length > 1 && (
+                            <>
+                                <button
+                                    onClick={(e) => { e.preventDefault(); prevBanner(); }}
+                                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/30 hover:bg-black/60 text-white rounded-full flex items-center justify-center z-20 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm"
+                                >
+                                    <ChevronLeft className="w-6 h-6" />
+                                </button>
+                                <button
+                                    onClick={(e) => { e.preventDefault(); nextBanner(); }}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/30 hover:bg-black/60 text-white rounded-full flex items-center justify-center z-20 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm"
+                                >
+                                    <ChevronRight className="w-6 h-6" />
+                                </button>
+                            </>
+                        )}
+                        {/* Dots */}
+                        {banners.length > 1 && (
+                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 z-20">
+                                {banners.map((_, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => setCurrentBannerIndex(idx)}
+                                        className={`w-2.5 h-2.5 rounded-full transition-all ${idx === currentBannerIndex ? 'bg-white w-6' : 'bg-white/50 hover:bg-white/80'}`}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </>
+                ) : isLoading ? (
+                    <div className="w-full h-full animate-pulse bg-gradient-to-br from-slate-100 to-slate-200" />
+                ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground bg-gradient-to-br from-slate-100 to-slate-200">
+                        <ImageIcon className="w-12 h-12 mb-2 opacity-30" />
+                        <span className="font-bold">Không có banner nào hoạt động</span>
                     </div>
-                    <button 
-                      type="submit"
-                      className="bg-primary hover:bg-blue-700 text-white font-bold px-8 py-3 rounded-xl transition-all shadow-lg shadow-primary/25 cursor-pointer text-sm"
-                    >
-                      Bắt đầu ngay
-                    </button>
-                  </form>
-                </div>
-
-                {/* Trust Badges */}
-                <div className="flex flex-wrap justify-center items-center gap-x-8 gap-y-4 pt-4 grayscale opacity-60">
-                  <div className="flex items-center space-x-2">
-                    <Shield className="h-4 w-4" />
-                    <span className="text-xs font-bold uppercase tracking-tighter">Bảo mật tuyệt đối</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Award className="h-4 w-4" />
-                    <span className="text-xs font-bold uppercase tracking-tighter">Chứng chỉ Nemo</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <TrendingUp className="h-4 w-4" />
-                    <span className="text-xs font-bold uppercase tracking-tighter">Cam kết đầu ra</span>
-                  </div>
-                </div>
-              </div>
+                )}
             </div>
-          </div>
         </section>
 
-        {/* FEATURED COURSES - Bento Grid Style */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
-            <div className="space-y-3">
-              <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-foreground">
-                Khóa học nổi bật
-              </h2>
-              <p className="text-muted-foreground font-medium max-w-md">
-                Lựa chọn từ 30+ chương trình đào tạo chuyên sâu được cập nhật nội dung hàng tuần.
-              </p>
-            </div>
-            
-            {/* Tabs */}
-            <div className="inline-flex bg-secondary/50 p-1 rounded-xl border border-border/60">
-              {[
-                { id: "bestseller", label: "Phổ biến" },
-                { id: "new", label: "Mới nhất" },
-                { id: "free", label: "Miễn phí" }
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-6 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                    activeTab === tab.id
-                      ? "bg-card text-primary shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {getActiveTabCourses().length > 0 ? (
-              getActiveTabCourses().map((c) => (
-                <CourseCard key={c.id} {...c} />
-              ))
-            ) : (
-              <div className="col-span-full py-20 text-center border-2 border-dashed border-border rounded-3xl">
-                <RefreshCw className="h-10 w-10 text-muted-foreground mx-auto animate-spin mb-4" />
-                <p className="text-sm font-medium text-muted-foreground">Đang tải dữ liệu từ Nemo Cloud...</p>
-              </div>
-            )}
-          </div>
-          
-          <div className="mt-16 text-center">
-            <Link
-              href="/courses"
-              className="inline-flex items-center space-x-2 text-sm font-bold text-primary hover:underline group"
-            >
-              <span>Xem tất cả danh mục khóa học</span>
-              <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
-          </div>
-        </section>
-
-        {/* STATS SECTION - Nemo Blue Block */}
-        <section className="bg-primary py-20 mb-24 overflow-hidden relative">
-          <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.05)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.05)_50%,rgba(255,255,255,0.05)_75%,transparent_75%,transparent)] bg-[length:64px_64px] opacity-10" />
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-12 text-white text-center">
-              <div className="space-y-2">
-                <p className="text-4xl sm:text-5xl font-black tracking-tighter">15k+</p>
-                <p className="text-xs font-bold uppercase tracking-widest opacity-80">Học viên tin dùng</p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-4xl sm:text-5xl font-black tracking-tighter">120+</p>
-                <p className="text-xs font-bold uppercase tracking-widest opacity-80">Giảng viên kỳ cựu</p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-4xl sm:text-5xl font-black tracking-tighter">98%</p>
-                <p className="text-xs font-bold uppercase tracking-widest opacity-80">Tỷ lệ có việc làm</p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-4xl sm:text-5xl font-black tracking-tighter">24/7</p>
-                <p className="text-xs font-bold uppercase tracking-widest opacity-80">Hỗ trợ kỹ thuật</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* INSTRUCTORS SECTION */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-32">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-foreground mb-4">
-              Đội ngũ giảng viên thực chiến
+        {/* 2. CATEGORIES SECTION */}
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-2xl font-black tracking-tight mb-8 flex items-center gap-2">
+                <Layers className="text-primary" /> Chủ đề chuyên môn
             </h2>
-            <div className="w-20 h-1.5 bg-primary mx-auto rounded-full" />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-            {dbInstructors.slice(0, 3).map((ins, idx) => (
-              <div
-                key={ins.id}
-                className="group relative bg-card border border-border/60 rounded-3xl p-8 transition-all hover:shadow-2xl hover:-translate-y-2"
-              >
-                <div className="flex flex-col items-center text-center space-y-4">
-                  <div className="relative h-24 w-24 mb-2">
-                    <div className="absolute inset-0 bg-primary/20 rounded-full scale-110 group-hover:scale-125 transition-transform" />
-                    <img 
-                      src={ins.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${ins.ho_ten}`} 
-                      alt={ins.ho_ten}
-                      className="h-full w-full rounded-full object-cover border-4 border-card relative z-10"
-                    />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-black text-foreground group-hover:text-primary transition-colors">{ins.ho_ten}</h3>
-                    <p className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4">Senior Developer</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Chuyên gia với hơn 10 năm kinh nghiệm trong lĩnh vực {idx % 2 === 0 ? 'Full-stack' : 'Mobile Dev'}.
-                    </p>
-                  </div>
-                  
-                  <div className="flex items-center space-x-6 pt-6 border-t border-border/40 w-full justify-center">
-                    <div className="text-center">
-                      <p className="text-sm font-black text-foreground">{ins.so_luong_hoc_vien}</p>
-                      <p className="text-[10px] font-medium text-muted-foreground uppercase">Học viên</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm font-black text-foreground">{ins.so_luong_khoa_hoc}</p>
-                      <p className="text-[10px] font-medium text-muted-foreground uppercase">Khóa học</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {categories.length > 0 ? categories.map((cat) => (
+                    <Link
+                        key={cat.id}
+                        href={`/courses?ma_danh_muc=${cat.id}`}
+                        className="bg-card border border-border/60 hover:border-primary hover:shadow-lg hover:shadow-primary/10 rounded-2xl p-6 transition-all group flex flex-col items-center text-center gap-3 cursor-pointer"
+                    >
+                        <div className="w-14 h-14 bg-primary/10 text-primary rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <BookOpen className="w-6 h-6" />
+                        </div>
+                        <h3 className="font-bold text-sm text-foreground">{cat.ten_danh_muc}</h3>
+                    </Link>
+                )) : isLoading ? Array.from({ length: 4 }).map((_, idx) => (
+                    <div key={idx} className="h-40 rounded-2xl border border-border/60 bg-card p-6 animate-pulse" />
+                )) : null}
+            </div>
         </section>
+
+        {/* 3. AFFORDABLE COURSES */}
+        {affordableCourses.length > 0 && (
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex items-center justify-between mb-8">
+                    <h2 className="text-2xl font-black tracking-tight flex items-center gap-2">
+                        <Zap className="text-amber-500 fill-amber-500" /> Khóa học giá tốt
+                    </h2>
+                    <Link href="/courses?order=price-asc" className="text-sm font-bold text-primary hover:underline">Xem tất cả</Link>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {affordableCourses.map((c, i) => <CourseCard key={c.id} {...mapDbCourse(c, i)} />)}
+                </div>
+            </section>
+        )}
+
+        {/* 4. POPULAR COURSES */}
+        {popularCourses.length > 0 && (
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex items-center justify-between mb-8">
+                    <h2 className="text-2xl font-black tracking-tight flex items-center gap-2">
+                        <Star className="text-rose-500 fill-rose-500" /> Được học nhiều nhất
+                    </h2>
+                    <Link href="/courses?sort_by=popular" className="text-sm font-bold text-primary hover:underline">Xem tất cả</Link>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {popularCourses.map((c, i) => <CourseCard key={c.id} {...mapDbCourse(c, i)} />)}
+                </div>
+            </section>
+        )}
+
+        {/* 5. NEWEST COURSES */}
+        {newCourses.length > 0 && (
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex items-center justify-between mb-8">
+                    <h2 className="text-2xl font-black tracking-tight flex items-center gap-2">
+                        <Zap className="text-emerald-500 fill-emerald-500" /> Mới xuất bản
+                    </h2>
+                    <Link href="/courses" className="text-sm font-bold text-primary hover:underline">Xem tất cả</Link>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {newCourses.map((c, i) => <CourseCard key={c.id} {...mapDbCourse(c, i)} />)}
+                </div>
+            </section>
+        )}
+
+        {/* 6. ABOUT US SECTION */}
+        <section id="about" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+            <div className="bg-primary/5 border border-primary/10 rounded-[2.5rem] p-10 lg:p-16 flex flex-col lg:flex-row items-center gap-12">
+                <div className="lg:w-1/2 space-y-6 text-center lg:text-left">
+                    <div className="inline-flex items-center space-x-2 bg-primary/10 px-4 py-1.5 rounded-full text-[11px] font-bold text-primary uppercase tracking-widest">
+                        <BookOpen className="h-4 w-4" />
+                        <span>Về chúng tôi</span>
+                    </div>
+                    <h2 className="text-3xl sm:text-4xl font-black text-foreground tracking-tight leading-tight">
+                        Kiến tạo tương lai với <br />
+                        <span className="text-primary italic">Lumina LMS</span>
+                    </h2>
+                    <p className="text-muted-foreground font-medium leading-relaxed max-w-xl mx-auto lg:mx-0">
+                        Chúng tôi tự hào là nền tảng học trực tuyến hàng đầu, kết nối hàng triệu học viên với những chuyên gia đầu ngành. Nhiệm vụ của Lumina là phá vỡ mọi rào cản giáo dục, mang tri thức chuẩn quốc tế đến với bất kỳ ai, ở bất kỳ đâu.
+                    </p>
+                    <div className="pt-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-left">
+                        <div>
+                            <p className="text-3xl font-black text-foreground">1M+</p>
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">Học viên</p>
+                        </div>
+                        <div>
+                            <p className="text-3xl font-black text-foreground">500+</p>
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">Khóa học</p>
+                        </div>
+                        <div>
+                            <p className="text-3xl font-black text-foreground">200+</p>
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">Giảng viên</p>
+                        </div>
+                        <div>
+                            <p className="text-3xl font-black text-foreground">4.8</p>
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">Đánh giá</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="lg:w-1/2 w-full">
+                    <div className="relative aspect-video rounded-3xl overflow-hidden shadow-2xl border border-border/50">
+                        <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=1200&auto=format&fit=crop" alt="Lumina LMS Team" loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-8">
+                            <p className="text-white font-bold text-lg">Xây dựng cộng đồng học tập không giới hạn.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {/* 7 & 8. CTA BANNERS (Giảng viên & Doanh nghiệp) */}
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+            <div className="grid md:grid-cols-2 gap-8">
+
+                {/* Instructor CTA */}
+                <div className="bg-slate-900 text-white rounded-[2rem] p-10 relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-purple-600/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div className="relative z-10 space-y-4">
+                        <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                            <Briefcase className="w-6 h-6 text-blue-400" />
+                        </div>
+                        <h3 className="text-2xl font-black">Trở thành Giảng viên</h3>
+                        <p className="text-white/70 text-sm font-medium leading-relaxed max-w-sm">
+                            Chia sẻ kiến thức của bạn với hàng ngàn học viên trên toàn quốc và tạo ra nguồn thu nhập thụ động bền vững.
+                        </p>
+                        <Link href="/become-instructor" className="mt-4 inline-flex bg-primary hover:bg-blue-600 text-white text-xs font-bold uppercase tracking-widest px-6 py-3 rounded-xl transition-all shadow-lg items-center gap-2">
+                            Bắt đầu giảng dạy <ArrowRight className="w-4 h-4" />
+                        </Link>
+                    </div>
+                </div>
+
+                {/* B2B Enterprise CTA */}
+                <div className="bg-card border border-border/60 rounded-[2rem] p-10 relative overflow-hidden group shadow-sm hover:shadow-xl hover:border-primary/40 transition-all">
+                    <div className="absolute -right-10 -bottom-10 opacity-5">
+                        <Building className="w-64 h-64" />
+                    </div>
+                    <div className="relative z-10 space-y-4">
+                        <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+                            <Building className="w-6 h-6 text-primary" />
+                        </div>
+                        <h3 className="text-2xl font-black text-foreground">Dành cho Doanh nghiệp</h3>
+                        <p className="text-muted-foreground text-sm font-medium leading-relaxed max-w-sm">
+                            Nâng cao năng lực đội ngũ nhân sự với các gói đào tạo được thiết kế riêng biệt và hệ thống báo cáo tiến độ chi tiết.
+                        </p>
+                        <button className="mt-4 bg-secondary hover:bg-slate-200 text-foreground border border-border/60 text-xs font-bold uppercase tracking-widest px-6 py-3 rounded-xl transition-all flex items-center gap-2">
+                            Liên hệ tư vấn <ArrowRight className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
       </main>
 
       <Footer />

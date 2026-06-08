@@ -12,8 +12,11 @@ class SettingCreate(SettingBase):
     pass
 
 class SettingUpdate(BaseModel):
-    key: str
+    key: Optional[str] = None
     value: Optional[str] = None
+    data_type: Optional[str] = None
+    group: Optional[str] = None
+    description: Optional[str] = None
 
 class SettingUpdateBulk(BaseModel):
     settings: List[SettingUpdate]

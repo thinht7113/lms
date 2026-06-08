@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { CheckCircle2, XCircle, Search, RefreshCw, Eye, AlertCircle, FileText } from "lucide-react";
-import { tokenHelper, Course, apiService } from "@/services/api";
+import { Course, apiService, fetchWithAuth } from "@/services/api";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
@@ -17,11 +17,8 @@ export default function ModerationPage() {
     const fetchPendingCourses = async () => {
         setIsLoading(true);
         try {
-            // Note: The dynamic router can be filtered via searchParams
-            // but we'll fetch all courses and filter for now if the API doesn't support complex filters directly.
-            // Ideally, we have a custom endpoint or pass ?trang_thai_phe_duyet=pending
-            const data = await apiService.getCourses({ limit: 100 }); 
-            const pending = data.filter(c => c.trang_thai_phe_duyet === "pending" || c.trang_thai_phe_duyet === "draft"); // Show drafts too for demo if needed, but strict is pending
+            const data = await apiService.getAdminCourses();
+            const pending = data.filter(c => c.trang_thai_phe_duyet === "pending" || c.trang_thai_phe_duyet === "draft");
             setPendingCourses(pending);
             if (pending.length > 0 && !selectedCourse) {
                 setSelectedCourse(pending[0]);
@@ -45,10 +42,8 @@ export default function ModerationPage() {
         
         setActionLoading(true);
         try {
-            const token = tokenHelper.getToken();
-            const res = await fetch(`${API_BASE_URL}/admin/courses/${selectedCourse.id}/approve`, {
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/courses/${selectedCourse.id}/approve`, {
                 method: "PUT",
-                headers: { "Authorization": `Bearer ${token}` }
             });
             if (!res.ok) throw new Error("Lỗi khi phê duyệt");
             
@@ -70,15 +65,8 @@ export default function ModerationPage() {
         
         setActionLoading(true);
         try {
-            const token = tokenHelper.getToken();
-            // Note: Our current backend API for reject might not take a reason parameter yet, 
-            // but we simulate sending it.
-            const res = await fetch(`${API_BASE_URL}/admin/courses/${selectedCourse.id}/reject`, {
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/courses/${selectedCourse.id}/reject`, {
                 method: "PUT",
-                headers: { 
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/json" 
-                },
                 body: JSON.stringify({ reason: rejectReason })
             });
             if (!res.ok) throw new Error("Lỗi khi từ chối");

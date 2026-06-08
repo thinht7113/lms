@@ -10,6 +10,41 @@ interface SystemLogoProps {
     iconBgClass?: string;
 }
 
+interface PublicSetting {
+    key: string;
+    value?: string | null;
+}
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+let cachedLogoUrl: string | null | undefined;
+let logoRequest: Promise<string | null> | null = null;
+
+function loadLogoUrl(): Promise<string | null> {
+    if (cachedLogoUrl !== undefined) {
+        return Promise.resolve(cachedLogoUrl);
+    }
+
+    if (!logoRequest) {
+        logoRequest = fetch(`${API_BASE_URL}/settings/public`)
+            .then(res => res.json())
+            .then(data => {
+                if (!Array.isArray(data)) return null;
+                const logo = (data as PublicSetting[]).find(setting => setting.key === "SYSTEM_LOGO");
+                return logo?.value || null;
+            })
+            .catch(err => {
+                console.warn("Failed to load system logo", err);
+                return null;
+            })
+            .then(url => {
+                cachedLogoUrl = url;
+                return url;
+            });
+    }
+
+    return logoRequest;
+}
+
 export default function SystemLogo({ 
     textLabel = "LMS", 
     textColorClass = "text-foreground",
@@ -19,23 +54,26 @@ export default function SystemLogo({
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
     useEffect(() => {
-        // Try caching to avoid flicker
+        let isMounted = true;
         const cached = localStorage.getItem("system_logo");
-        if (cached) setLogoUrl(cached);
 
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
-        fetch(`${API_BASE_URL}/settings/public`)
-            .then(res => res.json())
-            .then(data => {
-                if (Array.isArray(data)) {
-                    const logo = data.find((s: any) => s.key === "SYSTEM_LOGO");
-                    if (logo && logo.value) {
-                        setLogoUrl(logo.value);
-                        localStorage.setItem("system_logo", logo.value);
-                    }
-                }
-            })
-            .catch(err => console.warn("Failed to load system logo", err));
+        if (cached) {
+            cachedLogoUrl = cached;
+            setLogoUrl(cached);
+        }
+
+        loadLogoUrl().then(url => {
+            if (url) {
+                localStorage.setItem("system_logo", url);
+            }
+            if (isMounted) {
+                setLogoUrl(url);
+            }
+        });
+
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
     return (
@@ -52,7 +90,7 @@ export default function SystemLogo({
                 </div>
             )}
             <span className={`font-sans font-black text-xl tracking-tighter uppercase ${textColorClass}`}>
-                NEMO<span className={`${iconColorClass} italic`}>{textLabel}</span>
+                LUMINA<span className={`${iconColorClass} italic`}>{textLabel}</span>
             </span>
         </div>
     );

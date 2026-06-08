@@ -2,9 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, Plus, Save, Trash2, Video, FileText, FileCode2, ImageIcon, File, UploadCloud, RefreshCw, CheckCircle2 } from "lucide-react";
-import { tokenHelper } from "@/services/api";
+import { ArrowLeft, Plus, Save, Trash2, Video, FileText, FileCode2, ImageIcon, File, UploadCloud, RefreshCw, CheckCircle2, GripVertical } from "lucide-react";
+import { fetchWithAuth } from "@/services/api";
 import dynamic from "next/dynamic";
+import { useToast } from "@/contexts/ToastContext";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
 // Tải CKEditor ở dạng Client-side only để tránh lỗi SSR của Next.js
 const CKEditorWrapper = dynamic(() => import("@/components/CKEditorWrapper"), { ssr: false });
@@ -23,6 +25,7 @@ interface ContentBlock {
 export default function EditMultimediaLessonPage() {
     const router = useRouter();
     const params = useParams();
+    const toast = useToast();
     const courseId = params.id as string;
     const sectionId = params.section_id as string;
     const lessonId = params.lesson_id as string;
@@ -45,12 +48,8 @@ export default function EditMultimediaLessonPage() {
     useEffect(() => {
         const fetchLessonData = async () => {
             try {
-                const token = tokenHelper.getToken();
-                
                 // 1. Fetch Lesson Header
-                const lessonRes = await fetch(`${API_BASE_URL}/dynamic-admin/lessons/${lessonId}`, {
-                    headers: { "Authorization": `Bearer ${token}` }
-                });
+                const lessonRes = await fetchWithAuth(`${API_BASE_URL}/dynamic-admin/lessons/${lessonId}`);
                 if (!lessonRes.ok) throw new Error("Không tìm thấy bài học");
                 const lessonData = await lessonRes.json();
                 
@@ -61,9 +60,7 @@ export default function EditMultimediaLessonPage() {
                 setDaXuatBan(lessonData.da_xuat_ban || false);
 
                 // 2. Fetch Lesson Contents
-                const contentsRes = await fetch(`${API_BASE_URL}/dynamic-admin/lesson-contents?filter_col=ma_bai_hoc&filter_val=${lessonId}&limit=100`, {
-                    headers: { "Authorization": `Bearer ${token}` }
-                });
+                const contentsRes = await fetchWithAuth(`${API_BASE_URL}/dynamic-admin/lesson-contents?filter_col=ma_bai_hoc&filter_val=${lessonId}&limit=100`);
                 if (contentsRes.ok) {
                     const contentsData = await contentsRes.json();
                     if (contentsData.data && Array.isArray(contentsData.data)) {
@@ -83,7 +80,7 @@ export default function EditMultimediaLessonPage() {
                 
             } catch (err) {
                 console.error(err);
-                alert("Lỗi tải dữ liệu bài học");
+                toast.error("Lỗi tải dữ liệu bài học");
             } finally {
                 setIsLoading(false);
             }
@@ -92,7 +89,7 @@ export default function EditMultimediaLessonPage() {
         if (lessonId) {
             fetchLessonData();
         }
-    }, [lessonId]);
+    }, [lessonId, toast]);
 
 
     const addBlock = (type: "video" | "pdf" | "text" | "code" | "image") => {
@@ -118,19 +115,30 @@ export default function EditMultimediaLessonPage() {
         setBlocks(prev => prev.map(b => b.id === id ? { ...b, [key]: value } : b));
     };
 
+    const handleDragEnd = (result: any) => {
+        if (!result.destination) return;
+        
+        const items = Array.from(blocks);
+        const [reorderedItem] = items.splice(result.source.index, 1);
+        items.splice(result.destination.index, 0, reorderedItem);
+
+        setBlocks(items);
+    };
+
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, blockId: string) => {
         const file = e.target.files?.[0];
         if (!file) return;
+        const block = blocks.find(b => b.id === blockId);
+        const assetType = block?.loai_noi_dung === "pdf" ? "pdf" : block?.loai_noi_dung === "video" ? "video" : "lesson-image";
 
         updateBlock(blockId, "isUploading", true);
         try {
-            const token = tokenHelper.getToken();
             const formData = new FormData();
             formData.append("file", file);
+            formData.append("asset_type", assetType);
 
-            const res = await fetch(`${API_BASE_URL}/upload`, {
+            const res = await fetchWithAuth(`${API_BASE_URL}/upload`, {
                 method: "POST",
-                headers: { "Authorization": `Bearer ${token}` },
                 body: formData
             });
 
@@ -138,34 +146,28 @@ export default function EditMultimediaLessonPage() {
             const data = await res.json();
             
             updateBlock(blockId, "duong_dan_file", data.url);
+            toast.success("Tải lên thành công!");
         } catch (err: any) {
-            alert(err.message || "Lỗi khi upload file");
+            toast.error(err.message || "Lỗi khi upload file");
         } finally {
             updateBlock(blockId, "isUploading", false);
         }
     };
 
     const handleSave = async () => {
-        if (!tieuDe.trim()) return alert("Vui lòng nhập tiêu đề bài học!");
+        if (!tieuDe.trim()) return toast.error("Vui lòng nhập tiêu đề bài học!");
         
         setIsSaving(true);
         try {
-            const token = tokenHelper.getToken();
-            const headers = {
-                "Authorization": `Bearer ${token}`,
-                "Content-Type": "application/json"
-            };
-
             // 1. Cập nhật Bài học (Header) - dùng PUT
-            const lessonRes = await fetch(`${API_BASE_URL}/dynamic-admin/lessons/${lessonId}`, {
+            const lessonRes = await fetchWithAuth(`${API_BASE_URL}/dynamic-admin/lessons/${lessonId}`, {
                 method: "PUT",
-                headers,
                 body: JSON.stringify({
                     ma_khoa_hoc: parseInt(courseId),
                     ma_chuong_hoc: parseInt(sectionId),
                     tieu_de: tieuDe,
-                    thoi_luong: (typeof thoiLuong === "number" ? thoiLuong : 0) * 60, // Đổi phút ra giây
-                    thu_tu: thuTu,
+                    thoi_luong: (Number(thoiLuong) || 0) * 60, // Đổi phút ra giây
+                    thu_tu: Number(thuTu) || 0,
                     xem_truoc: xemTruoc,
                     da_xuat_ban: daXuatBan
                 })
@@ -175,9 +177,8 @@ export default function EditMultimediaLessonPage() {
 
             // 2. Xóa các Block nội dung cũ đã bị xóa trên UI
             for (const delId of deletedBlockIds) {
-                await fetch(`${API_BASE_URL}/dynamic-admin/lesson-contents/${delId}`, {
-                    method: "DELETE",
-                    headers
+                await fetchWithAuth(`${API_BASE_URL}/dynamic-admin/lesson-contents/${delId}`, {
+                    method: "DELETE"
                 });
             }
 
@@ -186,9 +187,8 @@ export default function EditMultimediaLessonPage() {
                 const block = blocks[i];
                 if (block.isExisting) {
                     // Update - PUT
-                    await fetch(`${API_BASE_URL}/dynamic-admin/lesson-contents/${block.id}`, {
+                    await fetchWithAuth(`${API_BASE_URL}/dynamic-admin/lesson-contents/${block.id}`, {
                         method: "PUT",
-                        headers,
                         body: JSON.stringify({
                             loai_noi_dung: block.loai_noi_dung,
                             noi_dung_text: block.noi_dung_text,
@@ -198,9 +198,8 @@ export default function EditMultimediaLessonPage() {
                     });
                 } else {
                     // Create - POST
-                    await fetch(`${API_BASE_URL}/dynamic-admin/lesson-contents`, {
+                    await fetchWithAuth(`${API_BASE_URL}/dynamic-admin/lesson-contents`, {
                         method: "POST",
-                        headers,
                         body: JSON.stringify({
                             ma_bai_hoc: parseInt(lessonId),
                             loai_noi_dung: block.loai_noi_dung,
@@ -212,18 +211,23 @@ export default function EditMultimediaLessonPage() {
                 }
             }
 
-            alert("Cập nhật bài học thành công!");
+            toast.success("Cập nhật bài học thành công!");
             router.push(`/admin/courses/${courseId}/sections/${sectionId}/lessons`);
             
         } catch (error: any) {
-            alert(error.message);
+            toast.error(error.message);
         } finally {
             setIsSaving(false);
         }
     };
 
     if (isLoading) {
-        return <div className="p-10 flex justify-center"><RefreshCw className="w-8 h-8 animate-spin text-primary" /></div>;
+        return (
+            <div className="p-20 flex flex-col items-center justify-center space-y-4">
+                <RefreshCw className="w-10 h-10 animate-spin text-primary" />
+                <p className="text-sm font-bold text-muted-foreground animate-pulse">Đang tải dữ liệu bài học...</p>
+            </div>
+        );
     }
 
     return (
@@ -270,7 +274,7 @@ export default function EditMultimediaLessonPage() {
                         <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Thứ tự hiển thị</label>
                         <input 
                             type="number" 
-                            value={thuTu} onChange={e => setThuTu(parseInt(e.target.value))}
+                            value={thuTu} onChange={e => setThuTu(e.target.value === "" ? "" : parseInt(e.target.value))}
                             className="w-full bg-secondary border border-border/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
                     </div>
@@ -278,7 +282,7 @@ export default function EditMultimediaLessonPage() {
                         <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Thời lượng (Phút)</label>
                         <input 
                             type="number" 
-                            value={thoiLuong} onChange={e => setThoiLuong(parseInt(e.target.value))}
+                            value={thoiLuong} onChange={e => setThoiLuong(e.target.value === "" ? "" : parseInt(e.target.value))}
                             className="w-full bg-secondary border border-border/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
                     </div>
@@ -326,134 +330,161 @@ export default function EditMultimediaLessonPage() {
                         <p className="text-xs font-medium text-muted-foreground mt-1">Bấm vào các nút bên trên để thêm khối nội dung.</p>
                     </div>
                 ) : (
-                    <div className="space-y-6">
-                        {blocks.map((block, index) => (
-                            <div key={block.id} className="relative group bg-background border border-border/60 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
-                                {/* Xóa block */}
-                                <button 
-                                    onClick={() => removeBlock(block.id)}
-                                    className="absolute -top-3 -right-3 p-2 bg-rose-100 text-rose-600 rounded-full hover:bg-rose-600 hover:text-white shadow-sm opacity-0 group-hover:opacity-100 transition-all z-10"
-                                    title="Xóa khối"
+                    <DragDropContext onDragEnd={handleDragEnd}>
+                        <Droppable droppableId="blocks">
+                            {(provided) => (
+                                <div 
+                                    {...provided.droppableProps}
+                                    ref={provided.innerRef}
+                                    className="space-y-6"
                                 >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
+                                    {blocks.map((block, index) => (
+                                        <Draggable key={block.id} draggableId={block.id} index={index}>
+                                            {(provided) => (
+                                                <div 
+                                                    ref={provided.innerRef}
+                                                    {...provided.draggableProps}
+                                                    className="relative group bg-background border border-border/60 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow"
+                                                >
+                                                    {/* Drag Handle */}
+                                                    <div 
+                                                        {...provided.dragHandleProps}
+                                                        className="absolute left-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground/30 hover:text-primary cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-all"
+                                                    >
+                                                        <GripVertical className="w-5 h-5" />
+                                                    </div>
 
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center font-black text-xs text-muted-foreground">
-                                        {index + 1}
-                                    </div>
-                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary font-bold text-xs rounded-lg uppercase tracking-widest">
-                                        {block.loai_noi_dung === "video" && <Video className="w-4 h-4" />}
-                                        {block.loai_noi_dung === "text" && <FileText className="w-4 h-4" />}
-                                        {block.loai_noi_dung === "pdf" && <File className="w-4 h-4" />}
-                                        <span>Khối {block.loai_noi_dung}</span>
-                                    </div>
+                                                    {/* Xóa block */}
+                                                    <button 
+                                                        onClick={() => removeBlock(block.id)}
+                                                        className="absolute -top-3 -right-3 p-2 bg-rose-100 text-rose-600 rounded-full hover:bg-rose-600 hover:text-white shadow-sm opacity-0 group-hover:opacity-100 transition-all z-10"
+                                                        title="Xóa khối"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+
+                                                    <div className="flex items-center gap-3 mb-4 pl-4">
+                                                        <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center font-black text-xs text-muted-foreground">
+                                                            {index + 1}
+                                                        </div>
+                                                        <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary font-bold text-xs rounded-lg uppercase tracking-widest">
+                                                            {block.loai_noi_dung === "video" && <Video className="w-4 h-4" />}
+                                                            {block.loai_noi_dung === "text" && <FileText className="w-4 h-4" />}
+                                                            {block.loai_noi_dung === "pdf" && <File className="w-4 h-4" />}
+                                                            <span>Khối {block.loai_noi_dung}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    {block.loai_noi_dung === "video" && (
+                                                        <div className="space-y-2 pl-4">
+                                                            <label className="text-xs font-bold text-muted-foreground">Đường dẫn Video hoặc Tải lên</label>
+                                                            <div className="flex gap-2">
+                                                                <input 
+                                                                    type="text" 
+                                                                    value={block.duong_dan_file} 
+                                                                    onChange={e => updateBlock(block.id, "duong_dan_file", e.target.value)}
+                                                                    placeholder="https://www.youtube.com/watch?v=..."
+                                                                    className="flex-1 bg-secondary border border-border/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                                                />
+                                                                <div className="relative">
+                                                                    <input
+                                                                        type="file"
+                                                                        accept="video/mp4,video/webm,video/quicktime,video/mpeg"
+                                                                        onChange={(e) => handleFileUpload(e, block.id)}
+                                                                        disabled={block.isUploading}
+                                                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                                                                    />
+                                                                    <div className={`h-full flex items-center space-x-2 px-4 rounded-xl border border-border/60 transition-colors ${block.isUploading ? 'bg-secondary opacity-70' : 'bg-primary/5 hover:bg-primary/10 text-primary'}`}>
+                                                                        {block.isUploading ? <RefreshCw className="w-4 h-4 animate-spin text-muted-foreground" /> : <UploadCloud className="w-4 h-4" />}
+                                                                        <span className="text-xs font-bold whitespace-nowrap">
+                                                                            {block.isUploading ? "Đang tải..." : "Upload MP4"}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            {block.duong_dan_file && (
+                                                                <div className="mt-4 w-full aspect-video bg-black rounded-xl overflow-hidden border border-border/60 shadow-inner">
+                                                                    {block.duong_dan_file.includes('youtube.com') || block.duong_dan_file.includes('youtu.be') ? (
+                                                                        <iframe 
+                                                                            className="w-full h-full"
+                                                                            src={block.duong_dan_file.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')} 
+                                                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                                            allowFullScreen 
+                                                                        />
+                                                                    ) : (
+                                                                        <video controls className="w-full h-full" key={block.duong_dan_file}>
+                                                                            <source src={block.duong_dan_file} />
+                                                                            Trình duyệt của bạn không hỗ trợ thẻ video.
+                                                                        </video>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {block.loai_noi_dung === "pdf" && (
+                                                        <div className="space-y-2 pl-4">
+                                                            <label className="text-xs font-bold text-muted-foreground">Đường dẫn PDF hoặc Tải lên</label>
+                                                            <div className="flex gap-2">
+                                                                <input 
+                                                                    type="text" 
+                                                                    value={block.duong_dan_file} 
+                                                                    onChange={e => updateBlock(block.id, "duong_dan_file", e.target.value)}
+                                                                    placeholder="https://s3.amazonaws.com/.../file.pdf"
+                                                                    className="flex-1 bg-secondary border border-border/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                                                />
+                                                                <div className="relative">
+                                                                    <input
+                                                                        type="file"
+                                                                        accept="application/pdf"
+                                                                        onChange={(e) => handleFileUpload(e, block.id)}
+                                                                        disabled={block.isUploading}
+                                                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                                                                    />
+                                                                    <div className={`h-full flex items-center space-x-2 px-4 rounded-xl border border-border/60 transition-colors ${block.isUploading ? 'bg-secondary opacity-70' : 'bg-rose-500/5 hover:bg-rose-500/10 text-rose-600'}`}>
+                                                                        {block.isUploading ? <RefreshCw className="w-4 h-4 animate-spin text-muted-foreground" /> : <UploadCloud className="w-4 h-4" />}
+                                                                        <span className="text-xs font-bold whitespace-nowrap">
+                                                                            {block.isUploading ? "Đang tải..." : "Upload File"}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            {block.duong_dan_file && (
+                                                                <div className="mt-4 w-full h-[500px] bg-secondary rounded-xl overflow-hidden border border-border/60 shadow-inner flex flex-col">
+                                                                    <div className="bg-slate-200 px-4 py-2 border-b border-border/60 flex justify-between items-center text-xs font-bold text-muted-foreground">
+                                                                        <span>Xem trước tài liệu</span>
+                                                                        <a href={block.duong_dan_file} target="_blank" rel="noreferrer" className="text-primary hover:underline">Mở toàn màn hình</a>
+                                                                    </div>
+                                                                    <iframe 
+                                                                        src={`${block.duong_dan_file}#toolbar=0`} 
+                                                                        className="w-full flex-1"
+                                                                        title="Document Preview"
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {block.loai_noi_dung === "text" && (
+                                                        <div className="space-y-2 pl-4">
+                                                            <label className="text-xs font-bold text-muted-foreground">Nội dung Văn bản</label>
+                                                            <div className="border border-border/60 rounded-xl overflow-hidden">
+                                                                <CKEditorWrapper 
+                                                                    value={block.noi_dung_text} 
+                                                                    onChange={data => updateBlock(block.id, "noi_dung_text", data)} 
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </Draggable>
+                                    ))}
+                                    {provided.placeholder}
                                 </div>
-
-                                {block.loai_noi_dung === "video" && (
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-muted-foreground">Đường dẫn Video hoặc Tải lên</label>
-                                        <div className="flex gap-2">
-                                            <input 
-                                                type="text" 
-                                                value={block.duong_dan_file} 
-                                                onChange={e => updateBlock(block.id, "duong_dan_file", e.target.value)}
-                                                placeholder="https://www.youtube.com/watch?v=..."
-                                                className="flex-1 bg-secondary border border-border/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                            />
-                                            <div className="relative">
-                                                <input
-                                                    type="file"
-                                                    accept="video/*"
-                                                    onChange={(e) => handleFileUpload(e, block.id)}
-                                                    disabled={block.isUploading}
-                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
-                                                />
-                                                <div className={`h-full flex items-center space-x-2 px-4 rounded-xl border border-border/60 transition-colors ${block.isUploading ? 'bg-secondary opacity-70' : 'bg-primary/5 hover:bg-primary/10 text-primary'}`}>
-                                                    {block.isUploading ? <RefreshCw className="w-4 h-4 animate-spin text-muted-foreground" /> : <UploadCloud className="w-4 h-4" />}
-                                                    <span className="text-xs font-bold whitespace-nowrap">
-                                                        {block.isUploading ? "Đang tải..." : "Upload MP4"}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        {block.duong_dan_file && (
-                                            <div className="mt-4 w-full aspect-video bg-black rounded-xl overflow-hidden border border-border/60 shadow-inner">
-                                                {block.duong_dan_file.includes('youtube.com') || block.duong_dan_file.includes('youtu.be') ? (
-                                                    <iframe 
-                                                        className="w-full h-full"
-                                                        src={block.duong_dan_file.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')} 
-                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                        allowFullScreen 
-                                                    />
-                                                ) : (
-                                                    <video controls className="w-full h-full">
-                                                        <source src={block.duong_dan_file} />
-                                                        Trình duyệt của bạn không hỗ trợ thẻ video.
-                                                    </video>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {block.loai_noi_dung === "pdf" && (
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-muted-foreground">Đường dẫn PDF hoặc Tải lên</label>
-                                        <div className="flex gap-2">
-                                            <input 
-                                                type="text" 
-                                                value={block.duong_dan_file} 
-                                                onChange={e => updateBlock(block.id, "duong_dan_file", e.target.value)}
-                                                placeholder="https://s3.amazonaws.com/.../file.pdf"
-                                                className="flex-1 bg-secondary border border-border/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                            />
-                                            <div className="relative">
-                                                <input
-                                                    type="file"
-                                                    accept=".pdf,.zip,.rar"
-                                                    onChange={(e) => handleFileUpload(e, block.id)}
-                                                    disabled={block.isUploading}
-                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
-                                                />
-                                                <div className={`h-full flex items-center space-x-2 px-4 rounded-xl border border-border/60 transition-colors ${block.isUploading ? 'bg-secondary opacity-70' : 'bg-rose-500/5 hover:bg-rose-500/10 text-rose-600'}`}>
-                                                    {block.isUploading ? <RefreshCw className="w-4 h-4 animate-spin text-muted-foreground" /> : <UploadCloud className="w-4 h-4" />}
-                                                    <span className="text-xs font-bold whitespace-nowrap">
-                                                        {block.isUploading ? "Đang tải..." : "Upload File"}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        {block.duong_dan_file && (
-                                            <div className="mt-4 w-full h-[500px] bg-secondary rounded-xl overflow-hidden border border-border/60 shadow-inner flex flex-col">
-                                                <div className="bg-slate-200 px-4 py-2 border-b border-border/60 flex justify-between items-center text-xs font-bold text-muted-foreground">
-                                                    <span>Xem trước tài liệu</span>
-                                                    <a href={block.duong_dan_file} target="_blank" className="text-primary hover:underline">Mở toàn màn hình</a>
-                                                </div>
-                                                <iframe 
-                                                    src={`${block.duong_dan_file}#toolbar=0`} 
-                                                    className="w-full flex-1"
-                                                    title="Document Preview"
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {block.loai_noi_dung === "text" && (
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-muted-foreground">Nội dung Văn bản</label>
-                                        <div className="border border-border/60 rounded-xl overflow-hidden">
-                                            <CKEditorWrapper 
-                                                value={block.noi_dung_text} 
-                                                onChange={data => updateBlock(block.id, "noi_dung_text", data)} 
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
+                            )}
+                        </Droppable>
+                    </DragDropContext>
                 )}
             </div>
         </div>

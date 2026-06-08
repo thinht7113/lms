@@ -39,9 +39,13 @@ class CertService:
         )
         enrollment = enroll_result.scalars().first()
         if not enrollment:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Bạn chưa ghi danh/mua khóa học chứa bài học này."
+            # Nếu chưa mua (giảng viên xem thử), không lưu tiến trình mà trả về giả
+            return Progress(
+                id=0,
+                ma_dang_ky_hoc=0,
+                ma_bai_hoc=lesson_id,
+                da_hoan_thanh=False,
+                video_resume_seconds=0
             )
 
         # 2b. Kiểm tra tuần tự bài học (Drip Content) khi học viên đánh dấu hoàn thành
@@ -122,22 +126,58 @@ class CertService:
 
     @staticmethod
     async def get_lesson_progress(db: AsyncSession, user_id: int, lesson_id: int) -> Progress:
-        result = await db.execute(
-            select(Progress)
-            .join(Enrollment, Progress.ma_dang_ky_hoc == Enrollment.id)
-            .where(
+        lesson_result = await db.execute(
+            select(Lesson)
+            .options(selectinload(Lesson.chuong_hoc))
+            .where(Lesson.id == lesson_id)
+        )
+        lesson = lesson_result.scalars().first()
+        if not lesson:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Bài học không tồn tại.",
+            )
+
+        enroll_result = await db.execute(
+            select(Enrollment).where(
                 and_(
                     Enrollment.ma_nguoi_dung == user_id,
+                    Enrollment.ma_khoa_hoc == lesson.chuong_hoc.ma_khoa_hoc,
+                )
+            )
+        )
+        enrollment = enroll_result.scalars().first()
+        if not enrollment:
+            # Nếu chưa mua (giảng viên xem thử), trả về tiến độ giả (0) thay vì lỗi 403
+            return Progress(
+                id=0,
+                ma_dang_ky_hoc=0,
+                ma_bai_hoc=lesson_id,
+                da_hoan_thanh=False,
+                video_resume_seconds=0
+            )
+
+        progress_result = await db.execute(
+            select(Progress)
+            .where(
+                and_(
+                    Progress.ma_dang_ky_hoc == enrollment.id,
                     Progress.ma_bai_hoc == lesson_id,
                 )
             )
         )
-        progress = result.scalars().first()
+        progress = progress_result.scalars().first()
         if not progress:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Chưa có tiến độ cho bài học này.",
+            progress = Progress(
+                ma_dang_ky_hoc=enrollment.id,
+                ma_bai_hoc=lesson_id,
+                da_hoan_thanh=False,
+                ngay_hoan_thanh=None,
+                video_resume_seconds=0,
             )
+            db.add(progress)
+            await db.commit()
+            await db.refresh(progress)
         return progress
 
     @staticmethod

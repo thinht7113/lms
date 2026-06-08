@@ -4,10 +4,13 @@ import React from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import DynamicTable, { CustomAction } from "@/components/admin/DynamicTable";
-import { ArrowLeft, Plus, Edit } from "lucide-react";
+import { ArrowLeft, Plus, Edit, CheckCircle2, XCircle } from "lucide-react";
+import { apiService } from "@/services/api";
+import { useToast } from "@/contexts/ToastContext";
 
 export default function AdminLessonsPage() {
     const router = useRouter();
+    const toast = useToast();
     const params = useParams();
     const courseId = params.id as string;
     const sectionId = params.section_id as string;
@@ -27,6 +30,36 @@ export default function AdminLessonsPage() {
             icon: Edit,
             colorClass: "text-blue-600 bg-blue-50 hover:bg-blue-100",
             onClick: (lesson) => router.push(`/admin/courses/${courseId}/sections/${sectionId}/lessons/${lesson.id}/edit`)
+        },
+        {
+            label: "Duyệt bài học",
+            icon: CheckCircle2,
+            colorClass: "text-emerald-600 bg-emerald-50 hover:bg-emerald-100",
+            onClick: async (lesson) => {
+                try {
+                    await apiService.approveAdminLesson(lesson.id);
+                    toast.success("Đã duyệt bài học");
+                    window.location.reload();
+                } catch (err: any) {
+                    toast.error(err.message || "Không thể duyệt bài học");
+                }
+            }
+        },
+        {
+            label: "Từ chối bài học",
+            icon: XCircle,
+            colorClass: "text-rose-600 bg-rose-50 hover:bg-rose-100",
+            onClick: async (lesson) => {
+                const reason = prompt("Nhập lý do từ chối bài học:");
+                if (!reason) return;
+                try {
+                    await apiService.rejectAdminLesson(lesson.id, reason);
+                    toast.success("Đã từ chối bài học");
+                    window.location.reload();
+                } catch (err: any) {
+                    toast.error(err.message || "Không thể từ chối bài học");
+                }
+            }
         }
     ];
 

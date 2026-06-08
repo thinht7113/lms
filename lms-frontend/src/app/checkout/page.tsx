@@ -89,7 +89,7 @@ function CheckoutContent() {
             <h1 className="text-3xl sm:text-4xl font-black text-foreground tracking-tighter">
               Thanh Toán <span className="text-primary italic">An Toàn</span>
             </h1>
-            <p className="text-sm font-medium text-muted-foreground mt-1">Chọn phương thức giao dịch để hoàn tất đăng ký khóa học Nemo.</p>
+            <p className="text-sm font-medium text-muted-foreground mt-1">Chọn phương thức giao dịch để hoàn tất đăng ký khóa học Lumina.</p>
           </div>
         </div>
 
@@ -200,7 +200,7 @@ function CheckoutContent() {
 
               <div className="flex items-center justify-center space-x-2 text-[10px] font-bold uppercase tracking-widest text-emerald-600 bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20">
                 <ShieldCheck className="h-4 w-4 shrink-0" />
-                <span>Bảo mật 100% qua Nemo Pay</span>
+                <span>Bảo mật 100% qua Lumina Pay</span>
               </div>
             </div>
           </div>

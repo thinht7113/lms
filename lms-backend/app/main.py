@@ -61,14 +61,16 @@ tags_metadata = [
 
 api_description = "Hệ thống API backend cho ứng dụng học trực tuyến LMS (Learning Management System)."
 
+is_production = settings.APP_ENV.lower() in {"production", "prod"}
+
 # Khởi tạo ứng dụng FastAPI
 app = FastAPI(
     title="LMS API Documentation",
     description=api_description,
     version="1.0.0", 
     openapi_tags=tags_metadata,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url=None if is_production else "/docs",
+    redoc_url=None if is_production else "/redoc",
     swagger_ui_parameters={
         "filter": True,
         "operationsSorter": "alpha"

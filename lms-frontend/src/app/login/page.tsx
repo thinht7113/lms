@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { LayoutGrid, Mail, Lock, User, Phone, CheckCircle, ArrowRight, Shield, ArrowLeft } from "lucide-react";
+import { Mail, Lock, User, Phone, CheckCircle, Shield, ArrowLeft } from "lucide-react";
 import { apiService, tokenHelper } from "@/services/api";
 import SystemLogo from "@/components/SystemLogo";
 
@@ -19,10 +19,10 @@ export default function LoginPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // If already logged in, redirect to dashboard
+  // If already logged in, return to the homepage.
   useEffect(() => {
     if (tokenHelper.getToken()) {
-      router.push("/dashboard");
+      router.push("/");
     }
   }, [router]);
 
@@ -37,8 +37,7 @@ export default function LoginPage() {
         await apiService.login(email, password);
         setSuccess("Đăng nhập thành công! Đang chuyển hướng...");
         setTimeout(() => {
-          router.push("/dashboard");
-          window.location.reload(); // Refresh to update navbar state
+          router.push("/");
         }, 1000);
       } else {
         await apiService.register(email, password, fullName, phone, role);
@@ -46,8 +45,8 @@ export default function LoginPage() {
         setActiveTab("login");
         setPassword("");
       }
-    } catch (err: any) {
-      setError(err.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Đã xảy ra lỗi. Vui lòng thử lại.");
     } finally {
       setLoading(false);
     }
@@ -55,7 +54,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen relative flex items-center justify-center bg-background py-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
-      {/* Dynamic Animated Background Gradients (Nemo Style) */}
+      {/* Dynamic Animated Background Gradients (Lumina Style) */}
       <div className="absolute inset-0 z-0 overflow-hidden bg-slate-50">
         <div className="absolute top-0 right-0 w-full h-full bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))] opacity-40 -z-10" />
         <div className="absolute -top-[40%] -left-[20%] w-[80%] h-[80%] rounded-full bg-blue-500/10 blur-[120px] animate-pulse duration-10000" />
@@ -153,19 +152,6 @@ export default function LoginPage() {
                   />
                 </div>
               </div>
-
-              {/* Role selection dropdown */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Vai trò thành viên</label>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="w-full bg-background text-foreground text-sm font-medium rounded-xl py-2.5 px-4 border border-border focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-sm appearance-none"
-                >
-                  <option value="student">Học viên (Mua & Học khóa học)</option>
-                  <option value="instructor">Giảng viên (Tạo bài giảng)</option>
-                </select>
-              </div>
             </>
           )}
 
@@ -179,7 +165,7 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="example@nemolms.vn"
+                placeholder="example@luminalms.vn"
                 className="w-full bg-background text-foreground text-sm font-medium rounded-xl py-2.5 pl-10 pr-4 border border-border focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-sm"
               />
             </div>

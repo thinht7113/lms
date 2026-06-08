@@ -6,7 +6,7 @@ import Link from "next/link";
 import { CheckCircle2, XCircle, Award, ArrowLeft, RefreshCw, FileText, HelpCircle, Star, LayoutGrid, Clock } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { apiService, QuizDetail, QuizAttempt } from "@/services/api";
+import { apiService, QuizAttemptReview } from "@/services/api";
 
 function QuizReviewContent() {
   const params = useParams();
@@ -16,8 +16,7 @@ function QuizReviewContent() {
   const attemptId = searchParams?.get("attempt_id") ? Number(searchParams.get("attempt_id")) : null;
 
   // DB States
-  const [quiz, setQuiz] = useState<QuizDetail | null>(null);
-  const [attempt, setAttempt] = useState<QuizAttempt | null>(null);
+  const [review, setReview] = useState<QuizAttemptReview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,12 +29,11 @@ function QuizReviewContent() {
       setLoading(true);
       setError(null);
       try {
-        const [quizData, attemptData] = await Promise.all([
-          apiService.getQuizDetail(currentQuizId as number),
-          apiService.getQuizAttempt(currentAttemptId as number)
-        ]);
-        setQuiz(quizData);
-        setAttempt(attemptData);
+        const reviewData = await apiService.getQuizAttemptReview(currentAttemptId as number);
+        if (reviewData.ma_bai_kiem_tra !== currentQuizId) {
+          throw new Error("Kết quả bài làm không thuộc bài kiểm tra này.");
+        }
+        setReview(reviewData);
       } catch (err: any) {
         setError(err.message || "Không thể tải kết quả bài làm.");
       } finally {
@@ -57,7 +55,7 @@ function QuizReviewContent() {
     );
   }
 
-  if (error || !quiz || !attempt) {
+  if (error || !review) {
     return (
       <>
         <Navbar />
@@ -67,7 +65,7 @@ function QuizReviewContent() {
             <h3 className="font-black text-xl text-foreground tracking-tighter">Không tìm thấy kết quả</h3>
             <p className="text-sm font-medium text-muted-foreground leading-relaxed">{error || "Dữ liệu bài làm không hợp lệ."}</p>
             <Link
-              href="/dashboard"
+              href="/my-courses"
               className="bg-primary hover:bg-blue-700 text-white rounded-xl text-xs font-bold uppercase tracking-widest px-8 py-3.5 transition-all shadow-lg shadow-primary/20"
             >
               Quay lại Bảng điều khiển
@@ -79,30 +77,13 @@ function QuizReviewContent() {
     );
   }
 
-  const score = Number(attempt.diem_dat_duoc || 0);
-  const passed = attempt.da_qua_mon === true;
+  const quiz = review.bai_kiem_tra;
+  const score = Number(review.diem_dat_duoc || 0);
+  const passed = review.da_qua_mon === true;
   const passingScore = Number(quiz.diem_dat || 8.0);
-  const totalQuestions = quiz.cau_hoi?.length || 0;
-
-  // Map user answers
-  const userAnswers: Record<number, number> = {};
-  attempt.cau_tra_loi_chi_tiet?.forEach((ans: any) => {
-    userAnswers[ans.ma_cau_hoi] = ans.ma_lua_chon;
-  });
-
-  // Deterministic mock correct answer generator since student role does not see correct flags
-  const getMockCorrectOptionId = (question: any) => {
-    // Return first option id + some deterministic offset, or simply first option id for demo
-    if (question.cac_lua_chon?.length > 0) {
-      // Deterministically pick an option based on question id
-      const index = (question.id) % question.cac_lua_chon.length;
-      return question.cac_lua_chon[index].id;
-    }
-    return null;
-  };
 
   const getExplanation = (question: any) => {
-    return question.giai_thich || "Đây là câu hỏi cốt lõi để đánh giá khả năng vận dụng cơ sở dữ liệu và xử lý nghiệp vụ Full-stack Web. Giảng viên khuyên bạn nên xem kỹ chương 2 bài 3.";
+    return question.giai_thich || "Câu hỏi này chưa có giải thích từ giảng viên. Hãy xem lại phần bài học liên quan trước khi làm lại.";
   };
 
   return (
@@ -122,7 +103,7 @@ function QuizReviewContent() {
             <h1 className="text-3xl sm:text-4xl font-black text-foreground tracking-tighter">
               Đánh Giá <span className="text-primary italic">Năng Lực</span>
             </h1>
-            <p className="text-sm font-medium text-muted-foreground mt-1">Xem chi tiết điểm số, bảng sửa sai và lời giải thích từ giảng viên Nemo.</p>
+            <p className="text-sm font-medium text-muted-foreground mt-1">Xem chi tiết điểm số, bảng sửa sai và lời giải thích từ giảng viên Lumina.</p>
           </div>
         </div>
 
@@ -169,10 +150,10 @@ function QuizReviewContent() {
           </div>
 
           <div className="space-y-8">
-            {quiz.cau_hoi?.map((q, idx) => {
-              const chosenOptionId = userAnswers[q.id];
-              const correctOptionId = getMockCorrectOptionId(q);
-              const isUserCorrect = chosenOptionId === correctOptionId;
+            {review.cau_hoi_review?.map((q, idx) => {
+              const chosenOptionId = q.user_option_id;
+              const correctOptionId = q.correct_option_id;
+              const isUserCorrect = q.is_user_correct;
               const explanationText = getExplanation(q);
 
               return (
@@ -235,7 +216,7 @@ function QuizReviewContent() {
                     <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-primary" />
                     <div className="flex items-center space-x-2 text-primary font-black text-[10px] uppercase tracking-widest pl-2">
                       <HelpCircle className="h-4 w-4" />
-                      <span>Lời giải thích từ Nemo Mentor:</span>
+                      <span>Lời giải thích từ Lumina Mentor:</span>
                     </div>
                     <p className="text-foreground/80 leading-relaxed text-sm pl-2 font-medium">
                       {explanationText}
@@ -261,5 +242,22 @@ function QuizReviewContent() {
 
       <Footer />
     </>
+  );
+}
+
+export default function QuizReviewPage() {
+  return (
+    <Suspense
+      fallback={
+        <>
+          <Navbar />
+          <main className="flex justify-center items-center h-screen bg-background">
+            <RefreshCw className="h-10 w-10 text-primary animate-spin" />
+          </main>
+        </>
+      }
+    >
+      <QuizReviewContent />
+    </Suspense>
   );
 }

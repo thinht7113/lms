@@ -9,13 +9,13 @@ from app.schemas.course import CourseResponse, CourseCreate, CourseUpdate
 from app.schemas.course import SectionResponse, SectionAdminResponse, SectionCreate, SectionUpdate
 from app.schemas.course import LessonResponse, LessonAdminResponse, LessonCreate, LessonUpdate
 from app.schemas.course import LessonContentResponse, LessonContentCreate, LessonContentUpdate
-from app.schemas.order import OrderResponse, CheckoutRequest as OrderCreate, CheckoutRequest as OrderUpdate # Simplified for generic
+from app.schemas.order import OrderResponse, OrderAdminResponse, CheckoutRequest as OrderCreate, CheckoutRequest as OrderUpdate # Simplified for generic
 from app.schemas.order import CouponResponse, CouponCreate, CouponUpdate
 from app.schemas.quiz import QuizResponse, QuizCreate, QuizUpdate
 from app.schemas.quiz import QuestionResponse, QuestionCreate, QuestionUpdate
 from app.schemas.course import CertificateResponse, CertificateResponse as CertificateCreate, CertificateResponse as CertificateUpdate # Placeholders if needed
 from app.schemas.banner import BannerResponse, BannerCreate, BannerUpdate
-from app.schemas.setting import SettingResponse, SettingUpdateBulk as SettingCreate, SettingUpdateBulk as SettingUpdate # Placeholders
+from app.schemas.setting import SettingResponse, SettingCreate, SettingUpdate
 from app.schemas.log import AdminLogResponse
 
 # Create a simplified Order schema for Admin CRUD just to satisfy the router generator
@@ -44,7 +44,7 @@ dynamic_router.include_router(
 
 # 4. Orders
 dynamic_router.include_router(
-    create_crud_router(model=Order, response_schema=OrderResponse, create_schema=AdminGenericCreate, update_schema=AdminGenericUpdate, prefix="/orders", tags=["Dynamic Admin - Orders"], search_columns=["ma_giao_dich", "trang_thai"])
+    create_crud_router(model=Order, response_schema=OrderAdminResponse, create_schema=AdminGenericCreate, update_schema=AdminGenericUpdate, prefix="/orders", tags=["Dynamic Admin - Orders"], search_columns=["ma_giao_dich", "trang_thai"])
 )
 
 # 5. Coupons
@@ -74,7 +74,7 @@ dynamic_router.include_router(
 
 # 9. Settings
 dynamic_router.include_router(
-    create_crud_router(model=Setting, response_schema=SettingResponse, create_schema=AdminGenericCreate, update_schema=AdminGenericUpdate, prefix="/settings", tags=["Dynamic Admin - Settings"], search_columns=["key", "group"])
+    create_crud_router(model=Setting, response_schema=SettingResponse, create_schema=SettingCreate, update_schema=SettingUpdate, prefix="/settings", tags=["Dynamic Admin - Settings"], search_columns=["key", "group"])
 )
 
 # 10. Admin Logs
