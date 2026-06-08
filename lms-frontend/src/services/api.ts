@@ -17,22 +17,6 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
 
 // Helpers for localStorage Token management
 export const tokenHelper = {
-  getToken(): string | null {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("lumina_token");
-    }
-    return null;
-  },
-  setToken(token: string) {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("lumina_token", token);
-    }
-  },
-  removeToken() {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("lumina_token");
-    }
-  },
   getCurrentUser(): any | null {
     if (typeof window !== "undefined") {
       const user = localStorage.getItem("lumina_user");
@@ -54,12 +38,7 @@ export const tokenHelper = {
 
 // Helper for Fetching with Auth Token
 export async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
-  const token = tokenHelper.getToken();
   const headers = new Headers(options.headers || {});
-  
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
   
   if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
@@ -68,11 +47,10 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
   const response = await fetch(url, {
     ...options,
     headers,
-    credentials: "include",
+    credentials: "include", // This ensures HttpOnly cookie is sent automatically
   });
 
   if (response.status === 401) {
-    tokenHelper.removeToken();
     tokenHelper.removeCurrentUser();
     if (typeof window !== "undefined") {
       window.location.href = "/login";
@@ -504,7 +482,6 @@ export const apiService = {
       throw new Error(errData.detail || "Đăng nhập thất bại");
     }
     const data = await res.json();
-    tokenHelper.setToken(data.access_token);
     tokenHelper.setCurrentUser(data.user);
     return data;
   },
@@ -573,7 +550,6 @@ export const apiService = {
     } catch (err) {
       console.warn("Logout endpoint error:", err);
     } finally {
-      tokenHelper.removeToken();
       tokenHelper.removeCurrentUser();
     }
   },

@@ -8,6 +8,7 @@ from app.models.course import Course, Section, Lesson, Enrollment, Progress
 from app.schemas.course import CourseResponse, LessonResponse
 from app.schemas.certificate import ProgressUpdate, ProgressResponse, CourseProgressResponse
 from app.services.cert_service import CertService
+from app.services.storage_service import StorageService
 from typing import List
 
 router = APIRouter()
@@ -69,6 +70,14 @@ async def get_lesson_learning_content(
                 detail="Bài học này chưa được xuất bản."
             )
 
+    # Helper function to sign URLs inside lesson content
+    def sign_lesson_content(lsn: Lesson) -> Lesson:
+        if lsn.noi_dung:
+            for content in lsn.noi_dung:
+                if content.duong_dan_file:
+                    content.duong_dan_file = StorageService.generate_presigned_url(content.duong_dan_file)
+        return lsn
+
     # Nếu bài học được xem trước và đã xuất bản thì cho phép xem luôn
     if lesson.xem_truoc and lesson.da_xuat_ban:
         lesson_opt_res = await db.execute(
@@ -76,7 +85,7 @@ async def get_lesson_learning_content(
             .options(selectinload(Lesson.noi_dung))
             .where(Lesson.id == lesson.id)
         )
-        return lesson_opt_res.scalars().one()
+        return sign_lesson_content(lesson_opt_res.scalars().one())
 
     # 2. Kiểm tra quyền sở hữu (Admin/Giảng viên tạo khóa học được miễn enroll và drip content)
     is_owner = current_user.vai_tro == "admin" or lesson.chuong_hoc.khoa_hoc.ma_giang_vien == current_user.id
@@ -86,7 +95,7 @@ async def get_lesson_learning_content(
             .options(selectinload(Lesson.noi_dung))
             .where(Lesson.id == lesson.id)
         )
-        return lesson_opt_res.scalars().one()
+        return sign_lesson_content(lesson_opt_res.scalars().one())
 
     # 3. Kiểm tra học viên đã mua khóa học chưa
     enroll_result = await db.execute(
@@ -148,7 +157,7 @@ async def get_lesson_learning_content(
         .options(selectinload(Lesson.noi_dung))
         .where(Lesson.id == lesson.id)
     )
-    return lesson_opt_res.scalars().one()
+    return sign_lesson_content(lesson_opt_res.scalars().one())
 
 
 # ==================== LESSON PROGRESS UPDATE ENDPOINT ====================

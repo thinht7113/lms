@@ -34,26 +34,42 @@ class StorageService:
         bucket = settings.MINIO_BUCKET_NAME
         try:
             s3.head_bucket(Bucket=bucket)
+            # Remove any existing policy
+            try:
+                s3.delete_bucket_policy(Bucket=bucket)
+            except Exception:
+                pass
         except Exception:
             print(f"Bucket '{bucket}' not found. Creating bucket...")
             try:
                 s3.create_bucket(Bucket=bucket)
-                # Thiết lập bucket policy cho phép truy cập đọc công khai (Anonymous Read)
-                policy = {
-                    "Version": "2012-10-17",
-                    "Statement": [
-                        {
-                            "Effect": "Allow",
-                            "Principal": "*",
-                            "Action": ["s3:GetObject"],
-                            "Resource": [f"arn:aws:s3:::{bucket}/*"]
-                        }
+            except Exception as e:
+                print(f"Warning: Could not create bucket '{bucket}': {e}. S3 server might be down or unreachable.")
+                return
+
+        # Apply restricted bucket policy allowing public read ONLY for images
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": "*",
+                    "Action": ["s3:GetObject"],
+                    "Resource": [
+                        f"arn:aws:s3:::{bucket}/*.png",
+                        f"arn:aws:s3:::{bucket}/*.jpg",
+                        f"arn:aws:s3:::{bucket}/*.jpeg",
+                        f"arn:aws:s3:::{bucket}/*.gif",
+                        f"arn:aws:s3:::{bucket}/*.webp"
                     ]
                 }
-                s3.put_bucket_policy(Bucket=bucket, Policy=json.dumps(policy))
-                print(f"Bucket '{bucket}' created and configured with public read access.")
-            except Exception as e:
-                print(f"Warning: Could not create or configure bucket '{bucket}': {e}. S3 server might be down or unreachable.")
+            ]
+        }
+        try:
+            s3.put_bucket_policy(Bucket=bucket, Policy=json.dumps(policy))
+            print(f"Bucket '{bucket}' configured with restricted public read access (images only).")
+        except Exception as e:
+            print(f"Warning: Could not configure bucket policy '{bucket}': {e}.")
 
     @classmethod
     def upload_fileobj(cls, fileobj, filename: str, content_type: str, content_disposition: str = "inline") -> str:
@@ -68,6 +84,35 @@ class StorageService:
             ExtraArgs={"ContentType": content_type, "ContentDisposition": content_disposition}
         )
         
-        # Build the public access URL
+        # Build the access URL (it points to S3 but requires signed URLs or proxy for private assets)
+        # Note: We still return this format so it's stored in DB, but when serving, we will sign it.
         public_base = settings.MINIO_PUBLIC_URL.rstrip('/')
         return f"{public_base}/{bucket}/{filename}"
+
+    @classmethod
+    def generate_presigned_url(cls, file_url: str, expiration=3600) -> str:
+        """
+        Takes a stored DB URL (which might look like http://localhost:9000/lms-storage/...)
+        and generates a pre-signed URL for direct S3 access if it belongs to our bucket.
+        """
+        public_base = settings.MINIO_PUBLIC_URL.rstrip('/')
+        bucket = settings.MINIO_BUCKET_NAME
+        prefix = f"{public_base}/{bucket}/"
+
+        if not file_url.startswith(prefix):
+            return file_url # Return as-is if it's an external URL (e.g. youtube or external host)
+
+        # Extract the object key
+        object_key = file_url[len(prefix):]
+        
+        s3 = cls.get_client()
+        try:
+            response = s3.generate_presigned_url('get_object',
+                                                Params={'Bucket': bucket,
+                                                        'Key': object_key},
+                                                ExpiresIn=expiration)
+            return response
+        except Exception as e:
+            print(f"Error generating presigned url: {e}")
+            return file_url
+
