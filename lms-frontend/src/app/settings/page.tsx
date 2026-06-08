@@ -53,20 +53,10 @@ export default function SettingsPage() {
 
         setIsUploading(true);
         try {
-            const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
-            const token = tokenHelper.getToken();
-            const formData = new FormData();
-            formData.append("file", file);
+            const data = await apiService.uploadFile(file, "avatar");
 
             // 1. Upload ảnh lên MinIO
-            const uploadRes = await fetch(`${API_BASE_URL}/upload`, {
-                method: "POST",
-                headers: { "Authorization": `Bearer ${token}` },
-                body: formData
-            });
-
-            if (!uploadRes.ok) throw new Error("Upload ảnh thất bại");
-            const data = await uploadRes.json();
+            
             
             // 2. Cập nhật URL ảnh mới thẳng vào Database thông qua API updateProfile
             const updatedUser = await apiService.updateProfile({
@@ -201,7 +191,7 @@ export default function SettingsPage() {
                                 />
                                 <label className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                                     {isUploading ? <RefreshCw className="w-6 h-6 text-white animate-spin" /> : <UploadCloud className="w-6 h-6 text-white" />}
-                                    <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={isUploading} />
+                                    <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden" onChange={handleAvatarUpload} disabled={isUploading} />
                                 </label>
                             </div>
                         </div>

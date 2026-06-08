@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Star, Users, ArrowRight, BookOpen, Clock, BarChart3 } from "lucide-react";
+import { Star, BookOpen, BarChart3 } from "lucide-react";
 
 interface CourseCardProps {
   id: number;
@@ -41,7 +41,10 @@ export default function CourseCard({
   };
 
   return (
-    <div className="group bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl hover:border-primary/20 transition-all duration-500 flex flex-col h-full">
+    <Link
+      href={`/courses/${id}`}
+      className="group bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl hover:border-primary/20 transition-all duration-500 flex flex-col h-full cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+    >
       {/* Media Block */}
       <div className="relative h-48 w-full overflow-hidden bg-slate-100">
         {thumbnail ? (
@@ -100,15 +103,8 @@ export default function CourseCard({
                     {formatPrice(price)}
                 </span>
             </div>
-            
-            <Link
-                href={`/courses/${id}`}
-                className="bg-secondary text-foreground p-3 rounded-xl hover:bg-primary hover:text-white transition-all duration-300"
-            >
-                <ArrowRight className="w-4 h-4" />
-            </Link>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

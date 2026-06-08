@@ -208,7 +208,7 @@ export default function InstructorCourseQuizzesPage() {
     <div className="space-y-8 pb-20">
       {/* Header */}
       <div className="rounded-[2rem] bg-white border border-slate-200 p-8 text-slate-900 shadow-sm relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-50 to-blue-50 mix-blend-multiply"></div>
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-purple-50 to-blue-50 mix-blend-multiply"></div>
         <div className="relative z-10">
             <Link href="/instructor/courses" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-purple-600 hover:text-purple-800 transition-colors">
             <ArrowLeft className="h-4 w-4" />

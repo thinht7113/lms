@@ -21,6 +21,10 @@ class User(Base):
     facebook_id: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True)
     avatar_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
+    # Khôi phục mật khẩu
+    reset_token: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True, index=True)
+    reset_token_expires: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
     __table_args__ = (
         CheckConstraint(vai_tro.in_(["student", "instructor", "admin"]), name="cc_user_vai_tro"),
     )

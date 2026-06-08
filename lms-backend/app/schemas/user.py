@@ -68,3 +68,10 @@ class InstructorResponse(BaseModel):
 class InstructorDetailResponse(InstructorResponse):
     khoa_hoc: List = Field(default_factory=list, description="Danh sách khóa học của giảng viên")
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr = Field(..., description="Email để nhận mã khôi phục")
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(..., description="Mã xác nhận khôi phục")
+    mat_khau_moi: str = Field(..., min_length=6, description="Mật khẩu mới")
+

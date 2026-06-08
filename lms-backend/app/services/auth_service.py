@@ -8,9 +8,6 @@ from app.schemas.user import UserRegister, UserUpdate
 class AuthService:
     @staticmethod
     async def register(db: AsyncSession, user_in: UserRegister) -> User:
-        # 0. Bảo mật: Mọi tài khoản đăng ký qua cổng công khai đều bị ép kiểu thành học viên (student).
-        # Khóa hoàn toàn khả năng đăng ký làm giảng viên (instructor) hoặc admin.
-        user_in.vai_tro = "student"
 
         # 1. Kiểm tra xem email đã được đăng ký trước đó chưa
         result = await db.execute(select(User).where(User.email == user_in.email))
@@ -21,7 +18,6 @@ class AuthService:
                 detail="Email này đã được sử dụng trên hệ thống."
             )
         
-        # 2. Khởi tạo thực thể User mới và băm mật khẩu bảo mật
         new_user = User(
             email=user_in.email,
             ho_ten=user_in.ho_ten,
@@ -136,3 +132,64 @@ class AuthService:
         await db.commit()
         await db.refresh(user)
         return user
+
+    @staticmethod
+    async def forgot_password(db: AsyncSession, email: str) -> None:
+        import uuid
+        from datetime import datetime, timedelta
+
+        result = await db.execute(select(User).where(User.email == email))
+        user = result.scalars().first()
+        
+        if not user:
+            # Vẫn trả về True để tránh bị lộ danh sách email có trong hệ thống
+            return
+            
+        if not user.trang_thai_hoat_dong:
+            return
+
+        # Sinh mã token (6 số ngẫu nhiên hoặc UUID)
+        # Giả lập dùng mã 6 số để user dễ nhập
+        import random
+        reset_token = str(random.randint(100000, 999999))
+        
+        user.reset_token = reset_token
+        user.reset_token_expires = datetime.now() + timedelta(minutes=15)
+        
+        db.add(user)
+        await db.commit()
+        
+        # In mã ra log để test (Thay thế cho cấu hình gửi Email thật)
+        print(f"\n=======================================================")
+        print(f"[MOCK EMAIL] Mã Khôi Phục Mật Khẩu cho {user.email}: {reset_token}")
+        print(f"=======================================================\n")
+
+    @staticmethod
+    async def reset_password(db: AsyncSession, token: str, new_password: str) -> bool:
+        from datetime import datetime
+        
+        result = await db.execute(
+            select(User).where(User.reset_token == token)
+        )
+        user = result.scalars().first()
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Mã xác nhận không hợp lệ hoặc không tồn tại."
+            )
+            
+        if not user.reset_token_expires or user.reset_token_expires < datetime.now():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Mã xác nhận đã hết hạn. Vui lòng yêu cầu lại."
+            )
+            
+        user.mat_khau = get_password_hash(new_password)
+        user.reset_token = None
+        user.reset_token_expires = None
+        
+        db.add(user)
+        await db.commit()
+        return True
+

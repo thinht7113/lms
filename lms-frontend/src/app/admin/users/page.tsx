@@ -3,7 +3,7 @@
 import React, { useRef } from "react";
 import DynamicTable, { CustomAction } from "@/components/admin/DynamicTable";
 import { Lock, Unlock, KeyRound } from "lucide-react";
-import { tokenHelper } from "@/services/api";
+import { fetchWithAuth } from "@/services/api";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
@@ -40,13 +40,8 @@ export default function AdminUsersPage() {
         if (!confirm(`Bạn có chắc chắn muốn ${actionName} tài khoản của ${item.ho_ten}?`)) return;
 
         try {
-            const token = tokenHelper.getToken();
-            const res = await fetch(`${API_BASE_URL}/admin/users/${item.id}/status`, {
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/users/${item.id}/status`, {
                 method: "PUT",
-                headers: { 
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/json"
-                },
                 body: JSON.stringify({ trang_thai_hoat_dong: !item.trang_thai_hoat_dong })
             });
 
@@ -66,10 +61,8 @@ export default function AdminUsersPage() {
         if (!confirm(`Bạn có chắc chắn muốn reset mật khẩu của tài khoản ${item.email}?\nMật khẩu mới sẽ được tạo ngẫu nhiên.`)) return;
 
         try {
-            const token = tokenHelper.getToken();
-            const res = await fetch(`${API_BASE_URL}/admin/users/${item.id}/reset-password`, {
-                method: "POST",
-                headers: { "Authorization": `Bearer ${token}` }
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/users/${item.id}/reset-password`, {
+                method: "POST"
             });
 
             if (!res.ok) {

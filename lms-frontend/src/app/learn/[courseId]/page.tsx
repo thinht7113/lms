@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { PlayCircle, FileText, CheckCircle2, ChevronRight, MessageSquare, BookOpen, Download, Plus, Clock, RefreshCw, AlertCircle, Volume2, HelpCircle } from "lucide-react";
 import Navbar from "@/components/Navbar";
-import { apiService, CourseDetail, Lesson, Section } from "@/services/api";
+import { apiService, CourseDetail, CourseProgress, Lesson, Section } from "@/services/api";
 
 interface Note {
   timestamp: string;
@@ -32,6 +32,7 @@ export default function LearnSpacePage() {
   const [activeLesson, setActiveLesson] = useState<any | null>(null);
   const [activeLessonContent, setActiveLessonContent] = useState<Lesson | null>(null);
   const [completedLessons, setCompletedLessons] = useState<Record<number, boolean>>({});
+  const [courseProgress, setCourseProgress] = useState<CourseProgress | null>(null);
   const [loading, setLoading] = useState(true);
   const [lessonLoading, setLessonLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,6 +82,21 @@ export default function LearnSpacePage() {
     }
 
     loadCourse();
+  }, [courseId]);
+
+  const refreshCourseProgress = async () => {
+    if (!courseId) return;
+    try {
+      const progress = await apiService.getCourseProgress(courseId);
+      setCourseProgress(progress);
+    } catch (err) {
+      console.warn("Course progress load error:", err);
+      setCourseProgress(null);
+    }
+  };
+
+  useEffect(() => {
+    refreshCourseProgress();
   }, [courseId]);
 
   // Load lesson content & progress when active lesson changes
@@ -144,6 +160,7 @@ export default function LearnSpacePage() {
       const currSeconds = videoRef.current ? Math.floor(videoRef.current.currentTime) : 0;
       await apiService.updateLessonProgress(activeLesson.id, true, currSeconds);
       setCompletedLessons((prev) => ({ ...prev, [activeLesson.id]: true }));
+      await refreshCourseProgress();
       
       // Auto-unlock next lesson if possible
       alert("Chúc mừng! Bạn đã hoàn thành bài học này.");
@@ -218,6 +235,7 @@ export default function LearnSpacePage() {
   // Find active content
   const activeContent = activeLessonContent?.noi_dung?.[0];
   const activeContentType = normalizeContentType(activeContent?.loai_noi_dung);
+  const progressPercent = Math.max(0, Math.min(100, Math.round(courseProgress?.progress_percentage || 0)));
 
   return (
     <>
@@ -533,7 +551,7 @@ export default function LearnSpacePage() {
                           <p className="text-xs text-muted-foreground mt-1">Dành riêng cho chương này</p>
                       </div>
                     </div>
-                    <button className="text-primary bg-secondary hover:bg-primary hover:text-white px-5 py-2.5 rounded-xl font-bold flex items-center space-x-2 cursor-pointer transition-all text-xs uppercase tracking-widest shadow-sm">
+                    <button disabled className="cursor-not-allowed text-muted-foreground bg-secondary px-5 py-2.5 rounded-xl font-bold flex items-center space-x-2 text-xs uppercase tracking-widest shadow-sm opacity-70" title="Giảng viên chưa đính kèm tài nguyên tải về">
                       <Download className="h-4 w-4" />
                       <span className="hidden sm:inline">Tải về</span>
                     </button>
@@ -553,10 +571,10 @@ export default function LearnSpacePage() {
                 <div className="mt-4 space-y-2">
                     <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                         <span>Tiến trình</span>
-                        <span className="text-success">50%</span>
+                        <span className="text-success">{progressPercent}%</span>
                     </div>
                     <div className="progress-track">
-                        <div className="progress-fill" style={{ width: '50%' }} />
+                        <div className="progress-fill" style={{ width: `${progressPercent}%` }} />
                     </div>
                 </div>
             </div>

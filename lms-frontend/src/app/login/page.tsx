@@ -176,7 +176,7 @@ export default function LoginPage() {
             <div className="flex justify-between items-center">
               <label className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Mật khẩu</label>
               {activeTab === "login" && (
-                <a href="#" className="text-[10px] font-bold text-primary hover:underline">Quên mật khẩu?</a>
+                <Link href="/forgot-password" className="text-[10px] font-bold text-primary hover:underline">Quên mật khẩu?</Link>
               )}
             </div>
 

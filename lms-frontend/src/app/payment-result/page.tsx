@@ -19,6 +19,8 @@ function PaymentResultContent() {
   const paymentMethod = searchParams?.get("payment_method") || "visa";
 
   useEffect(() => {
+    let isMounted = true;
+
     async function processPayment() {
       if (!orderId) {
         setStatus("fail");
@@ -31,17 +33,38 @@ function PaymentResultContent() {
       try {
         const transCode = `TX${orderId}-${Date.now()}`;
         const res = await apiService.payMock(orderId, paymentMethod, transCode);
+        if (!isMounted) return;
         setTxCode(res.ma_giao_dich || transCode);
         window.dispatchEvent(new Event("lumina-cart-updated"));
         setStatus("success");
       } catch (err: any) {
-        console.error("Payment error:", err);
+        const message = err.message || "Giao dịch bị từ chối bởi ngân hàng phát hành hoặc ví điện tử.";
+
+        if (message.includes("Đơn hàng đã được thanh toán")) {
+          const paidOrder = await apiService.getMyOrders()
+            .then((orders) => orders.find((order) => order.id === orderId && order.trang_thai === "success"))
+            .catch(() => null);
+
+          if (paidOrder) {
+            if (!isMounted) return;
+            setTxCode(`ORDER-${orderId}`);
+            window.dispatchEvent(new Event("lumina-cart-updated"));
+            setStatus("success");
+            return;
+          }
+        }
+
+        if (!isMounted) return;
         setStatus("fail");
-        setErrorMessage(err.message || "Giao dịch bị từ chối bởi ngân hàng phát hành hoặc ví điện tử.");
+        setErrorMessage(message);
       }
     }
 
     processPayment();
+
+    return () => {
+      isMounted = false;
+    };
   }, [orderId, paymentMethod]);
 
   return (

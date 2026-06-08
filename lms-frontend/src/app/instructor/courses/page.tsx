@@ -56,7 +56,7 @@ export default function InstructorCoursesPage() {
   return (
     <div className="space-y-8 pb-20">
       <div className="flex flex-col gap-4 rounded-[2rem] bg-white border border-slate-200 p-8 text-slate-900 shadow-sm relative overflow-hidden sm:flex-row sm:items-center sm:justify-between">
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-50 to-blue-50 mix-blend-multiply"></div>
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-purple-50 to-blue-50 mix-blend-multiply"></div>
         <div className="relative z-10">
           <p className="text-xs font-black uppercase tracking-widest text-purple-600">Quản lý học liệu</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight">Khóa học của tôi</h1>
@@ -66,7 +66,7 @@ export default function InstructorCoursesPage() {
         </div>
         <Link
           href="/instructor/courses/create"
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-purple-600 px-5 py-4 text-sm font-black text-white shadow-lg shadow-purple-950/40 hover:bg-purple-500"
+          className="relative z-10 inline-flex items-center justify-center gap-2 rounded-2xl bg-purple-600 px-5 py-4 text-sm font-black text-white shadow-lg shadow-purple-950/40 hover:bg-purple-500"
         >
           <Plus className="h-4 w-4" />
           Tạo khóa học

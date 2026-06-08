@@ -107,7 +107,7 @@ export default function HomePage() {
                     <>
                         {banners.map((banner, idx) => (
                             <Link
-                                href={banner.duong_dan || "#"}
+                                href={banner.duong_dan || "/courses"}
                                 key={banner.id}
                                 className={`absolute inset-0 transition-opacity duration-1000 ${idx === currentBannerIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
                             >
@@ -308,9 +308,9 @@ export default function HomePage() {
                         <p className="text-muted-foreground text-sm font-medium leading-relaxed max-w-sm">
                             Nâng cao năng lực đội ngũ nhân sự với các gói đào tạo được thiết kế riêng biệt và hệ thống báo cáo tiến độ chi tiết.
                         </p>
-                        <button className="mt-4 bg-secondary hover:bg-slate-200 text-foreground border border-border/60 text-xs font-bold uppercase tracking-widest px-6 py-3 rounded-xl transition-all flex items-center gap-2">
+                        <a href="mailto:hello@luminalms.vn?subject=Tư vấn đào tạo doanh nghiệp" className="mt-4 bg-secondary hover:bg-slate-200 text-foreground border border-border/60 text-xs font-bold uppercase tracking-widest px-6 py-3 rounded-xl transition-all inline-flex items-center gap-2">
                             Liên hệ tư vấn <ArrowRight className="w-4 h-4" />
-                        </button>
+                        </a>
                     </div>
                 </div>
 

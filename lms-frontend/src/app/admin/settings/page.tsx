@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import DynamicTable from "@/components/admin/DynamicTable";
 import { UploadCloud, RefreshCw, Save, CheckCircle2 } from "lucide-react";
-import { tokenHelper } from "@/services/api";
+import { fetchWithAuth } from "@/services/api";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
@@ -52,15 +52,13 @@ export default function AdminSettingsPage() {
         setUploadingLogo(true);
         setMessage(null);
         try {
-            const token = tokenHelper.getToken();
             const formDataUpload = new FormData();
             formDataUpload.append("file", file);
             formDataUpload.append("asset_type", "image");
 
             // 1. Upload file
-            const resUpload = await fetch(`${API_BASE_URL}/upload`, {
+            const resUpload = await fetchWithAuth(`${API_BASE_URL}/upload`, {
                 method: "POST",
-                headers: { "Authorization": `Bearer ${token}` },
                 body: formDataUpload
             });
 
@@ -70,29 +68,19 @@ export default function AdminSettingsPage() {
 
             // 2. Cập nhật cấu hình SYSTEM_LOGO qua Dynamic Admin API
             // Lấy ID của cấu hình SYSTEM_LOGO nếu có, nếu không tạo mới
-            const resFind = await fetch(`${API_BASE_URL}/dynamic-admin/settings?search=SYSTEM_LOGO`, {
-                headers: { "Authorization": `Bearer ${token}` }
-            });
+            const resFind = await fetchWithAuth(`${API_BASE_URL}/dynamic-admin/settings?search=SYSTEM_LOGO`);
             const dataFind = await resFind.json();
 
             let resSave;
             if (dataFind.data && dataFind.data.length > 0) {
                 const existingId = dataFind.data[0].id;
-                resSave = await fetch(`${API_BASE_URL}/dynamic-admin/settings/${existingId}`, {
+                resSave = await fetchWithAuth(`${API_BASE_URL}/dynamic-admin/settings/${existingId}`, {
                     method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${token}`
-                    },
                     body: JSON.stringify({ value: newUrl })
                 });
             } else {
-                resSave = await fetch(`${API_BASE_URL}/dynamic-admin/settings`, {
+                resSave = await fetchWithAuth(`${API_BASE_URL}/dynamic-admin/settings`, {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${token}`
-                    },
                     body: JSON.stringify({
                         key: "SYSTEM_LOGO",
                         value: newUrl,

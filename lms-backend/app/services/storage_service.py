@@ -47,7 +47,7 @@ class StorageService:
                 print(f"Warning: Could not create bucket '{bucket}': {e}. S3 server might be down or unreachable.")
                 return
 
-        # Apply restricted bucket policy allowing public read ONLY for images
+        # Apply restricted bucket policy allowing public read ONLY for images, pdfs, and videos
         policy = {
             "Version": "2012-10-17",
             "Statement": [
@@ -60,14 +60,20 @@ class StorageService:
                         f"arn:aws:s3:::{bucket}/*.jpg",
                         f"arn:aws:s3:::{bucket}/*.jpeg",
                         f"arn:aws:s3:::{bucket}/*.gif",
-                        f"arn:aws:s3:::{bucket}/*.webp"
+                        f"arn:aws:s3:::{bucket}/*.webp",
+                        f"arn:aws:s3:::{bucket}/*.pdf",
+                        f"arn:aws:s3:::{bucket}/*.mp4",
+                        f"arn:aws:s3:::{bucket}/*.webm",
+                        f"arn:aws:s3:::{bucket}/*.mov",
+                        f"arn:aws:s3:::{bucket}/*.mpeg",
+                        f"arn:aws:s3:::{bucket}/*.mpg"
                     ]
                 }
             ]
         }
         try:
             s3.put_bucket_policy(Bucket=bucket, Policy=json.dumps(policy))
-            print(f"Bucket '{bucket}' configured with restricted public read access (images only).")
+            print(f"Bucket '{bucket}' configured with restricted public read access (images, pdfs, videos).")
         except Exception as e:
             print(f"Warning: Could not configure bucket policy '{bucket}': {e}.")
 

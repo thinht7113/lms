@@ -17,6 +17,22 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
 
 // Helpers for localStorage Token management
 export const tokenHelper = {
+  getToken(): string | null {
+    if (typeof window === "undefined") return null;
+    const legacyToken = localStorage.getItem("lumina_token");
+    if (legacyToken) return legacyToken;
+    return localStorage.getItem("lumina_user") ? "cookie-session" : null;
+  },
+  setToken(_token: string) {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("lumina_token");
+    }
+  },
+  removeToken() {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("lumina_token");
+    }
+  },
   getCurrentUser(): any | null {
     if (typeof window !== "undefined") {
       const user = localStorage.getItem("lumina_user");
@@ -540,6 +556,32 @@ export const apiService = {
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
       throw new Error(errData.detail || "Upload tệp thất bại");
+    }
+    return await res.json();
+  },
+
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    const res = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || "Không thể gửi yêu cầu quên mật khẩu");
+    }
+    return await res.json();
+  },
+
+  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    const res = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, mat_khau_moi: newPassword }),
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || "Đặt lại mật khẩu thất bại");
     }
     return await res.json();
   },

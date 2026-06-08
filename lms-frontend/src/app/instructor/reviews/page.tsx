@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { Star, RefreshCw, MessageSquare, Quote, BookOpen } from "lucide-react";
 import { apiService } from "@/services/api";
 import { useToast } from "@/contexts/ToastContext";
@@ -79,10 +80,10 @@ export default function InstructorReviewsPage() {
                                 </div>
                                 
                                 <div className="flex md:flex-col gap-2">
-                                    <button className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-950 text-white text-xs font-black uppercase tracking-widest hover:bg-purple-600 transition-all">
+                                    <Link href={`/instructor/courses/${r.ma_khoa_hoc}/students`} className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-950 text-white text-xs font-black uppercase tracking-widest hover:bg-purple-600 transition-all">
                                         <MessageSquare className="w-3.5 h-3.5" />
-                                        Phản hồi
-                                    </button>
+                                        Xem học viên
+                                    </Link>
                                 </div>
                             </div>
                         </div>

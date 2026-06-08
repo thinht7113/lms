@@ -25,11 +25,7 @@ export default function CartPage() {
       setCart(data);
     } catch (err) {
       console.error("Error loading cart:", err);
-      // Redirect to login if unauthorized
-      const token = localStorage.getItem("lumina_token");
-      if (!token) {
-        router.push("/login");
-      }
+      router.push("/login");
     } finally {
       setLoading(false);
     }
@@ -105,9 +101,8 @@ export default function CartPage() {
           </div>
           <div>
             <h1 className="text-3xl sm:text-4xl font-black text-foreground tracking-tighter">
-              Giỏ Hàng <span className="text-primary italic">Của Bạn</span>
+              Giỏ Hàng 
             </h1>
-            <p className="text-sm font-medium text-muted-foreground mt-1">Chuẩn bị hành trang kỹ năng cho bước tiến tiếp theo trong sự nghiệp.</p>
           </div>
         </div>
 

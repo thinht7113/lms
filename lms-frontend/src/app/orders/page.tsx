@@ -69,9 +69,6 @@ export default function OrdersPage() {
           <section className="mb-8 rounded-[2rem] bg-slate-950 p-8 text-white shadow-2xl">
             <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-300">Giao dịch học tập</p>
             <h1 className="mt-3 text-4xl font-black tracking-tight">Đơn hàng của tôi</h1>
-            <p className="mt-3 max-w-2xl text-sm font-medium text-slate-300">
-              Theo dõi các đơn mua khóa học, trạng thái thanh toán và gửi yêu cầu hoàn tiền khi đủ điều kiện.
-            </p>
             <div className="mt-8 grid gap-4 sm:grid-cols-3">
               <div className="rounded-2xl bg-white/10 p-5">
                 <ShoppingBag className="h-5 w-5 text-blue-300" />

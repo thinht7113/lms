@@ -6,7 +6,6 @@ import { useRouter, usePathname } from "next/navigation";
 import {
   Award,
   Bell,
-  BookOpen,
   ChevronDown,
   Heart,
   LogOut,
@@ -105,8 +104,8 @@ export default function Navbar() {
     const currentParams = new URLSearchParams(queryString);
     if (href === "/") return pathname === "/";
     if (href === "/courses") return pathname === "/courses" && !currentParams.get("order") && !currentParams.get("gia_max");
-    if (href.includes("order=price-asc")) return pathname === "/courses" && currentParams.get("order") === "price-asc";
-    if (href.includes("gia_max=0")) return pathname === "/courses" && currentParams.get("gia_max") === "0";
+    if (href === "/instructors") return pathname === "/instructors";
+    if (href === "/my-courses") return pathname === "/my-courses";
     if (href === "/about") return pathname === "/about";
     return false;
   };
@@ -122,7 +121,6 @@ export default function Navbar() {
 
   const accountMenuItems = [
     { href: "/wishlist", label: "Danh sách yêu thích", icon: Heart },
-    { href: "/my-courses", label: "Khóa học của tôi", icon: BookOpen },
     { href: "/orders", label: "Đơn hàng", icon: ShoppingCart },
     { href: "/certificates", label: "Chứng chỉ", icon: ShieldCheck },
     { href: "/notifications", label: "Thông báo", icon: Bell },
@@ -168,19 +166,21 @@ export default function Navbar() {
               {isActive("/courses") && <span className="absolute -bottom-2 left-0 w-full h-0.5 bg-primary rounded-full"></span>}
             </Link>
             <Link
-              href="/courses?order=price-asc"
-              className={`text-[13px] font-bold uppercase tracking-widest transition-colors relative group ${isActive("/courses?order=price-asc") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
+              href="/instructors"
+              className={`text-[13px] font-bold uppercase tracking-widest transition-colors relative group ${isActive("/instructors") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
             >
-              Khóa Học Rẻ
-              {isActive("/courses?order=price-asc") && <span className="absolute -bottom-2 left-0 w-full h-0.5 bg-primary rounded-full"></span>}
+              Giảng viên
+              {isActive("/instructors") && <span className="absolute -bottom-2 left-0 w-full h-0.5 bg-primary rounded-full"></span>}
             </Link>
-            <Link
-              href="/courses?gia_max=0"
-              className={`text-[13px] font-bold uppercase tracking-widest transition-colors relative group ${isActive("/courses?gia_max=0") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
-            >
-              Khóa học Free
-              {isActive("/courses?gia_max=0") && <span className="absolute -bottom-2 left-0 w-full h-0.5 bg-primary rounded-full"></span>}
-            </Link>
+            {currentUser && (
+              <Link
+                href="/my-courses"
+                className={`text-[13px] font-bold uppercase tracking-widest transition-colors relative group ${isActive("/my-courses") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
+              >
+                Khóa học của tôi
+                {isActive("/my-courses") && <span className="absolute -bottom-2 left-0 w-full h-0.5 bg-primary rounded-full"></span>}
+              </Link>
+            )}
             <Link
               href="/about"
               className={`text-[13px] font-bold uppercase tracking-widest transition-colors relative group ${isActive("/about") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
@@ -314,7 +314,13 @@ export default function Navbar() {
                 />
               </div>
               <nav className="flex flex-col space-y-2">
-                <Link href="/courses" className="text-lg font-black py-4 border-b border-border/50">Danh mục khóa học</Link>
+                <Link href="/" className="text-lg font-black py-4 border-b border-border/50">Trang chủ</Link>
+                <Link href="/courses" className="text-lg font-black py-4 border-b border-border/50">Khóa học</Link>
+                <Link href="/instructors" className="text-lg font-black py-4 border-b border-border/50">Giảng viên</Link>
+                {currentUser && (
+                  <Link href="/my-courses" className="text-lg font-black py-4 border-b border-border/50">Khóa học của tôi</Link>
+                )}
+                <Link href="/about" className="text-lg font-black py-4 border-b border-border/50">Giới thiệu</Link>
                 {currentUser && accountMenuItems.map((item) => (
                   <Link
                     key={item.href}

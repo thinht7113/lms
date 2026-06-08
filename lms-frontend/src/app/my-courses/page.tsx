@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   BookOpenText,
-  CalendarClock,
   CheckCircle2,
   Clock3,
   Compass,
@@ -329,18 +328,6 @@ export default function MyCoursesPage() {
               </div>
 
               <aside className="space-y-6">
-                <section className="rounded-[1.5rem] border border-slate-200 bg-white p-6 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <CalendarClock className="h-7 w-7 text-amber-500" />
-                    <h2 className="text-2xl font-black tracking-tight">Hạn chót sắp tới</h2>
-                  </div>
-                  <div className="mt-6 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center">
-                    <Clock3 className="mx-auto h-9 w-9 text-slate-300" />
-                    <p className="mt-3 text-sm font-bold text-slate-500">Chưa có hạn chót nào.</p>
-                    <p className="mt-1 text-xs font-medium text-slate-400">Khi hệ thống có bài tập hoặc quiz có hạn nộp, chúng sẽ hiển thị tại đây.</p>
-                  </div>
-                </section>
-
                 <section className="rounded-[1.5rem] bg-[#eef2ff] p-6">
                   <h2 className="text-2xl font-black tracking-tight">Khám phá thêm</h2>
                   <p className="mt-4 text-sm font-medium leading-relaxed text-slate-600">

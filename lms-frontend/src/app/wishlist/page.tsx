@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Heart, RefreshCw, Trash2 } from "lucide-react";
+import { Heart, RefreshCw, Trash2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { apiService, Course, tokenHelper } from "@/services/api";
@@ -83,7 +83,8 @@ export default function WishlistPage() {
                 if (!course) return null;
 
                 return (
-                  <article key={item.id} className="flex flex-col overflow-hidden rounded-[2rem] border border-border/60 bg-card shadow-sm transition-all hover:shadow-xl sm:flex-row">
+                  <article key={item.id} className="group relative flex cursor-pointer flex-col overflow-hidden rounded-[2rem] border border-border/60 bg-card shadow-sm transition-all hover:shadow-xl sm:flex-row">
+                    <Link href={`/courses/${course.id}`} className="absolute inset-0 z-10" aria-label={`Xem chi tiết ${course.tieu_de}`} />
                     <div className="h-48 bg-gradient-to-br from-blue-600 to-indigo-700 sm:h-auto sm:w-56">
                       {course.anh_dai_dien ? (
                         <img src={course.anh_dai_dien} alt={course.tieu_de} className="h-full w-full object-cover" />
@@ -93,20 +94,13 @@ export default function WishlistPage() {
                         </div>
                       )}
                     </div>
-                    <div className="flex flex-1 flex-col justify-between p-6">
+                    <div className="pointer-events-none relative z-20 flex flex-1 flex-col justify-between p-6">
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-widest text-primary">{course.trinh_do}</p>
-                        <h2 className="mt-2 line-clamp-2 text-lg font-black text-slate-950">{course.tieu_de}</h2>
+                        <h2 className="mt-2 line-clamp-2 text-lg font-black text-slate-950 transition-colors group-hover:text-primary">{course.tieu_de}</h2>
                         <p className="mt-3 text-sm font-bold text-primary">{formatPrice(course.gia_tien)}</p>
                       </div>
-                      <div className="mt-6 flex flex-wrap gap-3">
-                        <Link
-                          href={`/courses/${course.id}`}
-                          className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-primary"
-                        >
-                          Xem chi tiết
-                          <ArrowRight className="h-4 w-4" />
-                        </Link>
+                      <div className="mt-6 flex flex-wrap gap-3 pointer-events-auto">
                         <button
                           type="button"
                           onClick={() => removeWishlistItem(course.id)}

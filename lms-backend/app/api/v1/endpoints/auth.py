@@ -9,6 +9,8 @@ from app.schemas.user import (
     UserRegister,
     UserResponse,
     UserUpdate,
+    ForgotPasswordRequest,
+    ResetPasswordRequest
 )
 from app.services.auth_service import AuthService
 from app.core.security import create_access_token
@@ -157,3 +159,26 @@ async def update_profile(
 ):
     updated_user = await AuthService.update_profile(db, current_user, update_in)
     return updated_user
+
+@router.post(
+    "/forgot-password",
+    summary="Yêu cầu gửi mã khôi phục mật khẩu qua Email"
+)
+async def forgot_password(
+    request: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    await AuthService.forgot_password(db, request.email)
+    return {"message": "Nếu email hợp lệ, hệ thống đã gửi một mã khôi phục tới email của bạn."}
+
+@router.post(
+    "/reset-password",
+    summary="Đặt lại mật khẩu mới bằng mã khôi phục"
+)
+async def reset_password(
+    request: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    await AuthService.reset_password(db, request.token, request.mat_khau_moi)
+    return {"message": "Mật khẩu đã được khôi phục thành công. Vui lòng đăng nhập lại."}
+
