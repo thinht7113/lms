@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { X, Save, RefreshCw, UploadCloud } from "lucide-react";
 import { tokenHelper } from "@/services/api";
+import { useToast } from "@/contexts/ToastContext";
 
 export interface FormField {
     key: string;
@@ -27,6 +28,7 @@ interface DynamicFormProps {
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
 export default function DynamicForm({ title, fields, initialData, endpoint, onSuccess, onClose, baseData }: DynamicFormProps) {
+    const toast = useToast();
     const [formData, setFormData] = useState<any>({});
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -79,6 +81,7 @@ export default function DynamicForm({ title, fields, initialData, endpoint, onSu
             // Cập nhật URL ảnh vào formData
             handleChange(fieldKey, data.url);
         } catch (err: any) {
+            toast.error(err.message || "Lỗi khi upload ảnh");
             setError(err.message || "Lỗi khi upload ảnh");
         } finally {
             setUploadingImage(false);
@@ -120,8 +123,10 @@ export default function DynamicForm({ title, fields, initialData, endpoint, onSu
                 throw new Error(errData.detail || "Lỗi lưu dữ liệu");
             }
 
+            toast.success(isEditMode ? "Cập nhật thành công!" : "Tạo mới thành công!");
             onSuccess(); // Báo cho component cha (Table) reload lại dữ liệu
         } catch (err: any) {
+            toast.error(err.message || "Lỗi hệ thống");
             setError(err.message || "Lỗi hệ thống");
         } finally {
             setIsLoading(false);
@@ -226,7 +231,7 @@ export default function DynamicForm({ title, fields, initialData, endpoint, onSu
                             {isEditMode ? "Cập nhật thông tin bản ghi hiện tại" : "Thêm một bản ghi mới vào cơ sở dữ liệu"}
                         </p>
                     </div>
-                    <button
+                    <button 
                         onClick={onClose}
                         className="p-2 bg-secondary hover:bg-rose-100 hover:text-rose-600 rounded-xl transition-colors"
                     >
@@ -283,3 +288,4 @@ export default function DynamicForm({ title, fields, initialData, endpoint, onSu
         </div>
     );
 }
+
