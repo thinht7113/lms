@@ -8,10 +8,13 @@ from datetime import datetime
 from decimal import Decimal
 
 from app.api.deps import get_db, get_current_user
-from app.models import User, Course, Order, OrderItem, Enrollment, CourseReview
-from app.models.payout import PayoutRequest
-from app.schemas.course import CourseResponse, ReviewResponse
-from app.schemas.user import UserResponse
+from app.modules.identity.models import User
+from app.modules.identity.schemas import UserResponse
+from app.modules.catalog.models import Course, CourseReview
+from app.modules.catalog.schemas import CourseResponse, ReviewResponse
+from app.modules.commerce.models import Order, OrderItem
+from app.modules.learning.models import Enrollment
+from app.modules.instructor.models import PayoutRequest
 
 router = APIRouter()
 

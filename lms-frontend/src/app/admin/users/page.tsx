@@ -1,16 +1,18 @@
 "use client";
 
-import React, { useRef } from "react";
-import DynamicTable, { CustomAction } from "@/components/admin/DynamicTable";
-import { Lock, Unlock, KeyRound } from "lucide-react";
+import React from "react";
+import DynamicTable, { Column, CustomAction, DynamicTableRow } from "@/components/admin/DynamicTable";
+import { FormField } from "@/components/admin/DynamicForm";
+import { KeyRound, Lock } from "lucide-react";
 import { fetchWithAuth } from "@/services/api";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
-export default function AdminUsersPage() {
-    const tableRef = useRef<any>(null); // To trigger reload
+const getErrorMessage = (err: unknown, fallback: string) =>
+    err instanceof Error ? err.message : fallback;
 
-    const columns = [
+export default function AdminUsersPage() {
+    const columns: Column[] = [
         { key: "ho_ten", label: "Họ tên", type: "text" },
         { key: "email", label: "Email", type: "text" },
         { key: "vai_tro", label: "Vai trò", type: "text" },
@@ -19,61 +21,69 @@ export default function AdminUsersPage() {
         { key: "ngay_tao", label: "Ngày tạo", type: "date" },
     ];
 
-    // Form fields ONLY for creating a new user. We pass empty array for editing later to hide edit button.
-    // Wait, DynamicTable uses the same formFields for both Create and Edit.
-    // If we want to allow Create but NOT Edit via form, we need a slight trick.
-    // Actually, the requirement said: "chỉ được phép thêm , xóa , reset mật khâu , khóa hoặc mở khóa người dùng"
-    const formFields = [
+    const formFields: FormField[] = [
         { key: "email", label: "Email đăng nhập", type: "email", required: true },
-        { key: "mat_khau", label: "Mật khẩu (Ít nhất 6 ký tự)", type: "password", required: true },
+        { key: "mat_khau", label: "Mật khẩu (ít nhất 6 ký tự)", type: "password", required: true },
         { key: "ho_ten", label: "Họ và tên", type: "text", required: true },
         { key: "so_dien_thoai", label: "Số điện thoại", type: "text" },
-        { key: "vai_tro", label: "Vai trò", type: "select", options: [
-            { value: "student", label: "Học viên (Student)" },
-            { value: "instructor", label: "Giảng viên (Instructor)" },
-            { value: "admin", label: "Quản trị viên (Admin)" }
-        ]},
+        {
+            key: "vai_tro",
+            label: "Vai trò",
+            type: "select",
+            options: [
+                { value: "student", label: "Học viên (Student)" },
+                { value: "instructor", label: "Giảng viên (Instructor)" },
+                { value: "admin", label: "Quản trị viên (Admin)" },
+            ],
+        },
     ];
 
-    const handleToggleStatus = async (item: any) => {
-        const actionName = item.trang_thai_hoat_dong ? "Khóa" : "Mở khóa";
-        if (!confirm(`Bạn có chắc chắn muốn ${actionName} tài khoản của ${item.ho_ten}?`)) return;
+    const handleToggleStatus = async (item: DynamicTableRow) => {
+        const userId = Number(item.id);
+        const userName = String(item.ho_ten || item.email || "người dùng");
+        const isActive = Boolean(item.trang_thai_hoat_dong);
+        const actionName = isActive ? "khóa" : "mở khóa";
+
+        if (!confirm(`Bạn có chắc chắn muốn ${actionName} tài khoản của ${userName}?`)) return;
 
         try {
-            const res = await fetchWithAuth(`${API_BASE_URL}/admin/users/${item.id}/status`, {
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/users/${userId}/status`, {
                 method: "PUT",
-                body: JSON.stringify({ trang_thai_hoat_dong: !item.trang_thai_hoat_dong })
+                body: JSON.stringify({ trang_thai_hoat_dong: !isActive }),
             });
 
             if (!res.ok) {
-                const err = await res.json();
+                const err = await res.json().catch(() => ({}));
                 throw new Error(err.detail || `Lỗi khi ${actionName} tài khoản`);
             }
-            
+
             alert(`Đã ${actionName} tài khoản thành công!`);
-            window.location.reload(); // Refresh to show new status
-        } catch (error: any) {
-            alert(error.message);
+            window.location.reload();
+        } catch (err: unknown) {
+            alert(getErrorMessage(err, `Lỗi khi ${actionName} tài khoản`));
         }
     };
 
-    const handleResetPassword = async (item: any) => {
-        if (!confirm(`Bạn có chắc chắn muốn reset mật khẩu của tài khoản ${item.email}?\nMật khẩu mới sẽ được tạo ngẫu nhiên.`)) return;
+    const handleResetPassword = async (item: DynamicTableRow) => {
+        const userId = Number(item.id);
+        const email = String(item.email || "người dùng này");
+
+        if (!confirm(`Bạn có chắc chắn muốn reset mật khẩu của tài khoản ${email}?\nMật khẩu mới sẽ được tạo ngẫu nhiên.`)) return;
 
         try {
-            const res = await fetchWithAuth(`${API_BASE_URL}/admin/users/${item.id}/reset-password`, {
-                method: "POST"
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/users/${userId}/reset-password`, {
+                method: "POST",
             });
 
             if (!res.ok) {
-                const err = await res.json();
+                const err = await res.json().catch(() => ({}));
                 throw new Error(err.detail || "Lỗi khi reset mật khẩu");
             }
-            
+
             const data = await res.json();
             alert(`Thành công! Mật khẩu mới của người dùng là: ${data.new_password}\nHãy lưu lại và gửi cho người dùng.`);
-        } catch (error: any) {
-            alert(error.message);
+        } catch (err: unknown) {
+            alert(getErrorMessage(err, "Lỗi khi reset mật khẩu"));
         }
     };
 
@@ -82,28 +92,25 @@ export default function AdminUsersPage() {
             label: "Khóa / Mở khóa",
             icon: Lock,
             colorClass: "text-amber-600 bg-amber-50 hover:bg-amber-100",
-            onClick: handleToggleStatus
+            onClick: handleToggleStatus,
         },
         {
-            label: "Reset Mật khẩu",
+            label: "Reset mật khẩu",
             icon: KeyRound,
             colorClass: "text-violet-600 bg-violet-50 hover:bg-violet-100",
-            onClick: handleResetPassword
-        }
+            onClick: handleResetPassword,
+        },
     ];
 
     return (
         <div className="h-full">
-            <DynamicTable 
+            <DynamicTable
                 title="Người dùng"
                 endpoint="/dynamic-admin/users"
-                columns={columns as any}
-                formFields={formFields as any}
+                columns={columns}
+                formFields={formFields}
                 customActions={customActions}
             />
-            <div className="mt-4 text-xs text-muted-foreground p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-700 font-medium">
-                <strong>Lưu ý Bảo mật:</strong> Bảng người dùng đã bị chặn quyền Chỉnh sửa toàn diện (Edit). Bạn chỉ có thể tạo mới, khóa tài khoản hoặc cấp lại mật khẩu ngẫu nhiên để đảm bảo tính toàn vẹn dữ liệu.
-            </div>
         </div>
     );
 }

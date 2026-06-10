@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Search, ChevronLeft, ChevronRight, Edit, Trash2, Plus, RefreshCw } from "lucide-react";
 import { fetchWithAuth } from "@/services/api";
 import DynamicForm, { FormField } from "./DynamicForm";
@@ -12,11 +12,14 @@ export interface Column {
     type?: "text" | "number" | "boolean" | "date" | "image";
 }
 
+export type DynamicTableRow = Record<string, unknown>;
+
 export interface CustomAction {
     icon: React.ElementType;
     label: string;
-    onClick: (item: any) => void;
+    onClick: (item: DynamicTableRow) => void;
     colorClass?: string; // e.g. "text-amber-500 bg-amber-50 hover:bg-amber-100"
+    shouldShow?: (item: DynamicTableRow) => boolean;
 }
 
 interface DynamicTableProps {
@@ -37,7 +40,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/a
 
 export default function DynamicTable({ title, endpoint, columns, formFields, customActions, disableCreate = false, disableEdit = false, disableDelete = false, filterCol, filterVal, hideIdColumn = false }: DynamicTableProps) {
     const toast = useToast();
-    const [data, setData] = useState<any[]>([]);
+    const [data, setData] = useState<DynamicTableRow[]>([]);
     const [total, setTotal] = useState(0);
     const [skip, setSkip] = useState(0);
     const [limit] = useState(10);
@@ -45,9 +48,9 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
     const [isLoading, setIsLoading] = useState(false);
 
     const [isFormOpen, setIsFormOpen] = useState(false);
-    const [editingItem, setEditingItem] = useState<any | null>(null);
+    const [editingItem, setEditingItem] = useState<DynamicTableRow | null>(null);
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
             const url = new URL(`${API_BASE_URL}${endpoint}`);
@@ -65,11 +68,11 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                 const errText = await res.text();
                 throw new Error(`Failed to fetch data: ${res.status} - ${errText}`);
             }
-            const result = await res.json();
+            const result = await res.json() as DynamicTableRow[] | { data?: unknown; total?: number };
 
             // Handle if result is wrapped in {"data": [], "total": ...} or just an array
-            if (result && Array.isArray(result.data)) {
-                setData(result.data);
+            if (!Array.isArray(result) && result && Array.isArray(result.data)) {
+                setData(result.data as DynamicTableRow[]);
                 setTotal(result.total || 0);
             } else if (Array.isArray(result)) {
                 setData(result);
@@ -83,11 +86,13 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [endpoint, filterCol, filterVal, limit, search, skip]);
 
     useEffect(() => {
-        fetchData();
-    }, [skip, limit, search, endpoint]);
+        queueMicrotask(() => {
+            void fetchData();
+        });
+    }, [fetchData]);
 
     const handleDelete = async (id: number) => {
         if (!confirm("Bạn có chắc chắn muốn xóa bản ghi này?")) return;
@@ -109,7 +114,7 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
         setIsFormOpen(true);
     };
 
-    const handleEdit = (item: any) => {
+    const handleEdit = (item: DynamicTableRow) => {
         setEditingItem(item);
         setIsFormOpen(true);
     };
@@ -119,7 +124,7 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
         fetchData();
     };
 
-    const renderCell = (item: any, col: Column) => {
+    const renderCell = (item: DynamicTableRow, col: Column) => {
         const val = item[col.key];
         if (val === null || val === undefined) return "-";
 
@@ -131,12 +136,12 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
             );
         }
         if (col.type === "date") {
-            return new Date(val).toLocaleDateString("vi-VN");
+            return new Date(String(val)).toLocaleDateString("vi-VN");
         }
         if (col.type === "image") {
              return (
-                <a href={val} target="_blank" rel="noreferrer" className="block w-28">
-                    <img src={val} className="h-14 w-28 rounded-xl object-cover bg-secondary border border-border/50 shadow-sm" alt="" />
+                <a href={String(val)} target="_blank" rel="noreferrer" className="block w-28">
+                    <img src={String(val)} className="h-14 w-28 rounded-xl object-cover bg-secondary border border-border/50 shadow-sm" alt="" />
                 </a>
              );
         }
@@ -146,7 +151,7 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
             return <span title={val}>{val.substring(0, 50)}...</span>;
         }
 
-        return val.toString();
+        return String(val);
     };
 
     // Pagination calculations
@@ -242,8 +247,8 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                                 </tr>
                             ) : (
                                 data.map((item, idx) => (
-                                    <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                                        {!hideIdColumn && <td className="px-6 py-4 font-bold text-muted-foreground">#{item.id}</td>}
+                                    <tr key={String(item.id ?? idx)} className="hover:bg-slate-50/50 transition-colors">
+                                        {!hideIdColumn && <td className="px-6 py-4 font-bold text-muted-foreground">#{String(item.id ?? "")}</td>}
                                         {columns.map(col => (
                                             <td key={col.key} className="px-6 py-4 font-medium text-foreground/80">
                                                 {renderCell(item, col)}
@@ -252,7 +257,9 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end space-x-2">
                                                 {/* Nút tùy chỉnh (ví dụ: Khóa user, Reset pass) */}
-                                                {customActions && customActions.map((action, i) => {
+                                                {customActions && customActions
+                                                    .filter((action) => !action.shouldShow || action.shouldShow(item))
+                                                    .map((action, i) => {
                                                     const ActionIcon = action.icon;
                                                     return (
                                                         <button
@@ -280,7 +287,7 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                                                 {/* Nút Xóa gốc */}
                                                 {!disableDelete && (
                                                     <button
-                                                        onClick={() => handleDelete(item.id)}
+                                                        onClick={() => handleDelete(Number(item.id))}
                                                         className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors"
                                                         title="Xóa"
                                                     >

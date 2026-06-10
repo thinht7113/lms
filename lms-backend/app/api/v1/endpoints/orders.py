@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_db, get_current_user
-from app.models.user import User
-from app.schemas.order import (
+from app.modules.identity.models import User
+from app.modules.commerce.schemas import (
     CouponCreate, CouponApplyRequest, CouponApplyResponse,
     CheckoutRequest, OrderResponse, PaymentMockRequest, PaymentResponse
 )
-from app.services.order_service import OrderService
+from app.modules.commerce.services import OrderService
 from app.core.config import settings
 from app.core.security_guards import mock_feature_enabled, verify_webhook_signature
 from typing import List

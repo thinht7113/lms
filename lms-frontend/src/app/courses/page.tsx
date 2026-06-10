@@ -15,6 +15,7 @@ function CoursesContent() {
 
   // Initialize state from URL params
   const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchParams.get("q") || "");
   const [selectedCategory, setSelectedCategory] = useState<number | null>(
       searchParams.get("ma_danh_muc") ? Number(searchParams.get("ma_danh_muc")) : null
   );
@@ -50,6 +51,14 @@ function CoursesContent() {
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm.trim());
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [searchTerm]);
+
   // Load Categories on mount
   useEffect(() => {
     async function loadCategories() {
@@ -65,7 +74,7 @@ function CoursesContent() {
       setIsLoading(true);
       try {
         const queryParams: any = {
-          q: searchTerm || undefined,
+          q: debouncedSearchTerm || undefined,
           ma_danh_muc: selectedCategory || undefined,
           trinh_do: selectedLevel || undefined,
           sort_by: sortBy === "popular" ? "so_luong_hoc_vien" : sortBy === "rating" ? "danh_gia_trung_binh" : "gia_tien",
@@ -87,7 +96,7 @@ function CoursesContent() {
       }
     }
     fetchCourses();
-  }, [searchTerm, selectedCategory, selectedLevel, selectedPrice, sortBy]);
+  }, [debouncedSearchTerm, selectedCategory, selectedLevel, selectedPrice, sortBy]);
 
   // Client-side rating filter
   const finalCourses = useMemo(() => {

@@ -49,6 +49,9 @@ class Course(Base):
 
     @property
     def so_luong_hoc_vien(self) -> int:
+        cached_count = getattr(self, "_so_luong_hoc_vien", None)
+        if cached_count is not None:
+            return int(cached_count)
         try:
             return len(self.dang_ky_hoc)
         except Exception:

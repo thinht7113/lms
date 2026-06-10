@@ -95,10 +95,22 @@ class CourseService:
         sort_by: Optional[str] = "ngay_tao",
         order: Optional[str] = "desc"
     ) -> List[Course]:
-        # Pre-fetch dang_ky_hoc to optimize the so_luong_hoc_vien property (avoid N+1)
-        query = select(Course).options(selectinload(Course.dang_ky_hoc)).where(
+        enrollment_count = (
+            select(
+                Enrollment.ma_khoa_hoc.label("course_id"),
+                func.count(Enrollment.id).label("student_count"),
+            )
+            .group_by(Enrollment.ma_khoa_hoc)
+            .subquery()
+        )
+
+        query = (
+            select(Course, func.coalesce(enrollment_count.c.student_count, 0))
+            .outerjoin(enrollment_count, enrollment_count.c.course_id == Course.id)
+            .where(
             Course.da_xuat_ban == True,
             Course.trang_thai_phe_duyet == "approved"
+            )
         )
 
         # 1. Filters
@@ -126,6 +138,8 @@ class CourseService:
             sort_column = Course.gia_tien
         elif sort_by == "danh_gia_trung_binh":
             sort_column = Course.danh_gia_trung_binh
+        elif sort_by == "so_luong_hoc_vien":
+            sort_column = func.coalesce(enrollment_count.c.student_count, 0)
 
         if order == "asc":
             query = query.order_by(asc(sort_column))
@@ -136,7 +150,11 @@ class CourseService:
         query = query.offset(skip).limit(limit)
 
         result = await db.execute(query)
-        return list(result.scalars().all())
+        courses: List[Course] = []
+        for course, student_count in result.all():
+            setattr(course, "_so_luong_hoc_vien", int(student_count or 0))
+            courses.append(course)
+        return courses
 
     @staticmethod
     async def get_instructor_courses(db: AsyncSession, instructor_id: int) -> List[Course]:

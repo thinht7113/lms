@@ -5,10 +5,10 @@ from sqlalchemy.orm import selectinload
 from typing import List
 
 from app.core.database import get_db
-from app.models.user import User
-from app.models.course import Course
-from app.schemas.user import InstructorResponse, InstructorDetailResponse
-from app.schemas.course import CourseResponse
+from app.modules.identity.models import User
+from app.modules.identity.schemas import InstructorResponse, InstructorDetailResponse
+from app.modules.catalog.models import Course
+from app.modules.catalog.schemas import CourseResponse
 
 router = APIRouter()
 
@@ -92,4 +92,3 @@ async def get_instructor_detail(instructor_id: int, db: AsyncSession = Depends(g
         so_luong_hoc_vien=so_luong_hoc_vien,
         khoa_hoc=courses_response,
     )
-

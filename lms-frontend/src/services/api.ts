@@ -1,5 +1,6 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 const PUBLIC_FETCH_TIMEOUT_MS = 8000;
+const publicCache = new Map<string, { expiresAt: number; data: unknown }>();
 
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = PUBLIC_FETCH_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
@@ -15,8 +16,30 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
   }
 }
 
+async function getCachedJson<T>(url: string, ttlMs = 30_000): Promise<T> {
+  const now = Date.now();
+  const cached = publicCache.get(url);
+  if (cached && cached.expiresAt > now) {
+    return cached.data as T;
+  }
+
+  const res = await fetchWithTimeout(url);
+  if (!res.ok) throw new Error(`Failed to fetch ${url}`);
+  const data = await res.json();
+  publicCache.set(url, { data, expiresAt: now + ttlMs });
+  return data as T;
+}
+
 // Helpers for localStorage Token management
 export const tokenHelper = {
+  setRoleCookie(role?: string | null) {
+    if (typeof document === "undefined") return;
+    if (!role) {
+      document.cookie = "lumina_role=; Path=/; Max-Age=0; SameSite=Lax";
+      return;
+    }
+    document.cookie = `lumina_role=${encodeURIComponent(role)}; Path=/; Max-Age=86400; SameSite=Lax`;
+  },
   getToken(): string | null {
     if (typeof window === "undefined") return null;
     const legacyToken = localStorage.getItem("lumina_token");
@@ -43,11 +66,13 @@ export const tokenHelper = {
   setCurrentUser(user: any) {
     if (typeof window !== "undefined") {
       localStorage.setItem("lumina_user", JSON.stringify(user));
+      this.setRoleCookie(user?.vai_tro);
     }
   },
   removeCurrentUser() {
     if (typeof window !== "undefined") {
       localStorage.removeItem("lumina_user");
+      this.setRoleCookie(null);
     }
   }
 };
@@ -392,9 +417,7 @@ export const apiService = {
   // 1. Banners API
   async getBanners(): Promise<Banner[]> {
     try {
-      const res = await fetchWithTimeout(`${API_BASE_URL}/banners`);
-      if (!res.ok) throw new Error("Failed to fetch banners");
-      return await res.json();
+      return await getCachedJson<Banner[]>(`${API_BASE_URL}/banners`, 30_000);
     } catch (err) {
       console.warn("API Error (Banners):", err);
       return [];
@@ -404,9 +427,7 @@ export const apiService = {
   // 2. Categories API
   async getCategories(): Promise<Category[]> {
     try {
-      const res = await fetchWithTimeout(`${API_BASE_URL}/categories`);
-      if (!res.ok) throw new Error("Failed to fetch categories");
-      return await res.json();
+      return await getCachedJson<Category[]>(`${API_BASE_URL}/categories`, 60_000);
     } catch (err) {
       console.warn("API Error (Categories):", err);
       return [];
@@ -437,9 +458,7 @@ export const apiService = {
         if (params.limit) queryParts.push(`limit=${params.limit}`);
       }
       const queryString = queryParts.length > 0 ? `?${queryParts.join("&")}` : "";
-      const res = await fetchWithTimeout(`${API_BASE_URL}/courses${queryString}`);
-      if (!res.ok) throw new Error("Failed to fetch courses");
-      return await res.json();
+      return await getCachedJson<Course[]>(`${API_BASE_URL}/courses${queryString}`, 20_000);
     } catch (err) {
       console.warn("API Error (Courses):", err);
       return [];
@@ -449,9 +468,7 @@ export const apiService = {
   // 4. Course Details API
   async getCourseDetail(id: number): Promise<CourseDetail | null> {
     try {
-      const res = await fetchWithTimeout(`${API_BASE_URL}/courses/${id}`);
-      if (!res.ok) throw new Error(`Failed to fetch course details for ID ${id}`);
-      return await res.json();
+      return await getCachedJson<CourseDetail>(`${API_BASE_URL}/courses/${id}`, 15_000);
     } catch (err) {
       console.warn(`API Error (Course Detail ID ${id}):`, err);
       return null;

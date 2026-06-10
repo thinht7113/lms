@@ -4,8 +4,8 @@ from sqlalchemy import select
 from typing import List
 
 from app.api.deps import get_db
-from app.models.setting import Setting
-from app.schemas.setting import SettingPublicResponse
+from app.modules.administration.models import Setting
+from app.modules.administration.schemas import SettingPublicResponse
 
 router = APIRouter()
 

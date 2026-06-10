@@ -5,9 +5,9 @@ from typing import List
 
 from app.core.database import get_db
 from app.api.deps import get_current_user
-from app.models.user import User
-from app.models.banner import Banner
-from app.schemas.banner import BannerCreate, BannerUpdate, BannerResponse
+from app.modules.identity.models import User
+from app.modules.catalog.models import Banner
+from app.modules.catalog.schemas import BannerCreate, BannerUpdate, BannerResponse
 
 router = APIRouter()
 

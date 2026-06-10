@@ -3,11 +3,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from sqlalchemy.orm import selectinload
 from app.api.deps import get_db, get_current_user
-from app.models.user import User
-from app.models.certificate import Certificate
-from app.schemas.certificate import CertificateResponse, CertificateVerifyResponse
-from app.services.cert_service import CertService
-from app.services.certificate_pdf import build_certificate_pdf
+from app.modules.identity.models import User
+from app.modules.learning.models import Certificate
+from app.modules.learning.schemas import CertificateResponse, CertificateVerifyResponse
+from app.modules.learning.services import CertService, build_certificate_pdf
 from typing import List
 
 router = APIRouter()

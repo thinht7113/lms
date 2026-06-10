@@ -1,22 +1,47 @@
 from fastapi import APIRouter
 from app.api.v1.dynamic_crud import create_crud_router
-from app.models import User, Category, Course, Order, Coupon, Section, Lesson, LessonContent, Quiz, Question, Certificate, Banner
-from app.models.setting import Setting
-from app.models.log import AdminLog
-from app.schemas.user import UserResponse, UserRegister as UserCreate, UserUpdate
-from app.schemas.course import CategoryResponse, CategoryCreate, CategoryUpdate
-from app.schemas.course import CourseResponse, CourseCreate, CourseUpdate
-from app.schemas.course import SectionResponse, SectionAdminResponse, SectionCreate, SectionUpdate
-from app.schemas.course import LessonResponse, LessonAdminResponse, LessonCreate, LessonUpdate
-from app.schemas.course import LessonContentResponse, LessonContentCreate, LessonContentUpdate
-from app.schemas.order import OrderResponse, OrderAdminResponse, CheckoutRequest as OrderCreate, CheckoutRequest as OrderUpdate # Simplified for generic
-from app.schemas.order import CouponResponse, CouponCreate, CouponUpdate
-from app.schemas.quiz import QuizResponse, QuizCreate, QuizUpdate
-from app.schemas.quiz import QuestionResponse, QuestionCreate, QuestionUpdate
-from app.schemas.course import CertificateResponse, CertificateResponse as CertificateCreate, CertificateResponse as CertificateUpdate # Placeholders if needed
-from app.schemas.banner import BannerResponse, BannerCreate, BannerUpdate
-from app.schemas.setting import SettingResponse, SettingCreate, SettingUpdate
-from app.schemas.log import AdminLogResponse
+from app.modules.identity.models import User
+from app.modules.identity.schemas import UserResponse, UserRegister as UserCreate, UserUpdate
+from app.modules.catalog.models import Category, Course, Section, Lesson, LessonContent, Banner
+from app.modules.catalog.schemas import (
+    BannerCreate,
+    BannerResponse,
+    BannerUpdate,
+    CategoryCreate,
+    CategoryResponse,
+    CategoryUpdate,
+    CourseCertificateResponse as CertificateResponse,
+    CourseCertificateResponse as CertificateCreate,
+    CourseCertificateResponse as CertificateUpdate,
+    CourseCreate,
+    CourseResponse,
+    CourseUpdate,
+    LessonAdminResponse,
+    LessonContentCreate,
+    LessonContentResponse,
+    LessonContentUpdate,
+    LessonCreate,
+    LessonResponse,
+    LessonUpdate,
+    SectionAdminResponse,
+    SectionCreate,
+    SectionResponse,
+    SectionUpdate,
+)
+from app.modules.commerce.models import Order, Coupon
+from app.modules.commerce.schemas import (
+    CheckoutRequest as OrderCreate,
+    CheckoutRequest as OrderUpdate,
+    CouponCreate,
+    CouponResponse,
+    CouponUpdate,
+    OrderAdminResponse,
+    OrderResponse,
+)
+from app.modules.learning.models import Quiz, Question, Certificate
+from app.modules.learning.schemas import QuizCreate, QuizResponse, QuizUpdate, QuestionCreate, QuestionResponse, QuestionUpdate
+from app.modules.administration.models import Setting, AdminLog
+from app.modules.administration.schemas import SettingResponse, SettingCreate, SettingUpdate, AdminLogResponse
 
 # Create a simplified Order schema for Admin CRUD just to satisfy the router generator
 from pydantic import BaseModel

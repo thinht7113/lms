@@ -10,12 +10,15 @@ from datetime import datetime
 from decimal import Decimal
 
 from app.api.deps import get_db, get_current_admin_user
-from app.models import User, Course, Order, OrderItem, Enrollment, Progress, Category, Coupon
-from app.models.setting import Setting
-from app.schemas.course import CategoryUpdate, CategoryResponse, CourseResponse, LessonResponse
-from app.schemas.order import OrderResponse, CouponCreate, CouponUpdate, CouponResponse
-from app.schemas.setting import SettingResponse, SettingUpdateBulk, SettingPublicResponse
-from app.services.auth_service import get_password_hash
+from app.modules.identity.models import User
+from app.modules.identity.services import get_password_hash
+from app.modules.catalog.models import Course, Category
+from app.modules.catalog.schemas import CategoryUpdate, CategoryResponse, CourseResponse, LessonResponse
+from app.modules.commerce.models import Order, OrderItem, Coupon
+from app.modules.commerce.schemas import OrderResponse, CouponCreate, CouponUpdate, CouponResponse
+from app.modules.learning.models import Enrollment, Progress
+from app.modules.administration.models import Setting
+from app.modules.administration.schemas import SettingResponse, SettingUpdateBulk, SettingPublicResponse
 
 router = APIRouter()
 
@@ -111,7 +114,7 @@ async def get_system_stats(
     )
     total_revenue = float(revenue_res.scalar() or 0)
 
-    from app.models.log import AdminLog
+    from app.modules.administration.models import AdminLog
     
     # Doanh thu tháng này
     now = datetime.now()
@@ -459,7 +462,7 @@ async def approve_lesson(
     """
     Phê duyệt bài học: Đặt trang_thai_phe_duyet = 'approved' và da_xuat_ban = True
     """
-    from app.models.course import Lesson
+    from app.modules.catalog.models import Lesson
     result = await db.execute(
         select(Lesson)
         .options(selectinload(Lesson.chuong_hoc))
@@ -497,7 +500,7 @@ async def reject_lesson(
     """
     Từ chối bài học: Đặt trang_thai_phe_duyet = 'rejected' và da_xuat_ban = False
     """
-    from app.models.course import Lesson
+    from app.modules.catalog.models import Lesson
     result = await db.execute(
         select(Lesson)
         .options(selectinload(Lesson.chuong_hoc))
@@ -610,8 +613,8 @@ async def delete_coupon_admin(
     return {"status": "success", "message": "Đã xóa mã giảm giá thành công."}
 
 # ==================== COURSE REVIEWS (ADMIN) ====================
-from app.models.course import CourseReview
-from app.schemas.course import ReviewResponse
+from app.modules.catalog.models import CourseReview
+from app.modules.catalog.schemas import ReviewResponse
 
 @router.get("/reviews", response_model=List[ReviewResponse])
 async def get_all_reviews_admin(
@@ -657,8 +660,8 @@ async def delete_review_admin(
     return {"status": "success", "message": "Đã xóa đánh giá vi phạm thành công."}
 
 # ==================== QUIZZES (ADMIN) ====================
-from app.models.quiz import Quiz, Question
-from app.schemas.quiz import QuizResponse, QuizDetailResponse
+from app.modules.learning.models import Quiz, Question
+from app.modules.learning.schemas import QuizResponse, QuizDetailResponse
 
 @router.get("/quizzes", response_model=List[QuizResponse])
 async def get_all_quizzes_admin(
@@ -704,8 +707,8 @@ async def delete_quiz_admin(
     return {"status": "success", "message": "Đã xóa bài kiểm tra thành công."}
 
 # ==================== ENROLLMENTS (ADMIN) ====================
-from app.models.course import Enrollment
-from app.schemas.course import EnrollmentResponse, EnrollmentCreate
+from app.modules.learning.models import Enrollment
+from app.modules.catalog.schemas import EnrollmentResponse, EnrollmentCreate
 from sqlalchemy.exc import IntegrityError
 
 @router.get("/enrollments", response_model=List[EnrollmentResponse])
@@ -775,8 +778,8 @@ async def delete_enrollment_admin(
     return {"status": "success", "message": "Đã thu hồi quyền truy cập khóa học thành công."}
 
 # ==================== CERTIFICATES (ADMIN) ====================
-from app.models.certificate import Certificate
-from app.schemas.course import CertificateResponse
+from app.modules.learning.models import Certificate
+from app.modules.catalog.schemas import CourseCertificateResponse as CertificateResponse
 
 @router.get("/certificates", response_model=List[CertificateResponse])
 async def get_all_certificates_admin(
@@ -833,7 +836,7 @@ async def approve_order_refund(
     db: AsyncSession = Depends(get_db),
     current_admin: User = Depends(get_current_admin_user)
 ):
-    from app.services.order_service import OrderService
+    from app.modules.commerce.services import OrderService
     order = await OrderService.approve_refund(db, order_id)
     await log_admin_action(db, current_admin.id, "APPROVE_REFUND", f"Đã duyệt hoàn tiền Đơn hàng ID {order_id}")
     return order
@@ -848,14 +851,14 @@ async def reject_order_refund(
     db: AsyncSession = Depends(get_db),
     current_admin: User = Depends(get_current_admin_user)
 ):
-    from app.services.order_service import OrderService
+    from app.modules.commerce.services import OrderService
     order = await OrderService.reject_refund(db, order_id)
     await log_admin_action(db, current_admin.id, "REJECT_REFUND", f"Đã từ chối hoàn tiền Đơn hàng ID {order_id}")
     return order
 
 # ==================== ADMIN LOGS ====================
-from app.models.log import AdminLog
-from app.schemas.log import AdminLogResponse
+from app.modules.administration.models import AdminLog
+from app.modules.administration.schemas import AdminLogResponse
 
 async def log_admin_action(db: AsyncSession, admin_id: int, action: str, details: Optional[str] = None):
     new_log = AdminLog(

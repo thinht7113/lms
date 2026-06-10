@@ -164,7 +164,7 @@ export default function HomePage() {
         {/* 2. CATEGORIES SECTION */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-2xl font-black tracking-tight mb-8 flex items-center gap-2">
-                <Layers className="text-primary" /> Chủ đề chuyên môn
+                 Chủ đề chuyên môn
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {categories.length > 0 ? categories.map((cat) => (
@@ -189,7 +189,7 @@ export default function HomePage() {
             <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between mb-8">
                     <h2 className="text-2xl font-black tracking-tight flex items-center gap-2">
-                        <Zap className="text-amber-500 fill-amber-500" /> Khóa học giá tốt
+                         Khóa học giá tốt
                     </h2>
                     <Link href="/courses?order=price-asc" className="text-sm font-bold text-primary hover:underline">Xem tất cả</Link>
                 </div>
@@ -204,7 +204,7 @@ export default function HomePage() {
             <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between mb-8">
                     <h2 className="text-2xl font-black tracking-tight flex items-center gap-2">
-                        <Star className="text-rose-500 fill-rose-500" /> Được học nhiều nhất
+                         Được học nhiều nhất
                     </h2>
                     <Link href="/courses?sort_by=popular" className="text-sm font-bold text-primary hover:underline">Xem tất cả</Link>
                 </div>
@@ -219,7 +219,7 @@ export default function HomePage() {
             <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between mb-8">
                     <h2 className="text-2xl font-black tracking-tight flex items-center gap-2">
-                        <Zap className="text-emerald-500 fill-emerald-500" /> Mới xuất bản
+                         Mới xuất bản
                     </h2>
                     <Link href="/courses" className="text-sm font-bold text-primary hover:underline">Xem tất cả</Link>
                 </div>

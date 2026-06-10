@@ -19,10 +19,19 @@ export default function LoginPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const getSafeNextPath = () => {
+    if (typeof window === "undefined") return "/";
+    const nextPath = new URLSearchParams(window.location.search).get("next");
+    if (!nextPath || !nextPath.startsWith("/") || nextPath.startsWith("//")) {
+      return "/";
+    }
+    return nextPath;
+  };
+
   // If already logged in, return to the homepage.
   useEffect(() => {
     if (tokenHelper.getCurrentUser()) {
-      router.push("/");
+      router.replace(getSafeNextPath());
     }
   }, [router]);
 
@@ -37,7 +46,7 @@ export default function LoginPage() {
         await apiService.login(email, password);
         setSuccess("Đăng nhập thành công! Đang chuyển hướng...");
         setTimeout(() => {
-          router.push("/");
+          router.push(getSafeNextPath());
         }, 1000);
       } else {
         await apiService.register(email, password, fullName, phone, role);
