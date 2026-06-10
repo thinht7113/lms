@@ -138,11 +138,11 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
             return new Date(String(val)).toLocaleDateString("vi-VN");
         }
         if (col.type === "image") {
-             return (
+            return (
                 <a href={String(val)} target="_blank" rel="noreferrer" className="block w-28">
-                    <img src={String(val)} className="h-14 w-28 rounded-xl object-cover bg-secondary border border-border/50 shadow-sm" alt="" />
+                    <img src={String(val)} className="h-auto max-h-20 w-28 rounded-xl object-contain bg-secondary border border-border/50 shadow-sm" alt="" />
                 </a>
-             );
+            );
         }
 
         // Truncate long text
@@ -172,11 +172,10 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                 <button
                     key={i}
                     onClick={() => setSkip((i - 1) * limit)}
-                    className={`min-w-[32px] h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-colors ${
-                        currentPage === i
+                    className={`min-w-[32px] h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-colors ${currentPage === i
                         ? "bg-primary text-white shadow-md shadow-primary/20"
                         : "bg-white border border-border/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
-                    }`}
+                        }`}
                 >
                     {i}
                 </button>
@@ -259,18 +258,18 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                                                 {customActions && customActions
                                                     .filter((action) => !action.shouldShow || action.shouldShow(item))
                                                     .map((action, i) => {
-                                                    const ActionIcon = action.icon;
-                                                    return (
-                                                        <button
-                                                            key={i}
-                                                            onClick={() => action.onClick(item)}
-                                                            title={action.label}
-                                                            className={`p-2 rounded-lg transition-colors ${action.colorClass || 'text-slate-600 bg-slate-50 hover:bg-slate-100'}`}
-                                                        >
-                                                            <ActionIcon className="h-4 w-4" />
-                                                        </button>
-                                                    );
-                                                })}
+                                                        const ActionIcon = action.icon;
+                                                        return (
+                                                            <button
+                                                                key={i}
+                                                                onClick={() => action.onClick(item)}
+                                                                title={action.label}
+                                                                className={`p-2 rounded-lg transition-colors ${action.colorClass || 'text-slate-600 bg-slate-50 hover:bg-slate-100'}`}
+                                                            >
+                                                                <ActionIcon className="h-4 w-4" />
+                                                            </button>
+                                                        );
+                                                    })}
 
                                                 {/* Nút Sửa gốc (Ẩn hoàn toàn đối với bảng users) */}
                                                 {formFields && formFields.length > 0 && !disableEdit && !endpoint.includes("/users") && (
@@ -283,7 +282,6 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                                                     </button>
                                                 )}
 
-                                                {/* Nút Xóa gốc */}
                                                 {!disableDelete && (
                                                     <button
                                                         onClick={() => handleDelete(Number(item.id))}

@@ -16,5 +16,9 @@ class AdminLog(Base):
     # Relationships
     admin = relationship("User", foreign_keys=[ma_admin])
 
+    @property
+    def email_admin(self) -> Optional[str]:
+        return self.admin.email if self.admin else None
+
     def __repr__(self):
         return f"<AdminLog Admin:{self.ma_admin} Action:{self.hanh_dong}>"

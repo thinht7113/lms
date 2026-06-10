@@ -84,6 +84,9 @@ class QuizResponse(BaseModel):
 class QuizDetailResponse(QuizResponse):
     cau_hoi: List[QuestionResponse] = []
 
+class AdminQuizDetailResponse(QuizResponse):
+    cau_hoi: List[QuestionDetailResponse] = []
+
 
 # ==================== ATTEMPT & SUBMISSION SCHEMAS ====================
 class AnswerSubmit(BaseModel):

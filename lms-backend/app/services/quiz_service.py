@@ -36,7 +36,8 @@ class QuizService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Khóa học không tồn tại."
             )
-        if course.ma_giang_vien != instructor_id:
+        can_manage = await QuizService._can_manage_course(db, instructor_id, course_id)
+        if not can_manage:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Bạn không có quyền thêm bài kiểm tra vào khóa học này."
@@ -94,7 +95,6 @@ class QuizService:
 
         # Kiểm tra ghi danh của học viên
         can_manage = await QuizService._can_manage_course(db, user_id, quiz.ma_khoa_hoc)
-        enrolled = None
         if not can_manage:
             enrolled = await db.execute(
                 select(Enrollment).where(
@@ -104,11 +104,11 @@ class QuizService:
                     )
                 )
             )
-        if not can_manage and not enrolled.scalars().first():
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Bạn phải đăng ký khóa học này mới được xem bài kiểm tra."
-            )
+            if not enrolled.scalars().first():
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Bạn phải đăng ký khóa học này mới được xem bài kiểm tra."
+                )
 
         # Trả về quiz. Ta sẽ ẩn đáp án đúng trong các API endpoint bằng cách chuyển đổi options
         return quiz

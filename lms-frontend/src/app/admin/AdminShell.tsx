@@ -8,6 +8,7 @@ import {
     BookOpen,
     CreditCard,
     FileText,
+    Home,
     ImageIcon,
     Layers,
     LayoutDashboard,
@@ -17,7 +18,7 @@ import {
     ShoppingCart,
     Users,
 } from "lucide-react";
-import { tokenHelper } from "@/services/api";
+import { tokenHelper, apiService } from "@/services/api";
 import SystemLogo from "@/components/SystemLogo";
 
 const sidebarGroups = [
@@ -63,6 +64,34 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     const pathname = usePathname();
     const router = useRouter();
     const [isSidebarOpen, setSidebarOpen] = useState(true);
+    const [pendingCount, setPendingCount] = useState(0);
+
+    React.useEffect(() => {
+        let isMounted = true;
+        async function fetchPendingCounts() {
+            try {
+                const [courses, lessons] = await Promise.all([
+                    apiService.getAdminCourses(),
+                    apiService.getAdminPendingLessons()
+                ]);
+                const pendingCoursesCount = courses.filter(c => c.trang_thai_phe_duyet === "pending").length;
+                const pendingLessonsCount = lessons.length;
+                if (isMounted) {
+                    setPendingCount(pendingCoursesCount + pendingLessonsCount);
+                }
+            } catch (err) {
+                console.error("Failed to fetch pending counts for sidebar:", err);
+            }
+        }
+        fetchPendingCounts();
+
+        // Refresh every 15 seconds
+        const interval = setInterval(fetchPendingCounts, 15000);
+        return () => {
+            isMounted = false;
+            clearInterval(interval);
+        };
+    }, []);
 
     const handleLogout = () => {
         tokenHelper.removeToken();
@@ -73,9 +102,8 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     return (
         <div className="h-screen overflow-hidden bg-[#F8F9FA] flex">
             <aside
-                className={`fixed inset-y-0 left-0 z-50 h-screen w-64 bg-white border-r border-border/60 transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:shrink-0 ${
-                    isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-                }`}
+                className={`fixed inset-y-0 left-0 z-50 h-screen w-64 bg-white border-r border-border/60 transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:shrink-0 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+                    }`}
             >
                 <div className="flex h-full min-h-0 flex-col">
                     <div className="h-20 flex items-center justify-center border-b border-border/40 shrink-0">
@@ -99,14 +127,19 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                                             <Link
                                                 key={item.name}
                                                 href={item.href}
-                                                className={`flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-all ${
-                                                    isActive
+                                                className={`flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-all ${isActive
                                                         ? "bg-primary/10 text-primary font-bold shadow-sm"
                                                         : "hover:bg-secondary/70 text-muted-foreground hover:text-foreground font-medium"
-                                                }`}
+                                                    }`}
                                             >
                                                 <Icon className={`h-5 w-5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
                                                 <span className="text-sm">{item.name}</span>
+                                                {item.href === "/admin/moderation" && pendingCount > 0 && (
+                                                    <span className="flex h-2 w-2 relative shrink-0 ml-auto">
+                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                                                    </span>
+                                                )}
                                             </Link>
                                         );
                                     })}
@@ -139,13 +172,23 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                         <h1 className="text-xl font-black text-foreground tracking-tight">Admin Portal</h1>
                     </div>
 
-                    <div className="flex items-center space-x-2.5 bg-secondary/50 border border-border/50 px-3 py-1.5 rounded-xl">
-                        <div className="h-7 w-7 rounded-lg bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
-                            AD
+                    <div className="flex items-center space-x-4">
+                        <Link
+                            href="/"
+                            className="flex items-center space-x-2 bg-primary hover:bg-primary/95 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest shadow-md transition-all shrink-0"
+                        >
+                            <Home className="h-4 w-4" />
+                            <span className="hidden md:inline">Về trang chủ</span>
+                        </Link>
+
+                        <div className="flex items-center space-x-2.5 bg-secondary/50 border border-border/50 px-3 py-1.5 rounded-xl">
+                            <div className="h-7 w-7 rounded-lg bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
+                                AD
+                            </div>
+                            <span className="text-sm font-bold text-foreground hidden sm:block">
+                                Administrator
+                            </span>
                         </div>
-                        <span className="text-sm font-bold text-foreground hidden sm:block">
-                            Administrator
-                        </span>
                     </div>
                 </header>
 

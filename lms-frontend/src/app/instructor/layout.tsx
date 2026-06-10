@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
-    BookOpen, LayoutDashboard, LogOut, Menu, Users, BarChart3, Star, ChevronLeft, ChevronRight
+    BookOpen, LayoutDashboard, LogOut, Menu, Users, BarChart3, Star, ChevronLeft, ChevronRight, Home
 } from "lucide-react";
 import { tokenHelper } from "@/services/api";
 import SystemLogo from "@/components/SystemLogo";
@@ -135,6 +135,14 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
                     </div>
                     
                     <div className="flex items-center space-x-4">
+                        <Link
+                            href="/"
+                            className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest shadow-md transition-all shrink-0"
+                        >
+                            <Home className="h-4 w-4" />
+                            <span className="hidden md:inline">Trang người dùng</span>
+                        </Link>
+
                         <div className="flex items-center space-x-2.5 bg-purple-50 border border-purple-100 px-3 py-1.5 rounded-xl">
                             <div className="h-7 w-7 rounded-lg bg-purple-600 flex items-center justify-center text-white font-bold text-xs">
                                 IN

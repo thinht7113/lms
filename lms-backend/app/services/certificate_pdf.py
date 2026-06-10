@@ -1,39 +1,78 @@
+import os
+import io
 from typing import Iterable
+from reportlab.pdfgen import canvas
+from reportlab.lib.colors import Color, HexColor
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+# Determine font paths relative to this file
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+FONT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, "..", "assets", "fonts"))
+REGULAR_FONT_PATH = os.path.join(FONT_DIR, "Roboto-Regular.ttf")
+BOLD_FONT_PATH = os.path.join(FONT_DIR, "Roboto-Bold.ttf")
+
+# Register fonts if they exist
+fonts_loaded = False
+try:
+    if os.path.exists(REGULAR_FONT_PATH) and os.path.exists(BOLD_FONT_PATH):
+        pdfmetrics.registerFont(TTFont("Roboto", REGULAR_FONT_PATH))
+        pdfmetrics.registerFont(TTFont("Roboto-Bold", BOLD_FONT_PATH))
+        fonts_loaded = True
+    else:
+        print(f"Warning: Roboto fonts not found at {FONT_DIR}. Falling back to Helvetica.")
+except Exception as e:
+    print(f"Error registering fonts: {e}. Falling back to Helvetica.")
+
+FONT_REGULAR = "Roboto" if fonts_loaded else "Helvetica"
+FONT_BOLD = "Roboto-Bold" if fonts_loaded else "Helvetica-Bold"
 
 
-def _escape_pdf_text(value: str) -> str:
-    ascii_value = value.encode("ascii", errors="replace").decode("ascii")
-    return ascii_value.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+def draw_centered_string(c: canvas.Canvas, text: str, y: float, font_name: str, font_size: float, color: Color):
+    c.setFont(font_name, font_size)
+    c.setFillColor(color)
+    c.drawCentredString(396, y, text)
 
 
-def _text_line(text: str, font_size: int, x: int, y: int) -> str:
-    return f"BT /F1 {font_size} Tf {x} {y} Td ({_escape_pdf_text(text)}) Tj ET"
-
-
-def _build_pdf(objects: Iterable[bytes]) -> bytes:
-    object_list = list(objects)
-    output = bytearray(b"%PDF-1.4\n")
-    offsets = [0]
-
-    for index, obj in enumerate(object_list, start=1):
-        offsets.append(len(output))
-        output.extend(f"{index} 0 obj\n".encode("ascii"))
-        output.extend(obj)
-        output.extend(b"\nendobj\n")
-
-    xref_offset = len(output)
-    output.extend(f"xref\n0 {len(object_list) + 1}\n".encode("ascii"))
-    output.extend(b"0000000000 65535 f \n")
-    for offset in offsets[1:]:
-        output.extend(f"{offset:010d} 00000 n \n".encode("ascii"))
-
-    output.extend(
-        (
-            f"trailer\n<< /Size {len(object_list) + 1} /Root 1 0 R >>\n"
-            f"startxref\n{xref_offset}\n%%EOF\n"
-        ).encode("ascii")
-    )
-    return bytes(output)
+def draw_gold_seal(c: canvas.Canvas, x: float, y: float):
+    # Draw seal ribbons
+    c.setFillColor(HexColor("#D97706"))
+    
+    # Left Ribbon
+    p1 = c.beginPath()
+    p1.moveTo(x - 8, y - 12)
+    p1.lineTo(x - 18, y - 38)
+    p1.lineTo(x - 8, y - 32)
+    p1.lineTo(x, y - 38)
+    p1.lineTo(x - 2, y - 12)
+    c.drawPath(p1, fill=True, stroke=False)
+    
+    # Right Ribbon
+    p2 = c.beginPath()
+    p2.moveTo(x + 2, y - 12)
+    p2.lineTo(x, y - 38)
+    p2.lineTo(x + 8, y - 32)
+    p2.lineTo(x + 18, y - 38)
+    p2.lineTo(x + 8, y - 12)
+    c.drawPath(p2, fill=True, stroke=False)
+    
+    # Draw circular seal outer jagged-look
+    c.setFillColor(HexColor("#F59E0B")) # Amber/gold color
+    c.setStrokeColor(HexColor("#D97706"))
+    c.setLineWidth(1)
+    c.circle(x, y, 22, fill=True, stroke=True)
+    
+    c.setFillColor(HexColor("#D97706"))
+    c.circle(x, y, 18, fill=True, stroke=False)
+    
+    # Inner gold circle
+    c.setFillColor(HexColor("#F59E0B"))
+    c.circle(x, y, 15, fill=True, stroke=False)
+    
+    # Draw "VERIFIED" text
+    c.setFont(FONT_BOLD, 5)
+    c.setFillColor(HexColor("#FFFFFF"))
+    c.drawCentredString(x, y - 2, "VERIFIED")
 
 
 def build_certificate_pdf(
@@ -42,32 +81,94 @@ def build_certificate_pdf(
     certificate_uuid: str,
     issued_date: str,
 ) -> bytes:
-    content = "\n".join(
-        [
-            _text_line("LUMINA LMS", 26, 220, 720),
-            _text_line("Certificate of Completion", 22, 170, 660),
-            _text_line("This certificate is awarded to", 13, 205, 610),
-            _text_line(student_name, 20, 190, 565),
-            _text_line("for successfully completing", 13, 215, 520),
-            _text_line(course_title, 18, 160, 475),
-            _text_line(f"Issued: {issued_date}", 11, 72, 100),
-            _text_line(f"Certificate ID: {certificate_uuid}", 10, 72, 78),
-        ]
-    ).encode("ascii")
-
-    return _build_pdf(
-        [
-            b"<< /Type /Catalog /Pages 2 0 R >>",
-            b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-            (
-                b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
-                b"/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>"
-            ),
-            b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-            b"<< /Length "
-            + str(len(content)).encode("ascii")
-            + b" >>\nstream\n"
-            + content
-            + b"\nendstream",
-        ]
-    )
+    buffer = io.BytesIO()
+    
+    # Letter size landscape: 792 wide by 612 high
+    c = canvas.Canvas(buffer, pagesize=(792, 612))
+    
+    # 1. Fill background
+    c.setFillColor(HexColor("#FCFCF9"))
+    c.rect(0, 0, 792, 612, fill=True, stroke=False)
+    
+    # 2. Outer dark border
+    c.setStrokeColor(HexColor("#0F172A"))
+    c.setLineWidth(4)
+    c.rect(20, 20, 752, 572, fill=False, stroke=True)
+    
+    # 3. Inner gold border
+    c.setStrokeColor(HexColor("#D97706"))
+    c.setLineWidth(1.5)
+    c.rect(28, 28, 736, 556, fill=False, stroke=True)
+    
+    # 4. Corner Decorations
+    c.setFillColor(HexColor("#0F172A"))
+    # Top-Left Corner
+    c.rect(28, 564, 20, 20, fill=True, stroke=False)
+    # Bottom-Left Corner
+    c.rect(28, 28, 20, 20, fill=True, stroke=False)
+    # Top-Right Corner
+    c.rect(744, 564, 20, 20, fill=True, stroke=False)
+    # Bottom-Right Corner
+    c.rect(744, 28, 20, 20, fill=True, stroke=False)
+    
+    # 5. Header Branding
+    draw_centered_string(c, "L U M I N A   L M S", 500, FONT_BOLD, 22, HexColor("#1E3A8A"))
+    
+    # Small line under brand
+    c.setStrokeColor(HexColor("#D97706"))
+    c.setLineWidth(1.5)
+    c.line(346, 488, 446, 488)
+    
+    # 6. Title
+    draw_centered_string(c, "CHỨNG NHẬN HOÀN THÀNH KHÓA HỌC", 445, FONT_BOLD, 13, HexColor("#475569"))
+    
+    # 7. Award Statement
+    draw_centered_string(c, "Chứng chỉ này được trân trọng trao tặng cho", 395, FONT_REGULAR, 11, HexColor("#64748B"))
+    
+    # 8. Student Name
+    draw_centered_string(c, student_name, 335, FONT_BOLD, 30, HexColor("#0F172A"))
+    
+    # Accent line beneath name
+    c.setStrokeColor(HexColor("#E2E8F0"))
+    c.setLineWidth(1)
+    c.line(246, 315, 546, 315)
+    
+    # 9. Course Statement
+    draw_centered_string(c, "Vì đã hoàn thành xuất sắc chương trình đào tạo và đánh giá năng lực của khóa học:", 285, FONT_REGULAR, 11, HexColor("#64748B"))
+    
+    # 10. Course Title
+    draw_centered_string(c, course_title.upper(), 235, FONT_BOLD, 22, HexColor("#2563EB"))
+    
+    # 11. Gold Verification Seal
+    draw_gold_seal(c, 396, 175)
+    
+    # 12. Footer Sections
+    # Date (Left)
+    c.setFont(FONT_BOLD, 8)
+    c.setFillColor(HexColor("#94A3B8"))
+    c.drawString(60, 130, "NGÀY CẤP")
+    c.setFont(FONT_BOLD, 10)
+    c.setFillColor(HexColor("#334155"))
+    c.drawString(60, 112, issued_date)
+    
+    # Signature (Center)
+    draw_centered_string(c, "Lumina Board", 125, FONT_BOLD, 14, HexColor("#1E3A8A"))
+    c.setStrokeColor(HexColor("#94A3B8"))
+    c.setLineWidth(0.5)
+    c.line(326, 115, 466, 115)
+    draw_centered_string(c, "HỘI ĐỒNG GIẢNG VIÊN", 100, FONT_BOLD, 8, HexColor("#94A3B8"))
+    
+    # Certificate UUID (Right)
+    c.setFont(FONT_BOLD, 8)
+    c.setFillColor(HexColor("#94A3B8"))
+    c.drawRightString(732, 130, "MÃ ĐỊNH DANH CHỨNG CHỈ")
+    c.setFont(FONT_REGULAR, 8)
+    c.setFillColor(HexColor("#334155"))
+    c.drawRightString(732, 112, certificate_uuid)
+    
+    c.showPage()
+    c.save()
+    
+    pdf_bytes = buffer.getvalue()
+    buffer.close()
+    return pdf_bytes

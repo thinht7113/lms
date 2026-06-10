@@ -23,6 +23,11 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
+# 5b. Tải font Roboto hỗ trợ tiếng Việt
+RUN mkdir -p app/assets/fonts && \
+    wget -O app/assets/fonts/Roboto-Regular.ttf https://raw.githubusercontent.com/googlefonts/roboto/main/src/hinted/Roboto-Regular.ttf && \
+    wget -O app/assets/fonts/Roboto-Bold.ttf https://raw.githubusercontent.com/googlefonts/roboto/main/src/hinted/Roboto-Bold.ttf
+
 # 6. Sao chép toàn bộ mã nguồn
 COPY . .
 

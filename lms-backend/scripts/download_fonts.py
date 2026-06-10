@@ -6,8 +6,8 @@ def download_fonts():
     os.makedirs(font_dir, exist_ok=True)
     
     fonts = {
-        "Roboto-Regular.ttf": "https://raw.githubusercontent.com/google/fonts/main/ofl/roboto/static/Roboto-Regular.ttf",
-        "Roboto-Bold.ttf": "https://raw.githubusercontent.com/google/fonts/main/ofl/roboto/static/Roboto-Bold.ttf"
+        "Roboto-Regular.ttf": "https://raw.githubusercontent.com/googlefonts/roboto/main/src/hinted/Roboto-Regular.ttf",
+        "Roboto-Bold.ttf": "https://raw.githubusercontent.com/googlefonts/roboto/main/src/hinted/Roboto-Bold.ttf"
     }
     
     for filename, url in fonts.items():

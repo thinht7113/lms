@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import DynamicTable, { CustomAction } from "@/components/admin/DynamicTable";
 import { apiService, Category } from "@/services/api";
-import { ListTree } from "lucide-react";
+import { ListTree, ClipboardList } from "lucide-react";
 
 export default function AdminCoursesPage() {
     const [categories, setCategories] = useState<Category[]>([]);
@@ -54,6 +54,12 @@ export default function AdminCoursesPage() {
             icon: ListTree,
             colorClass: "text-emerald-600 bg-emerald-50 hover:bg-emerald-100",
             onClick: (course) => router.push(`/admin/courses/${course.id}/sections`)
+        },
+        {
+            label: "Bài kiểm tra",
+            icon: ClipboardList,
+            colorClass: "text-blue-600 bg-blue-50 hover:bg-blue-100",
+            onClick: (course) => router.push(`/admin/courses/${course.id}/quizzes`)
         }
     ];
 

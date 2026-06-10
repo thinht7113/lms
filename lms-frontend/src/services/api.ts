@@ -936,6 +936,12 @@ export const apiService = {
     return await res.json();
   },
 
+  async getAdminQuizDetail(quizId: number): Promise<any> {
+    const res = await fetchWithAuth(`${API_BASE_URL}/admin/quizzes/${quizId}`);
+    if (!res.ok) throw new Error("Failed to fetch admin quiz detail");
+    return await res.json();
+  },
+
   async startQuiz(quizId: number): Promise<QuizAttempt> {
     const res = await fetchWithAuth(`${API_BASE_URL}/quizzes/${quizId}/start`, {
       method: "POST"
@@ -1037,6 +1043,12 @@ export const apiService = {
   async getAdminCourses(): Promise<Course[]> {
     const res = await fetchWithAuth(`${API_BASE_URL}/admin/courses?limit=200`);
     if (!res.ok) throw new Error("Failed to fetch admin courses");
+    return await res.json();
+  },
+
+  async getAdminPendingLessons(): Promise<any[]> {
+    const res = await fetchWithAuth(`${API_BASE_URL}/admin/lessons/pending`);
+    if (!res.ok) throw new Error("Failed to fetch pending lessons");
     return await res.json();
   },
 

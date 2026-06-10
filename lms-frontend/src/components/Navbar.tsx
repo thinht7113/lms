@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { apiService, tokenHelper } from "@/services/api";
 import SystemLogo from "@/components/SystemLogo";
+import AuthModal from "@/components/AuthModal";
 
 export default function Navbar() {
   const router = useRouter();
@@ -29,8 +30,30 @@ export default function Navbar() {
   const [searchTerm, setSearchTerm] = useState("");
   const [queryString, setQueryString] = useState("");
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState<"login" | "register" | null>(null);
   const isInstructor = currentUser?.vai_tro === "instructor";
   const isAdmin = currentUser?.vai_tro === "admin";
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const authType = params.get("auth");
+      if (authType === "login") {
+        setShowAuthModal("login");
+      } else if (authType === "register") {
+        setShowAuthModal("register");
+      }
+    }
+  }, [pathname, queryString]);
+
+  const closeAuthModal = () => {
+    setShowAuthModal(null);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("auth");
+      window.history.replaceState({}, "", url.pathname + url.search);
+    }
+  };
 
   useEffect(() => {
     const token = tokenHelper.getToken();
@@ -279,12 +302,12 @@ export default function Navbar() {
                 )}
               </div>
             ) : (
-              <Link
-                href="/login"
+              <button
+                onClick={() => setShowAuthModal("login")}
                 className="bg-primary hover:bg-blue-700 text-white text-[13px] font-bold px-6 py-2.5 rounded-xl transition-all shadow-lg shadow-primary/20"
               >
                 Đăng nhập
-              </Link>
+              </button>
             )}
           </div>
 
@@ -343,12 +366,18 @@ export default function Navbar() {
                     <span>Thoát</span>
                   </button>
                 ) : (
-                  <Link href="/login" className="block w-full bg-primary text-white text-center py-4 rounded-2xl font-bold shadow-xl shadow-primary/20">Bắt đầu học ngay</Link>
+                  <button
+                    onClick={() => setShowAuthModal("login")}
+                    className="block w-full bg-primary text-white text-center py-4 rounded-2xl font-bold shadow-xl shadow-primary/20"
+                  >
+                    Bắt đầu học ngay
+                  </button>
                 )}
               </div>
            </div>
         </div>
       )}
+      <AuthModal isOpen={showAuthModal !== null} onClose={closeAuthModal} initialTab={showAuthModal || "login"} />
     </header>
   );
 }

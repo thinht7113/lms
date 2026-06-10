@@ -478,15 +478,41 @@ async def reject_course(
     await log_admin_action(db, current_admin.id, "REJECT_COURSE", f"Đã từ chối Course ID {course_id}")
     return course
 
+@router.get("/lessons/pending")
+async def get_pending_lessons(
+    db: AsyncSession = Depends(get_db),
+    current_admin: User = Depends(get_current_admin_user)
+):
+    from app.modules.catalog.models import Lesson, Section, Course
+    query = (
+        select(Lesson)
+        .options(
+            selectinload(Lesson.chuong_hoc).selectinload(Section.khoa_hoc)
+        )
+        .where(Lesson.trang_thai_phe_duyet == "pending")
+    )
+    result = await db.execute(query)
+    lessons = result.scalars().all()
+    
+    return [
+        {
+            "id": lesson.id,
+            "tieu_de": lesson.tieu_de,
+            "ma_chuong_hoc": lesson.ma_chuong_hoc,
+            "trang_thai_phe_duyet": lesson.trang_thai_phe_duyet,
+            "ten_chuong": lesson.chuong_hoc.tieu_de if lesson.chuong_hoc else "",
+            "ma_khoa_hoc": lesson.chuong_hoc.ma_khoa_hoc if lesson.chuong_hoc else 0,
+            "ten_khoa_hoc": lesson.chuong_hoc.khoa_hoc.tieu_de if lesson.chuong_hoc and lesson.chuong_hoc.khoa_hoc else ""
+        }
+        for lesson in lessons
+    ]
+
 @router.put("/lessons/{lesson_id}/approve", response_model=LessonResponse)
 async def approve_lesson(
     lesson_id: int,
     db: AsyncSession = Depends(get_db),
     current_admin: User = Depends(get_current_admin_user)
 ):
-    """
-    Phê duyệt bài học: Đặt trang_thai_phe_duyet = 'approved' và da_xuat_ban = True
-    """
     from app.modules.catalog.models import Lesson
     result = await db.execute(
         select(Lesson)
@@ -686,7 +712,7 @@ async def delete_review_admin(
 
 # ==================== QUIZZES (ADMIN) ====================
 from app.modules.learning.models import Quiz, Question
-from app.modules.learning.schemas import QuizResponse, QuizDetailResponse
+from app.modules.learning.schemas import QuizResponse, QuizDetailResponse, AdminQuizDetailResponse
 
 @router.get("/quizzes", response_model=List[QuizResponse])
 async def get_all_quizzes_admin(
@@ -699,7 +725,7 @@ async def get_all_quizzes_admin(
     result = await db.execute(query)
     return result.scalars().all()
 
-@router.get("/quizzes/{quiz_id}", response_model=QuizDetailResponse)
+@router.get("/quizzes/{quiz_id}", response_model=AdminQuizDetailResponse)
 async def get_quiz_detail_admin(
     quiz_id: int,
     db: AsyncSession = Depends(get_db),
@@ -901,7 +927,7 @@ async def get_admin_logs(
     db: AsyncSession = Depends(get_db),
     current_admin: User = Depends(get_current_admin_user)
 ):
-    query = select(AdminLog).order_by(AdminLog.id.desc()).offset(skip).limit(limit)
+    query = select(AdminLog).options(selectinload(AdminLog.admin)).order_by(AdminLog.id.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
     return result.scalars().all()
 

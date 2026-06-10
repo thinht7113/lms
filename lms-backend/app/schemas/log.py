@@ -5,6 +5,7 @@ from typing import Optional
 class AdminLogResponse(BaseModel):
     id: int
     ma_admin: int
+    email_admin: Optional[str] = None
     hanh_dong: str
     chi_tiet: Optional[str]
     ngay_thuc_hien: datetime

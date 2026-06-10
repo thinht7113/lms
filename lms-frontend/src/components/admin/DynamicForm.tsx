@@ -56,6 +56,16 @@ export default function DynamicForm({ title, fields, initialData, endpoint, onSu
         }
     }, [initialData, fields, baseData]);
 
+    // Khóa cuộn trang khi form/modal được hiển thị
+    useEffect(() => {
+        document.body.style.overflow = "hidden";
+        document.documentElement.style.overflow = "hidden";
+        return () => {
+            document.body.style.overflow = "";
+            document.documentElement.style.overflow = "";
+        };
+    }, []);
+
     const handleChange = (key: string, value: any) => {
         let finalValue = value;
         // Tự động format mã giảm giá: Viết hoa, bỏ dấu, bỏ ký tự đặc biệt

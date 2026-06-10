@@ -5,7 +5,7 @@ import DynamicTable from "@/components/admin/DynamicTable";
 
 export default function AdminLogsPage() {
     const columns = [
-        { key: "ma_admin", label: "Admin ID", type: "number" },
+        { key: "email_admin", label: "Email Admin", type: "text" },
         { key: "hanh_dong", label: "Hành động", type: "text" },
         { key: "chi_tiet", label: "Chi tiết", type: "text" },
         { key: "ngay_thuc_hien", label: "Thời gian", type: "date" },
@@ -13,9 +13,9 @@ export default function AdminLogsPage() {
 
     return (
         <div className="h-full">
-            <DynamicTable 
+            <DynamicTable
                 title="Nhật ký Hệ thống (Audit Logs)"
-                endpoint="/dynamic-admin/logs"
+                endpoint="/admin/logs"
                 columns={columns as any}
                 disableCreate={true}
                 disableEdit={true}

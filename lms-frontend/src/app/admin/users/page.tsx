@@ -77,7 +77,7 @@ export default function AdminUsersPage() {
             }
 
             const data = await res.json();
-            
+
             // Tự động copy mật khẩu vào clipboard và thông báo bằng toast
             try {
                 await navigator.clipboard.writeText(data.new_password);

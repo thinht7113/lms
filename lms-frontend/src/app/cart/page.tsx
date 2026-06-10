@@ -94,20 +94,9 @@ export default function CartPage() {
     <>
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20 min-h-[80vh]">
-        <div className="flex items-center space-x-4 mb-10">
-          <div className="bg-primary/10 p-3 rounded-2xl text-primary shrink-0">
-            <ShoppingCart className="h-8 w-8" />
-          </div>
-          <div>
-            <h1 className="text-3xl sm:text-4xl font-black text-foreground tracking-tighter">
-              Giỏ Hàng 
-            </h1>
-          </div>
-        </div>
-
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20 min-h-[80vh] flex flex-col">
         {!hasItems ? (
-          <div className="bg-card border border-dashed border-border/80 rounded-[2rem] p-16 text-center space-y-6 shadow-sm flex flex-col items-center justify-center max-w-2xl mx-auto mt-12">
+          <div className="flex-grow flex flex-col items-center justify-center text-center space-y-6 py-12">
             <div className="bg-secondary p-6 rounded-full text-muted-foreground/60 mb-2">
               <ShoppingCart className="h-16 w-16" />
             </div>
@@ -125,7 +114,19 @@ export default function CartPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+          <>
+            <div className="flex items-center space-x-4 mb-10">
+              <div className="bg-primary/10 p-3 rounded-2xl text-primary shrink-0">
+                <ShoppingCart className="h-8 w-8" />
+              </div>
+              <div>
+                <h1 className="text-3xl sm:text-4xl font-black text-foreground tracking-tighter">
+                  Giỏ Hàng 
+                </h1>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
             {/* Left Column: Cart items list */}
             <div className="lg:col-span-8 space-y-4">
               {cart?.chi_tiet_gio_hang.map((item, index) => (
@@ -268,6 +269,7 @@ export default function CartPage() {
                </div>
             </div>
           </div>
+          </>
         )}
       </main>
 

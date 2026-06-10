@@ -33,6 +33,13 @@ interface PendingCourse {
     loai: string;
 }
 
+interface PendingRefund {
+    id: number;
+    nguoi_yeu_cau: string;
+    so_tien: number;
+    ngay_yeu_cau: string;
+}
+
 interface AdminStats {
     total_users: number;
     total_courses: number;
@@ -42,6 +49,7 @@ interface AdminStats {
     recent_activities: RecentActivityItem[];
     top_courses: TopCourseItem[];
     pending_courses?: PendingCourse[];
+    pending_refunds?: PendingRefund[];
 }
 
 const formatCurrency = (value: number) =>

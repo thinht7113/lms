@@ -66,6 +66,20 @@ export default function InstructorCourseQuizzesPage() {
   }, [courseId]);
 
   useEffect(() => {
+    if (isQuestionModalOpen) {
+      document.body.style.overflow = "hidden";
+      document.documentElement.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+    };
+  }, [isQuestionModalOpen]);
+
+  useEffect(() => {
     async function fetchQuizDetail() {
       if (!selectedQuizId) {
         setSelectedQuizDetail(null);

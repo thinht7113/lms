@@ -35,7 +35,7 @@ services:
     container_name: lms_fastapi_app
     restart: always
     # Sử dụng cờ --reload và mount volumes giúp tự động phát hiện code thay đổi trên máy thật và reload container lập tức
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - .:/app
     ports:
