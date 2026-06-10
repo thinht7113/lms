@@ -5,6 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, FileText, ImageIcon, Plus, RefreshCw, Save, Trash2, UploadCloud, Video } from "lucide-react";
 import { apiService, CourseDetail, Lesson, LessonContentPayload } from "@/services/api";
+import dynamic from "next/dynamic";
+
+const CKEditorWrapper = dynamic(() => import("@/components/CKEditorWrapper"), {
+  ssr: false,
+  loading: () => <div className="animate-pulse rounded-2xl bg-slate-100 h-[300px] w-full"></div>,
+});
 
 type ContentType = "video" | "pdf" | "text" | "code" | "image";
 type UploadableContentType = Extract<ContentType, "video" | "pdf" | "image">;
@@ -224,8 +230,8 @@ export default function InstructorLessonForm({ courseId, sectionId, lessonId }: 
   };
 
   const save = async () => {
-    if (!form.tieu_de.trim()) {
-      setError("Vui lòng nhập tiêu đề bài học.");
+    if (!form.tieu_de.trim() || form.tieu_de.trim().length < 2) {
+      setError("Vui lòng nhập tiêu đề bài học (ít nhất 2 ký tự).");
       return;
     }
 
@@ -241,7 +247,7 @@ export default function InstructorLessonForm({ courseId, sectionId, lessonId }: 
         xem_truoc: form.xem_truoc,
         da_xuat_ban: false,
         noi_dung: orderedBlocks.map((block) => ({
-          ma_bai_hoc: lessonId,
+          ma_bai_hoc: lessonId || 0,
           loai_noi_dung: block.loai_noi_dung,
           noi_dung_text: block.noi_dung_text || "",
           duong_dan_file: block.duong_dan_file || "",
@@ -283,7 +289,7 @@ export default function InstructorLessonForm({ courseId, sectionId, lessonId }: 
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="w-full space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <Link href={backHref} className="rounded-2xl border border-slate-200 bg-white p-3 text-slate-500 hover:text-purple-700">
@@ -302,7 +308,7 @@ export default function InstructorLessonForm({ courseId, sectionId, lessonId }: 
 
       {error && <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">{error}</div>}
 
-      <section className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
+      <section className="flex flex-col gap-6">
         <div className="space-y-5 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-black text-slate-950">Thông tin bài học</h2>
           <div>
@@ -382,8 +388,19 @@ export default function InstructorLessonForm({ courseId, sectionId, lessonId }: 
                     </div>
                   )}
 
-                  {["text", "code"].includes(block.loai_noi_dung) && (
-                    <textarea value={block.noi_dung_text || ""} onChange={(e) => updateBlock(block.localId, "noi_dung_text", e.target.value)} rows={block.loai_noi_dung === "code" ? 8 : 6} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-mono text-sm outline-none focus:border-purple-400" placeholder={block.loai_noi_dung === "code" ? "Nhập đoạn code..." : "Nhập nội dung bài học..."} />
+                  {block.loai_noi_dung === "text" && (
+                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                      <CKEditorWrapper
+                        value={block.noi_dung_text || ""}
+                        onChange={(data) => updateBlock(block.localId, "noi_dung_text", data)}
+                        placeholder="Nhập nội dung bài học..."
+                        height="300px"
+                      />
+                    </div>
+                  )}
+
+                  {block.loai_noi_dung === "code" && (
+                    <textarea value={block.noi_dung_text || ""} onChange={(e) => updateBlock(block.localId, "noi_dung_text", e.target.value)} rows={8} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-mono text-sm outline-none focus:border-purple-400" placeholder="Nhập đoạn code..." />
                   )}
                 </div>
               ))}

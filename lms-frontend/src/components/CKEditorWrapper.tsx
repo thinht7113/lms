@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { CKEditor } from '@ckeditor/ckeditor5-react';
 import {
     ClassicEditor,
@@ -22,13 +23,18 @@ import {
     Image,
     ImageCaption,
     ImageStyle,
-    ImageToolbar,
     ImageUpload,
     MediaEmbed,
     Table,
     TableToolbar,
     SourceEditing,
-    CodeBlock
+    CodeBlock,
+    PasteFromOffice,
+    SpecialCharacters,
+    SpecialCharactersEssentials,
+    SpecialCharactersMathematical,
+    Subscript,
+    Superscript
 } from 'ckeditor5';
 
 import 'ckeditor5/ckeditor5.css';
@@ -40,13 +46,10 @@ interface CKEditorWrapperProps {
     height?: string;
 }
 
-export default function CKEditorWrapper({ value, onChange, placeholder = "Nhập nội dung bài học...", height = "400px" }: CKEditorWrapperProps) {
-    const [licenseKey, setLicenseKey] = useState<string>('GPL'); // Default to GPL if no key, though CKEditor 5 requires premium key for some features
-    const [isMounted, setIsMounted] = useState(false);
+function EditorComponent({ value, onChange, placeholder = "Nhập nội dung...", height = "400px" }: CKEditorWrapperProps) {
+    const [licenseKey, setLicenseKey] = useState<string>('GPL');
 
     useEffect(() => {
-        setIsMounted(true);
-        // Fetch license key from our public settings API
         const fetchKey = async () => {
             try {
                 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
@@ -64,8 +67,6 @@ export default function CKEditorWrapper({ value, onChange, placeholder = "Nhập
         };
         fetchKey();
     }, []);
-
-    if (!isMounted) return <div className="animate-pulse bg-secondary rounded-xl w-full h-[400px]"></div>;
 
     return (
         <div className="ck-editor-container" style={{ '--ck-border-radius': '0.75rem', '--ck-color-base-border': '#e2e8f0', '--ck-color-focus-border': '#3b82f6' } as any}>
@@ -88,18 +89,20 @@ export default function CKEditorWrapper({ value, onChange, placeholder = "Nhập
                     plugins: [
                         Essentials, Autoformat, Bold, Italic, Underline, Strikethrough, BlockQuote,
                         Heading, Link, List, Paragraph, Indent, IndentBlock, Alignment, Font,
-                        Image, ImageCaption, ImageStyle, ImageToolbar, ImageUpload, MediaEmbed,
-                        Table, TableToolbar, SourceEditing, CodeBlock
+                        Image, ImageCaption, ImageStyle, ImageUpload, MediaEmbed,
+                        Table, TableToolbar, SourceEditing, CodeBlock,
+                        PasteFromOffice, SpecialCharacters, SpecialCharactersEssentials, SpecialCharactersMathematical,
+                        Subscript, Superscript
                     ],
                     toolbar: {
                         items: [
                             'undo', 'redo', '|',
                             'heading', '|',
                             'fontSize', 'fontFamily', 'fontColor', 'fontBackgroundColor', '|',
-                            'bold', 'italic', 'underline', 'strikethrough', '|',
+                            'bold', 'italic', 'underline', 'strikethrough', 'subscript', 'superscript', '|',
                             'alignment', '|',
                             'bulletedList', 'numberedList', 'outdent', 'indent', '|',
-                            'link', 'insertImage', 'mediaEmbed', 'insertTable', 'blockQuote', 'codeBlock', '|',
+                            'link', 'mediaEmbed', 'insertTable', 'blockQuote', 'codeBlock', 'specialCharacters', '|',
                             'sourceEditing'
                         ],
                         shouldNotGroupWhenFull: false
@@ -122,3 +125,5 @@ export default function CKEditorWrapper({ value, onChange, placeholder = "Nhập
         </div>
     );
 }
+
+export default dynamic(() => Promise.resolve(EditorComponent), { ssr: false });

@@ -25,6 +25,14 @@ interface TopCourseItem {
     doanh_thu: number;
 }
 
+interface PendingCourse {
+    id: number;
+    tieu_de: string;
+    giang_vien: string;
+    ngay_tao: string;
+    loai: string;
+}
+
 interface AdminStats {
     total_users: number;
     total_courses: number;
@@ -33,6 +41,7 @@ interface AdminStats {
     chart_data: ChartDataPoint[];
     recent_activities: RecentActivityItem[];
     top_courses: TopCourseItem[];
+    pending_courses?: PendingCourse[];
 }
 
 const formatCurrency = (value: number) =>
@@ -246,38 +255,145 @@ export default function AdminDashboardPage() {
                 </div>
             </div>
 
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+                <div className="rounded-[2rem] border border-border/60 bg-card p-8 shadow-sm">
+                    <div className="mb-6 flex items-center space-x-2 border-b border-border/40 pb-4">
+                        <BookOpen className="h-5 w-5 text-primary" />
+                        <h3 className="text-lg font-black text-foreground">Khóa học bán chạy nhất</h3>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                        <table className="w-full whitespace-nowrap text-left text-sm">
+                            <thead className="bg-secondary/50 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                <tr>
+                                    <th className="rounded-tl-xl px-4 py-3">Xếp hạng</th>
+                                    <th className="px-4 py-3">Tên khóa học</th>
+                                    <th className="px-4 py-3">Học viên</th>
+                                    <th className="rounded-tr-xl px-4 py-3 text-right">Doanh thu</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border/40">
+                                {topCourses.length > 0 ? (
+                                    topCourses.map((course, idx) => (
+                                        <tr key={course.id || idx} className="transition-colors hover:bg-secondary/30">
+                                            <td className="px-4 py-4 font-black text-primary">#{idx + 1}</td>
+                                            <td className="px-4 py-4 font-bold text-foreground truncate max-w-[200px]" title={course.tieu_de}>{course.tieu_de}</td>
+                                            <td className="px-4 py-4 text-muted-foreground">{course.so_hoc_vien}</td>
+                                            <td className="px-4 py-4 text-right font-black text-emerald-600">
+                                                {formatCurrency(course.doanh_thu)}
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={4} className="px-4 py-8 text-center text-xs text-muted-foreground">
+                                            Chưa có dữ liệu thống kê bán hàng.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div className="rounded-[2rem] border border-border/60 bg-card p-8 shadow-sm">
+                    <div className="mb-6 flex items-center space-x-2 border-b border-border/40 pb-4">
+                        <div className="flex items-center justify-center w-5 h-5 rounded-full bg-amber-100">
+                            <Activity className="h-3 w-3 text-amber-600" />
+                        </div>
+                        <h3 className="text-lg font-black text-foreground">Hàng chờ phê duyệt</h3>
+                        {stats?.pending_courses && stats.pending_courses.length > 0 && (
+                            <span className="ml-2 inline-flex items-center justify-center rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-bold text-rose-600">
+                                {stats.pending_courses.length}
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="overflow-x-auto">
+                        <table className="w-full whitespace-nowrap text-left text-sm">
+                            <thead className="bg-secondary/50 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                <tr>
+                                    <th className="rounded-tl-xl px-4 py-3">Loại</th>
+                                    <th className="px-4 py-3">Tiêu đề</th>
+                                    <th className="px-4 py-3">Người tạo</th>
+                                    <th className="rounded-tr-xl px-4 py-3 text-right">Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border/40">
+                                {stats?.pending_courses && stats.pending_courses.length > 0 ? (
+                                    stats.pending_courses.map((item, idx) => (
+                                        <tr key={`${item.loai}-${item.id}`} className="transition-colors hover:bg-secondary/30">
+                                            <td className="px-4 py-4">
+                                                <span className={`inline-flex items-center rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${item.loai === "course" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"}`}>
+                                                    {item.loai === "course" ? "Khóa học" : "Bài học"}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-4 font-bold text-foreground truncate max-w-[150px]" title={item.tieu_de}>{item.tieu_de}</td>
+                                            <td className="px-4 py-4 text-xs text-muted-foreground">{item.giang_vien}</td>
+                                            <td className="px-4 py-4 text-right">
+                                                <a href="/admin/moderation" className="text-xs font-black text-primary hover:underline">
+                                                    Kiểm duyệt
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={4} className="px-4 py-8 text-center text-xs text-muted-foreground">
+                                            Hiện tại không có mục nào chờ phê duyệt.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            {/* Yêu cầu hoàn tiền */}
             <div className="rounded-[2rem] border border-border/60 bg-card p-8 shadow-sm">
                 <div className="mb-6 flex items-center space-x-2 border-b border-border/40 pb-4">
-                    <BookOpen className="h-5 w-5 text-primary" />
-                    <h3 className="text-lg font-black text-foreground">Khóa học bán chạy nhất</h3>
+                    <div className="flex items-center justify-center w-5 h-5 rounded-full bg-rose-100">
+                        <DollarSign className="h-3 w-3 text-rose-600" />
+                    </div>
+                    <h3 className="text-lg font-black text-foreground">Yêu cầu hoàn tiền chờ xử lý</h3>
+                    {stats?.pending_refunds && stats.pending_refunds.length > 0 && (
+                        <span className="ml-2 inline-flex items-center justify-center rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-bold text-rose-600">
+                            {stats.pending_refunds.length}
+                        </span>
+                    )}
                 </div>
 
                 <div className="overflow-x-auto">
                     <table className="w-full whitespace-nowrap text-left text-sm">
                         <thead className="bg-secondary/50 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                             <tr>
-                                <th className="rounded-tl-xl px-4 py-3">Xếp hạng</th>
-                                <th className="px-4 py-3">Tên khóa học</th>
-                                <th className="px-4 py-3">Số học viên đã mua</th>
-                                <th className="rounded-tr-xl px-4 py-3 text-right">Doanh thu mang lại</th>
+                                <th className="rounded-tl-xl px-4 py-3">Mã ĐH</th>
+                                <th className="px-4 py-3">Người yêu cầu</th>
+                                <th className="px-4 py-3">Số tiền</th>
+                                <th className="px-4 py-3">Ngày yêu cầu</th>
+                                <th className="rounded-tr-xl px-4 py-3 text-right">Hành động</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border/40">
-                            {topCourses.length > 0 ? (
-                                topCourses.map((course, idx) => (
-                                    <tr key={course.id || idx} className="transition-colors hover:bg-secondary/30">
-                                        <td className="px-4 py-4 font-black text-primary">#{idx + 1}</td>
-                                        <td className="px-4 py-4 font-bold text-foreground">{course.tieu_de}</td>
-                                        <td className="px-4 py-4 text-muted-foreground">{course.so_hoc_vien}</td>
-                                        <td className="px-4 py-4 text-right font-black text-emerald-600">
-                                            {formatCurrency(course.doanh_thu)}
+                            {stats?.pending_refunds && stats.pending_refunds.length > 0 ? (
+                                stats.pending_refunds.map((item, idx) => (
+                                    <tr key={`refund-${item.id}`} className="transition-colors hover:bg-secondary/30">
+                                        <td className="px-4 py-4 font-black text-primary">#{item.id}</td>
+                                        <td className="px-4 py-4 font-bold text-foreground">{item.nguoi_yeu_cau}</td>
+                                        <td className="px-4 py-4 text-rose-600 font-bold">{formatCurrency(item.so_tien)}</td>
+                                        <td className="px-4 py-4 text-xs text-muted-foreground">{new Date(item.ngay_yeu_cau).toLocaleDateString("vi-VN")}</td>
+                                        <td className="px-4 py-4 text-right">
+                                            <a href="/admin/orders" className="text-xs font-black text-primary hover:underline">
+                                                Xử lý
+                                            </a>
                                         </td>
                                     </tr>
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={4} className="px-4 py-8 text-center text-xs text-muted-foreground">
-                                        Chưa có dữ liệu thống kê bán hàng.
+                                    <td colSpan={5} className="px-4 py-8 text-center text-xs text-muted-foreground">
+                                        Không có yêu cầu hoàn tiền nào đang chờ.
                                     </td>
                                 </tr>
                             )}

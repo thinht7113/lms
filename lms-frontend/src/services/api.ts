@@ -775,7 +775,8 @@ export const apiService = {
     });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.detail || "Không thể tạo bài học");
+      const errorMsg = Array.isArray(errData.detail) ? JSON.stringify(errData.detail) : errData.detail;
+      throw new Error(errorMsg || "Không thể tạo bài học");
     }
     return await res.json();
   },

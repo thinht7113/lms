@@ -85,7 +85,7 @@ export default function HomePage() {
     id: c.id,
     title: c.tieu_de,
     thumbnail: c.anh_dai_dien,
-    instructor: `Giảng viên ID: ${c.ma_giang_vien || 1}`,
+    instructor: "Giảng viên chuyên gia",
     category: categories.find(cat => cat.id === c.ma_danh_muc)?.ten_danh_muc || "Lập trình",
     level: c.trinh_do,
     rating: Number(c.danh_gia_trung_binh) || 5.0,
@@ -161,7 +161,52 @@ export default function HomePage() {
             </div>
         </section>
 
-        {/* 2. CATEGORIES SECTION */}
+        {/* 2. AFFORDABLE COURSES */}
+        {affordableCourses.length > 0 && (
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex items-center justify-between mb-8">
+                    <h2 className="text-2xl font-black tracking-tight flex items-center gap-2">
+                         Khóa học giá tốt
+                    </h2>
+                    <Link href="/courses?order=price-asc" className="text-sm font-bold text-primary hover:underline">Xem tất cả</Link>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {affordableCourses.map((c, i) => <CourseCard key={c.id} {...mapDbCourse(c, i)} />)}
+                </div>
+            </section>
+        )}
+
+        {/* 3. POPULAR COURSES */}
+        {popularCourses.length > 0 && (
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex items-center justify-between mb-8">
+                    <h2 className="text-2xl font-black tracking-tight flex items-center gap-2">
+                         Được học nhiều nhất
+                    </h2>
+                    <Link href="/courses?sort_by=popular" className="text-sm font-bold text-primary hover:underline">Xem tất cả</Link>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {popularCourses.map((c, i) => <CourseCard key={c.id} {...mapDbCourse(c, i)} />)}
+                </div>
+            </section>
+        )}
+
+        {/* 4. NEWEST COURSES */}
+        {newCourses.length > 0 && (
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex items-center justify-between mb-8">
+                    <h2 className="text-2xl font-black tracking-tight flex items-center gap-2">
+                         Mới xuất bản
+                    </h2>
+                    <Link href="/courses" className="text-sm font-bold text-primary hover:underline">Xem tất cả</Link>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {newCourses.map((c, i) => <CourseCard key={c.id} {...mapDbCourse(c, i)} />)}
+                </div>
+            </section>
+        )}
+
+        {/* 5. CATEGORIES SECTION */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-2xl font-black tracking-tight mb-8 flex items-center gap-2">
                  Chủ đề chuyên môn
@@ -183,51 +228,6 @@ export default function HomePage() {
                 )) : null}
             </div>
         </section>
-
-        {/* 3. AFFORDABLE COURSES */}
-        {affordableCourses.length > 0 && (
-            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between mb-8">
-                    <h2 className="text-2xl font-black tracking-tight flex items-center gap-2">
-                         Khóa học giá tốt
-                    </h2>
-                    <Link href="/courses?order=price-asc" className="text-sm font-bold text-primary hover:underline">Xem tất cả</Link>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {affordableCourses.map((c, i) => <CourseCard key={c.id} {...mapDbCourse(c, i)} />)}
-                </div>
-            </section>
-        )}
-
-        {/* 4. POPULAR COURSES */}
-        {popularCourses.length > 0 && (
-            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between mb-8">
-                    <h2 className="text-2xl font-black tracking-tight flex items-center gap-2">
-                         Được học nhiều nhất
-                    </h2>
-                    <Link href="/courses?sort_by=popular" className="text-sm font-bold text-primary hover:underline">Xem tất cả</Link>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {popularCourses.map((c, i) => <CourseCard key={c.id} {...mapDbCourse(c, i)} />)}
-                </div>
-            </section>
-        )}
-
-        {/* 5. NEWEST COURSES */}
-        {newCourses.length > 0 && (
-            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between mb-8">
-                    <h2 className="text-2xl font-black tracking-tight flex items-center gap-2">
-                         Mới xuất bản
-                    </h2>
-                    <Link href="/courses" className="text-sm font-bold text-primary hover:underline">Xem tất cả</Link>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {newCourses.map((c, i) => <CourseCard key={c.id} {...mapDbCourse(c, i)} />)}
-                </div>
-            </section>
-        )}
 
         {/* 6. ABOUT US SECTION */}
         <section id="about" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">

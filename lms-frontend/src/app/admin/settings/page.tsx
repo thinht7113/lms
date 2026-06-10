@@ -4,10 +4,12 @@ import React, { useState, useEffect } from "react";
 import DynamicTable from "@/components/admin/DynamicTable";
 import { UploadCloud, RefreshCw, Save, CheckCircle2 } from "lucide-react";
 import { fetchWithAuth } from "@/services/api";
+import { useToast } from "@/contexts/ToastContext";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
 export default function AdminSettingsPage() {
+    const { success, error } = useToast();
     const [uploadingLogo, setUploadingLogo] = useState(false);
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
@@ -100,7 +102,7 @@ export default function AdminSettingsPage() {
             }, 1500);
 
         } catch (err: any) {
-            alert(err.message || "Lỗi hệ thống");
+            error(err.message || "Lỗi hệ thống");
         } finally {
             setUploadingLogo(false);
         }

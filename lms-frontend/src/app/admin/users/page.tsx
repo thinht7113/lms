@@ -5,6 +5,7 @@ import DynamicTable, { Column, CustomAction, DynamicTableRow } from "@/component
 import { FormField } from "@/components/admin/DynamicForm";
 import { KeyRound, Lock } from "lucide-react";
 import { fetchWithAuth } from "@/services/api";
+import { useToast } from "@/contexts/ToastContext";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
@@ -12,6 +13,7 @@ const getErrorMessage = (err: unknown, fallback: string) =>
     err instanceof Error ? err.message : fallback;
 
 export default function AdminUsersPage() {
+    const { success, error, info } = useToast();
     const columns: Column[] = [
         { key: "ho_ten", label: "Họ tên", type: "text" },
         { key: "email", label: "Email", type: "text" },
@@ -40,11 +42,8 @@ export default function AdminUsersPage() {
 
     const handleToggleStatus = async (item: DynamicTableRow) => {
         const userId = Number(item.id);
-        const userName = String(item.ho_ten || item.email || "người dùng");
         const isActive = Boolean(item.trang_thai_hoat_dong);
         const actionName = isActive ? "khóa" : "mở khóa";
-
-        if (!confirm(`Bạn có chắc chắn muốn ${actionName} tài khoản của ${userName}?`)) return;
 
         try {
             const res = await fetchWithAuth(`${API_BASE_URL}/admin/users/${userId}/status`, {
@@ -57,18 +56,15 @@ export default function AdminUsersPage() {
                 throw new Error(err.detail || `Lỗi khi ${actionName} tài khoản`);
             }
 
-            alert(`Đã ${actionName} tài khoản thành công!`);
-            window.location.reload();
+            success(`Đã ${actionName} tài khoản thành công!`);
+            setTimeout(() => { window.location.reload(); }, 1500);
         } catch (err: unknown) {
-            alert(getErrorMessage(err, `Lỗi khi ${actionName} tài khoản`));
+            error(getErrorMessage(err, `Lỗi khi ${actionName} tài khoản`));
         }
     };
 
     const handleResetPassword = async (item: DynamicTableRow) => {
         const userId = Number(item.id);
-        const email = String(item.email || "người dùng này");
-
-        if (!confirm(`Bạn có chắc chắn muốn reset mật khẩu của tài khoản ${email}?\nMật khẩu mới sẽ được tạo ngẫu nhiên.`)) return;
 
         try {
             const res = await fetchWithAuth(`${API_BASE_URL}/admin/users/${userId}/reset-password`, {
@@ -81,9 +77,16 @@ export default function AdminUsersPage() {
             }
 
             const data = await res.json();
-            alert(`Thành công! Mật khẩu mới của người dùng là: ${data.new_password}\nHãy lưu lại và gửi cho người dùng.`);
+            
+            // Tự động copy mật khẩu vào clipboard và thông báo bằng toast
+            try {
+                await navigator.clipboard.writeText(data.new_password);
+                success(`Đã reset! Mật khẩu mới: ${data.new_password} (Đã tự động copy)`);
+            } catch (err) {
+                success(`Reset mật khẩu thành công! Mật khẩu mới: ${data.new_password}`);
+            }
         } catch (err: unknown) {
-            alert(getErrorMessage(err, "Lỗi khi reset mật khẩu"));
+            error(getErrorMessage(err, "Lỗi khi reset mật khẩu"));
         }
     };
 

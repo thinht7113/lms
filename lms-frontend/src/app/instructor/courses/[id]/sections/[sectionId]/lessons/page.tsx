@@ -62,7 +62,6 @@ export default function InstructorLessonsPage() {
           <div>
             <p className="text-xs font-black uppercase tracking-widest text-purple-600">{course?.tieu_de}</p>
             <h1 className="text-3xl font-black tracking-tight text-slate-950">{section?.tieu_de || "Bài học"}</h1>
-            <p className="mt-1 text-sm font-medium text-slate-500">Quản lý bài giảng, tài liệu, video, code và hình ảnh trong chương.</p>
           </div>
         </div>
         <Link href={`/instructor/courses/${courseId}/sections/${sectionId}/lessons/create`} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-purple-600 px-5 py-4 text-sm font-black text-white shadow-lg shadow-purple-200 hover:bg-purple-700">

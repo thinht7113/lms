@@ -206,9 +206,9 @@ export default function CourseDetailPage() {
           <div className="mx-auto grid max-w-[1380px] gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[470px_1fr_280px] lg:px-8 lg:py-14">
             <div>
               <div className="overflow-hidden rounded-[1.8rem] border-[5px] border-lime-400 bg-white shadow-xl shadow-slate-900/10">
-                <div className="relative aspect-[17/10] overflow-hidden bg-slate-100">
+                <div className="relative w-full overflow-hidden bg-slate-50 flex items-center justify-center min-h-[300px]">
                 {course.anh_dai_dien ? (
-                  <img src={course.anh_dai_dien} alt={course.tieu_de} className="h-full w-full object-cover" />
+                  <img src={course.anh_dai_dien} alt={course.tieu_de} className="w-full h-auto object-contain" />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-600 to-indigo-700">
                     <BookOpen className="h-16 w-16 text-white/45" />
@@ -227,7 +227,7 @@ export default function CourseDetailPage() {
             <div className="flex min-w-0 flex-col">
               <div className="mb-4 flex flex-wrap items-center gap-3">
                 <span className="rounded-md bg-blue-600 px-3 py-1 text-xs font-black text-white">
-                  ID: {course.id}
+                  Khóa học chuyên sâu
                 </span>
                 <span className="rounded-md bg-slate-100 px-3 py-1 text-xs font-black uppercase tracking-widest text-slate-700 ring-1 ring-slate-200">
                   {level}

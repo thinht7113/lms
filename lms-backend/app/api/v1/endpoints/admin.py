@@ -33,6 +33,12 @@ class PendingCourse(BaseModel):
     tieu_de: str
     giang_vien: str
 
+class PendingRefund(BaseModel):
+    id: int
+    nguoi_yeu_cau: str
+    so_tien: float
+    ngay_yeu_cau: datetime
+
 class TopCourse(BaseModel):
     id: int
     tieu_de: str
@@ -57,6 +63,7 @@ class SystemStats(BaseModel):
     completion_rate: float
     chart_data: List[ChartDataPoint]
     pending_courses: List[PendingCourse]
+    pending_refunds: List[PendingRefund]
     top_courses: List[TopCourse]
     recent_activities: List[RecentActivity]
 
@@ -176,6 +183,23 @@ async def get_system_stats(
         } for c in pending_courses
     ]
 
+    # Yêu cầu hoàn tiền chờ xử lý
+    pending_refunds_res = await db.execute(
+        select(Order)
+        .options(selectinload(Order.nguoi_dung))
+        .where(Order.trang_thai == "refund_requested")
+        .limit(5)
+    )
+    pending_refunds = pending_refunds_res.scalars().all()
+    pending_refunds_mapped = [
+        {
+            "id": o.id, 
+            "nguoi_yeu_cau": o.nguoi_dung.ho_ten if o.nguoi_dung else "Khách hàng",
+            "so_tien": float(o.tong_tien),
+            "ngay_yeu_cau": o.ngay_tao
+        } for o in pending_refunds
+    ]
+
     # Hoạt động gần đây
     recent_activities_res = await db.execute(select(AdminLog).options(selectinload(AdminLog.admin)).order_by(AdminLog.id.desc()).limit(5))
     recent_activities = recent_activities_res.scalars().all()
@@ -241,6 +265,7 @@ async def get_system_stats(
         completion_rate=completion_rate,
         chart_data=chart_data,
         pending_courses=pending_courses_mapped,
+        pending_refunds=pending_refunds_mapped,
         top_courses=top_courses_mapped,
         recent_activities=recent_activities_mapped
     )

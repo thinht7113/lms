@@ -132,7 +132,7 @@ function CoursesContent() {
     id: c.id,
     title: c.tieu_de,
     thumbnail: c.anh_dai_dien,
-    instructor: `Giảng viên ID: ${c.ma_giang_vien || 1}`,
+    instructor: "Giảng viên chuyên gia",
     category: dbCategories.find(cat => cat.id === c.ma_danh_muc)?.ten_danh_muc || "Lập trình",
     level: c.trinh_do,
     rating: Number(c.danh_gia_trung_binh) || 5.0,

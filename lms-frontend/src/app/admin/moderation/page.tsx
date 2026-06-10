@@ -3,10 +3,12 @@
 import React, { useState, useEffect } from "react";
 import { CheckCircle2, XCircle, Search, RefreshCw, Eye, AlertCircle, FileText } from "lucide-react";
 import { Course, apiService, fetchWithAuth } from "@/services/api";
+import { useToast } from "@/contexts/ToastContext";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
 export default function ModerationPage() {
+    const { success, error, info } = useToast();
     const [pendingCourses, setPendingCourses] = useState<Course[]>([]);
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -38,7 +40,6 @@ export default function ModerationPage() {
 
     const handleApprove = async () => {
         if (!selectedCourse) return;
-        if (!confirm("Bạn có chắc chắn phê duyệt khóa học này để xuất bản công khai?")) return;
         
         setActionLoading(true);
         try {
@@ -47,10 +48,10 @@ export default function ModerationPage() {
             });
             if (!res.ok) throw new Error("Lỗi khi phê duyệt");
             
-            alert("Phê duyệt thành công!");
+            success("Phê duyệt thành công!");
             fetchPendingCourses();
         } catch (err: any) {
-            alert(err.message || "Có lỗi xảy ra");
+            error(err.message || "Có lỗi xảy ra");
         } finally {
             setActionLoading(false);
         }
@@ -59,7 +60,7 @@ export default function ModerationPage() {
     const handleReject = async () => {
         if (!selectedCourse) return;
         if (!rejectReason.trim()) {
-            alert("Vui lòng nhập lý do từ chối để giảng viên khắc phục.");
+            info("Vui lòng nhập lý do từ chối để giảng viên khắc phục.");
             return;
         }
         
@@ -71,12 +72,12 @@ export default function ModerationPage() {
             });
             if (!res.ok) throw new Error("Lỗi khi từ chối");
             
-            alert("Đã từ chối khóa học.");
+            success("Đã từ chối khóa học.");
             setShowRejectForm(false);
             setRejectReason("");
             fetchPendingCourses();
         } catch (err: any) {
-            alert(err.message || "Có lỗi xảy ra");
+            error(err.message || "Có lỗi xảy ra");
         } finally {
             setActionLoading(false);
         }

@@ -46,7 +46,7 @@ class CategoryResponse(BaseModel):
 
 # ==================== LESSON CONTENT SCHEMAS ====================
 class LessonContentCreate(BaseModel):
-    ma_bai_hoc: int = Field(..., description="ID Bài học")
+    ma_bai_hoc: Optional[int] = Field(None, description="ID Bài học")
     loai_noi_dung: str = Field(..., description="Loại: video, pdf, text, code, image")
     noi_dung_text: Optional[str] = Field(None, description="Mã HTML/Markdown dài")
     duong_dan_file: Optional[str] = Field(None, description="Link file nếu có")

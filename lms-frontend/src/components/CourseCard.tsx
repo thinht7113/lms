@@ -46,7 +46,7 @@ export default function CourseCard({
       className="group bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl hover:border-primary/20 transition-all duration-500 flex flex-col h-full cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
     >
       {/* Media Block */}
-      <div className="relative h-48 w-full overflow-hidden bg-slate-100">
+      <div className="relative aspect-video w-full overflow-hidden bg-slate-50 flex items-center justify-center">
         {thumbnail ? (
           <Image
             src={thumbnail}
@@ -54,7 +54,7 @@ export default function CourseCard({
             fill
             unoptimized
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className="object-cover group-hover:scale-110 transition-transform duration-700"
+            className="object-contain p-1 group-hover:scale-105 transition-transform duration-700"
           />
         ) : (
           <div className={`absolute inset-0 bg-gradient-to-br ${gradient} flex items-center justify-center p-8`}>

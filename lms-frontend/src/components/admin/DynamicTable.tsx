@@ -95,7 +95,6 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
     }, [fetchData]);
 
     const handleDelete = async (id: number) => {
-        if (!confirm("Bạn có chắc chắn muốn xóa bản ghi này?")) return;
         try {
             const res = await fetchWithAuth(`${API_BASE_URL}${endpoint}/${id}`, {
                 method: "DELETE"

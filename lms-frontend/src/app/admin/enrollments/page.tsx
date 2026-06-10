@@ -101,8 +101,6 @@ export default function AdminEnrollmentsPage() {
   };
 
   const handleDelete = async (enrollment: Enrollment) => {
-    if (!confirm("Bạn muốn thu hồi quyền học này?")) return;
-
     try {
       await apiService.deleteAdminEnrollment(enrollment.id);
       setEnrollments((previous) => previous.filter((item) => item.id !== enrollment.id));

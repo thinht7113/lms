@@ -60,9 +60,7 @@ export default function InstructorCoursesPage() {
         <div className="relative z-10">
           <p className="text-xs font-black uppercase tracking-widest text-purple-600">Quản lý học liệu</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight">Khóa học của tôi</h1>
-          <p className="mt-2 max-w-2xl text-sm font-medium text-slate-500">
-            Tạo khóa học, xây dựng chương học, thêm bài học multimedia và gửi admin duyệt trước khi công khai.
-          </p>
+
         </div>
         <Link
           href="/instructor/courses/create"

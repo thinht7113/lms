@@ -94,7 +94,6 @@ export default function InstructorCourseSectionsPage() {
           <div>
             <p className="text-xs font-black uppercase tracking-widest text-purple-600">Biên soạn khóa học</p>
             <h1 className="text-3xl font-black tracking-tight text-slate-950">{course?.tieu_de || "Khóa học"}</h1>
-            <p className="mt-1 text-sm font-medium text-slate-500">Mỗi khóa học gồm nhiều chương, mỗi chương gồm nhiều bài học multimedia.</p>
           </div>
         </div>
         <Link href={`/instructor/courses/${courseId}/edit`} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-purple-50 px-5 py-3 text-sm font-black text-purple-700 hover:bg-purple-100">

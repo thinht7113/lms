@@ -9,6 +9,7 @@ from app.models.log import AdminLog
 from app.models.setting import Setting
 from app.models.banner import Banner
 from app.models.payout import PayoutRequest
+from app.models.notification import Notification
 
 # Gom toàn bộ các ORM models lại để import tập trung dễ dàng
 __all__ = [
@@ -36,6 +37,7 @@ __all__ = [
     "AdminLog",
     "Banner",
     "Setting",
-    "PayoutRequest"
+    "PayoutRequest",
+    "Notification"
 ]
 

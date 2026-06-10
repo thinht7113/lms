@@ -18,6 +18,10 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { apiService, CourseDetail, CourseProgress, Lesson, LessonContent } from "@/services/api";
+import dynamic from 'next/dynamic';
+
+const PdfViewer = dynamic(() => import('@/components/PdfViewer'), { ssr: false });
+
 
 const normalizeContentType = (value?: string) => (value || "").toLowerCase();
 
@@ -210,24 +214,8 @@ export default function LearnSpacePage() {
     if (type === "pdf") {
       return (
         <div key={content.id || index} className="my-10">
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-3 text-sm font-semibold text-slate-800">
-              <FileText className="h-5 w-5 text-blue-600" />
-              Tài liệu PDF
-            </div>
-            {content.duong_dan_file && (
-              <a
-                href={content.duong_dan_file}
-                download
-                className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-blue-600 hover:text-blue-600"
-              >
-                <Download className="h-4 w-4" />
-                Tải xuống
-              </a>
-            )}
-          </div>
           {content.duong_dan_file ? (
-            <iframe src={`${content.duong_dan_file}#toolbar=0`} className="h-[72vh] w-full rounded-2xl bg-white" />
+            <PdfViewer url={content.duong_dan_file} />
           ) : (
             <EmptyContent icon={<FileText className="h-10 w-10" />} title="Bài học chưa có tài liệu PDF." />
           )}
@@ -273,9 +261,10 @@ export default function LearnSpacePage() {
         {index > 0 && title !== "TEXT" && (
           <p className="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-blue-600">{title}</p>
         )}
-        <div className="whitespace-pre-line text-[17px] leading-9 text-slate-700">
-          {content.noi_dung_text || "Bài đọc hiện chưa có nội dung văn bản cụ thể."}
-        </div>
+        <div 
+          className="text-[17px] leading-9 text-slate-700"
+          dangerouslySetInnerHTML={{ __html: content.noi_dung_text || "Bài đọc hiện chưa có nội dung văn bản cụ thể." }}
+        />
       </div>
     );
   };

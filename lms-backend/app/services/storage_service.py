@@ -117,6 +117,10 @@ class StorageService:
                                                 Params={'Bucket': bucket,
                                                         'Key': object_key},
                                                 ExpiresIn=expiration)
+            # The S3 client generates URLs using MINIO_ENDPOINT_URL (Docker internal: http://minio:9000).
+            # Replace with MINIO_PUBLIC_URL so the URL is accessible from the host/browser.
+            internal_base = settings.MINIO_ENDPOINT_URL.rstrip('/')
+            response = response.replace(internal_base, public_base)
             return response
         except Exception as e:
             print(f"Error generating presigned url: {e}")
