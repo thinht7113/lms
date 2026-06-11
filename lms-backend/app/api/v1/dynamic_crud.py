@@ -13,7 +13,8 @@ def create_crud_router(
     update_schema: Type[BaseModel],
     prefix: str,
     tags: List[str],
-    search_columns: List[str] = None
+    search_columns: List[str] = None,
+    options: List[Any] = None
 ) -> APIRouter:
     router = APIRouter(prefix=prefix, tags=tags)
 
@@ -28,6 +29,8 @@ def create_crud_router(
         current_admin: User = Depends(get_current_admin_user)
     ):
         query = select(model)
+        if options:
+            query = query.options(*options)
         count_query = select(func.count()).select_from(model)
 
         if filter_col and filter_val and hasattr(model, filter_col):
@@ -77,7 +80,10 @@ def create_crud_router(
         db: AsyncSession = Depends(get_db),
         current_admin: User = Depends(get_current_admin_user)
     ):
-        result = await db.execute(select(model).where(model.id == item_id))
+        q = select(model).where(model.id == item_id)
+        if options:
+            q = q.options(*options)
+        result = await db.execute(q)
         item = result.scalars().first()
         if not item:
             raise HTTPException(status_code=404, detail="Item not found")
@@ -102,6 +108,9 @@ def create_crud_router(
         db.add(db_item)
         await db.commit()
         await db.refresh(db_item)
+        if model.__name__ == "Category":
+            from app.core.redis import clear_categories_cache
+            await clear_categories_cache()
         return db_item
 
     @router.put("/{item_id}", response_model=response_schema)
@@ -130,6 +139,9 @@ def create_crud_router(
 
         await db.commit()
         await db.refresh(db_item)
+        if model.__name__ == "Category":
+            from app.core.redis import clear_categories_cache
+            await clear_categories_cache()
         return db_item
 
     @router.delete("/{item_id}")
@@ -145,6 +157,9 @@ def create_crud_router(
             
         await db.delete(db_item)
         await db.commit()
+        if model.__name__ == "Category":
+            from app.core.redis import clear_categories_cache
+            await clear_categories_cache()
         return {"status": "success", "message": "Deleted successfully"}
 
     return router

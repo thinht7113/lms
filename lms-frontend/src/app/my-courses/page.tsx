@@ -55,45 +55,12 @@ export default function MyCoursesPage() {
     async function loadData() {
       setLoading(true);
       try {
-        const enrolledCourses = await apiService.getMyEnrolledCourses();
-        setCourses(enrolledCourses);
-
-        const [progressList, quizzesList] = await Promise.all([
-          Promise.all(
-            enrolledCourses.map(async (course) => {
-              try {
-                const progress = await apiService.getCourseProgress(course.id);
-                return { courseId: course.id, progress };
-              } catch {
-                return { courseId: course.id, progress: emptyProgress(course.id) };
-              }
-            })
-          ),
-          Promise.all(
-            enrolledCourses.map(async (course) => {
-              try {
-                const quizzes = await apiService.getCourseQuizzes(course.id);
-                return { courseId: course.id, quizzes };
-              } catch {
-                return { courseId: course.id, quizzes: [] };
-              }
-            })
-          )
-        ]);
-
-        setProgressMap(
-          progressList.reduce<Record<number, CourseProgress>>((acc, item) => {
-            acc[item.courseId] = item.progress;
-            return acc;
-          }, {})
-        );
-
-        setQuizzesMap(
-          quizzesList.reduce<Record<number, Quiz[]>>((acc, item) => {
-            acc[item.courseId] = item.quizzes;
-            return acc;
-          }, {})
-        );
+        const dashboard = await apiService.getMyDashboard();
+        setCourses(dashboard.courses || []);
+        setProgressMap(dashboard.progress_map || {});
+        setQuizzesMap(dashboard.quizzes_map || {});
+      } catch (err) {
+        console.error("Failed to load dashboard data:", err);
       } finally {
         setLoading(false);
       }

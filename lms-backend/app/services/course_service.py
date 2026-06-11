@@ -32,6 +32,52 @@ class CourseService:
         result = await db.execute(select(Category))
         return list(result.scalars().all())
 
+    @staticmethod
+    async def get_categories_with_counts(db: AsyncSession) -> list:
+        """Trả về danh mục kèm số lượng khóa học đã xuất bản (tính bằng SQL COUNT)."""
+        result = await db.execute(
+            select(
+                Category.id,
+                Category.ten_danh_muc,
+                Category.mo_ta,
+                func.count(Course.id).label("course_count")
+            )
+            .outerjoin(Course, and_(
+                Course.ma_danh_muc == Category.id,
+                Course.da_xuat_ban == True,
+                Course.trang_thai_phe_duyet == "approved"
+            ))
+            .group_by(Category.id)
+        )
+        rows = result.all()
+        return [
+            {
+                "id": row.id,
+                "ten_danh_muc": row.ten_danh_muc,
+                "mo_ta": row.mo_ta,
+                "course_count": row.course_count,
+            }
+            for row in rows
+        ]
+
+    @staticmethod
+    async def get_featured_courses(db: AsyncSession, limit: int = 8) -> dict:
+        """Trả về 3 nhóm khóa học nổi bật trong 1 lần truy vấn batch: phổ biến, giá tốt, mới nhất."""
+        popular = await CourseService.get_courses(
+            db, limit=limit, sort_by="so_luong_hoc_vien", order="desc"
+        )
+        affordable = await CourseService.get_courses(
+            db, limit=limit, min_price=Decimal("0.01"), sort_by="gia_tien", order="asc"
+        )
+        newest = await CourseService.get_courses(
+            db, limit=limit, sort_by="ngay_tao", order="desc"
+        )
+        return {
+            "popular": popular,
+            "affordable": affordable,
+            "newest": newest,
+        }
+
     # ==================== COURSE SERVICES ====================
     @staticmethod
     async def create_course(db: AsyncSession, course_in: CourseCreate, instructor_id: int) -> Course:
@@ -178,12 +224,28 @@ class CourseService:
             )
 
         update_data = course_in.model_dump(exclude_unset=True)
+        old_price = course.gia_tien
+
         for field, value in update_data.items():
             setattr(course, field, value)
 
         db.add(course)
         await db.commit()
         await db.refresh(course)
+
+        if "gia_tien" in update_data and old_price is not None and Decimal(update_data["gia_tien"]) != Decimal(old_price):
+            from app.models.notification import Notification
+            from app.models.course import Wishlist
+            wishlist_res = await db.execute(select(Wishlist).where(Wishlist.ma_khoa_hoc == course_id))
+            for w in wishlist_res.scalars().all():
+                db.add(Notification(
+                    ma_nguoi_dung=w.ma_nguoi_dung,
+                    tieu_de="Khóa học yêu thích thay đổi giá!",
+                    noi_dung=f"Khóa học '{course.tieu_de}' mà bạn lưu trong Wishlist vừa được cập nhật giá. Cơ hội tuyệt vời để bắt đầu học ngay!",
+                    loai="course"
+                ))
+            await db.commit()
+
         return course
 
     # ==================== SECTION SERVICES ====================

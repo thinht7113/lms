@@ -36,8 +36,7 @@ export default function InstructorReviewsPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight">Đánh giá & Phản hồi</h1>
-                <p className="text-sm font-medium text-slate-500">Lắng nghe ý kiến của học viên để cải thiện chất lượng bài giảng.</p>
+                <h1 className="text-2xl font-black text-slate-900 tracking-tight">Đánh giá</h1>
             </div>
 
             <div className="grid grid-cols-1 gap-6">
@@ -47,9 +46,9 @@ export default function InstructorReviewsPage() {
                             <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
                                 <div className="flex gap-4 flex-1">
                                     <div className="w-12 h-12 rounded-2xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200 shadow-inner">
-                                        <img 
-                                            src={r.nguoi_dung?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${r.nguoi_dung?.ho_ten}`} 
-                                            alt={r.nguoi_dung?.ho_ten} 
+                                        <img
+                                            src={r.nguoi_dung?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${r.nguoi_dung?.ho_ten}`}
+                                            alt={r.nguoi_dung?.ho_ten}
                                             className="w-full h-full object-cover"
                                         />
                                     </div>
@@ -78,7 +77,7 @@ export default function InstructorReviewsPage() {
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div className="flex md:flex-col gap-2">
                                     <Link href={`/instructor/courses/${r.ma_khoa_hoc}/students`} className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-950 text-white text-xs font-black uppercase tracking-widest hover:bg-purple-600 transition-all">
                                         <MessageSquare className="w-3.5 h-3.5" />

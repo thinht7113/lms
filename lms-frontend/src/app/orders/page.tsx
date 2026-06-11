@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CreditCard, RefreshCw, RotateCcw, ShoppingBag } from "lucide-react";
+import { AlertTriangle, CreditCard, RefreshCw, RotateCcw, ShoppingBag, X } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { apiService, Order, tokenHelper } from "@/services/api";
@@ -27,6 +27,8 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<number | null>(null);
+  const [confirmRefundId, setConfirmRefundId] = useState<number | null>(null);
+  const [confirmCancelRefundId, setConfirmCancelRefundId] = useState<number | null>(null);
 
   async function loadOrders() {
     setLoading(true);
@@ -45,10 +47,26 @@ export default function OrdersPage() {
     loadOrders();
   }, [router]);
 
+  useEffect(() => {
+    if (confirmRefundId !== null || confirmCancelRefundId !== null) {
+      document.body.style.overflow = "hidden";
+      document.documentElement.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+    };
+  }, [confirmRefundId, confirmCancelRefundId]);
+
   const paidOrders = useMemo(() => orders.filter((order) => order.trang_thai === "success").length, [orders]);
 
-  const handleRefund = async (orderId: number) => {
-    if (!confirm("Bạn muốn gửi yêu cầu hoàn tiền cho đơn hàng này?")) return;
+  const confirmRefund = async () => {
+    if (confirmRefundId === null) return;
+    const orderId = confirmRefundId;
+    setConfirmRefundId(null);
     setProcessingId(orderId);
     try {
       const updated = await apiService.requestRefund(orderId);
@@ -56,6 +74,22 @@ export default function OrdersPage() {
       toast.success("Đã gửi yêu cầu hoàn tiền");
     } catch (err: any) {
       toast.error(err.message || "Không thể gửi yêu cầu hoàn tiền");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const confirmCancelRefund = async () => {
+    if (confirmCancelRefundId === null) return;
+    const orderId = confirmCancelRefundId;
+    setConfirmCancelRefundId(null);
+    setProcessingId(orderId);
+    try {
+      const updated = await apiService.cancelRefund(orderId);
+      setOrders((prev) => prev.map((order) => order.id === orderId ? updated : order));
+      toast.success("Đã hủy yêu cầu hoàn tiền");
+    } catch (err: any) {
+      toast.error(err.message || "Không thể hủy yêu cầu hoàn tiền");
     } finally {
       setProcessingId(null);
     }
@@ -130,11 +164,20 @@ export default function OrdersPage() {
                       <p className="mt-1 text-2xl font-black text-slate-950">{formatMoney(order.tong_tien)}</p>
                       {order.trang_thai === "success" && (
                         <button
-                          onClick={() => handleRefund(order.id)}
+                          onClick={() => setConfirmRefundId(order.id)}
                           disabled={processingId === order.id}
                           className="mt-4 inline-flex rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-black uppercase tracking-widest text-amber-700 hover:bg-amber-100 disabled:opacity-50"
                         >
                           {processingId === order.id ? "Đang gửi..." : "Yêu cầu hoàn tiền"}
+                        </button>
+                      )}
+                      {order.trang_thai === "refund_requested" && (
+                        <button
+                          onClick={() => setConfirmCancelRefundId(order.id)}
+                          disabled={processingId === order.id}
+                          className="mt-4 inline-flex rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-black uppercase tracking-widest text-rose-700 hover:bg-rose-100 disabled:opacity-50 transition-colors"
+                        >
+                          {processingId === order.id ? "Đang hủy..." : "Hủy yêu cầu hoàn tiền"}
                         </button>
                       )}
                     </div>
@@ -146,6 +189,92 @@ export default function OrdersPage() {
         </div>
       </main>
       <Footer />
+
+      {confirmRefundId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md bg-white rounded-[2rem] border border-slate-200 shadow-2xl p-8 text-center animate-in zoom-in-95 duration-200">
+            {/* Close Button */}
+            <button
+              onClick={() => setConfirmRefundId(null)}
+              className="absolute top-6 right-6 rounded-xl border border-slate-200 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors"
+            >
+              <span className="sr-only">Đóng</span>
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Warning Icon */}
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 text-amber-500 mb-6 mt-2">
+              <AlertTriangle className="h-8 w-8" />
+            </div>
+
+            <h3 className="text-xl font-black text-slate-950 tracking-tight">
+              Yêu cầu hoàn tiền
+            </h3>
+            
+            <p className="mt-3 text-sm font-semibold text-slate-500 leading-relaxed px-2">
+              Bạn có chắc chắn muốn gửi yêu cầu hoàn tiền cho đơn hàng này không?
+            </p>
+
+            <div className="mt-8 flex gap-3">
+              <button
+                onClick={() => setConfirmRefundId(null)}
+                className="flex-1 rounded-2xl border border-slate-200 px-5 py-3.5 text-sm font-black text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={confirmRefund}
+                className="flex-1 rounded-2xl bg-amber-600 px-5 py-3.5 text-sm font-black text-white hover:bg-amber-700 shadow-lg shadow-amber-600/20 hover:shadow-amber-600/30 transition-all"
+              >
+                Xác nhận
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmCancelRefundId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md bg-white rounded-[2rem] border border-slate-200 shadow-2xl p-8 text-center animate-in zoom-in-95 duration-200">
+            {/* Close Button */}
+            <button
+              onClick={() => setConfirmCancelRefundId(null)}
+              className="absolute top-6 right-6 rounded-xl border border-slate-200 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors"
+            >
+              <span className="sr-only">Đóng</span>
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Warning Icon */}
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-50 text-rose-500 mb-6 mt-2">
+              <AlertTriangle className="h-8 w-8" />
+            </div>
+
+            <h3 className="text-xl font-black text-slate-950 tracking-tight">
+              Hủy yêu cầu hoàn tiền
+            </h3>
+            
+            <p className="mt-3 text-sm font-semibold text-slate-500 leading-relaxed px-2">
+              Bạn có chắc chắn muốn hủy yêu cầu hoàn tiền cho đơn hàng này? Sau khi hủy, đơn hàng sẽ tiếp tục trạng thái hoạt động bình thường.
+            </p>
+
+            <div className="mt-8 flex gap-3">
+              <button
+                onClick={() => setConfirmCancelRefundId(null)}
+                className="flex-1 rounded-2xl border border-slate-200 px-5 py-3.5 text-sm font-black text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                onClick={confirmCancelRefund}
+                className="flex-1 rounded-2xl bg-rose-600 px-5 py-3.5 text-sm font-black text-white hover:bg-rose-700 shadow-lg shadow-rose-600/20 hover:shadow-rose-600/30 transition-all"
+              >
+                Đồng ý hủy
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

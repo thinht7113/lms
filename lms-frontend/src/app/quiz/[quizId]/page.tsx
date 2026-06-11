@@ -7,6 +7,7 @@ import { Clock, CheckSquare, Flag, ArrowRight, AlertCircle, RefreshCw, ChevronRi
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { apiService, QuizDetail, QuizAttempt } from "@/services/api";
+import { useToast } from "@/contexts/ToastContext";
 
 export default function TakeQuizPage() {
   const params = useParams();
@@ -25,6 +26,10 @@ export default function TakeQuizPage() {
   const [flags, setFlags] = useState<Record<number, boolean>>({}); // question_id -> isFlagged
   const [activeQuestionIdx, setActiveQuestionIdx] = useState(0);
   const [timeLeft, setTimeLeft] = useState<number | null>(null); // in seconds
+  const [endTime, setEndTime] = useState<number | null>(null);
+
+  const toast = useToast();
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   useEffect(() => {
     const currentQuizId = quizId;
@@ -51,10 +56,17 @@ export default function TakeQuizPage() {
           setAnswers(mapped);
         }
 
-        // Calculate initial countdown timer
+        // Calculate initial countdown timer & endTime
         if (quizDetail.thoi_gian_lam_bai) {
-          const startTime = new Date(activeAttempt.ngay_bat_dau || new Date()).getTime();
+          let startStr = activeAttempt.ngay_bat_dau;
+          if (startStr && !startStr.endsWith("Z") && !startStr.includes("+") && !startStr.split("T")[1]?.includes("-")) {
+            startStr = `${startStr}Z`;
+          }
+          const startTime = new Date(startStr || new Date()).getTime();
           const limitMs = quizDetail.thoi_gian_lam_bai * 60 * 1000;
+          const computedEndTime = startTime + limitMs;
+          setEndTime(computedEndTime);
+
           const elapsedMs = Date.now() - startTime;
           const remainingSecs = Math.max(0, Math.floor((limitMs - elapsedMs) / 1000));
           setTimeLeft(remainingSecs);
@@ -69,25 +81,27 @@ export default function TakeQuizPage() {
     initializeQuiz();
   }, [quizId]);
 
-  // Countdown timer logic
+  // Countdown timer logic (absolute time difference calculation)
   useEffect(() => {
-    if (timeLeft === null || timeLeft <= 0 || submitting) return;
+    if (endTime === null || submitting) return;
 
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev === null) return null;
-        if (prev <= 1) {
-          clearInterval(timer);
-          // Auto submit when timeout
-          handleAutoSubmit();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    const updateTimer = () => {
+      const remainingSecs = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
+      setTimeLeft(remainingSecs);
+      
+      if (remainingSecs <= 0) {
+        clearInterval(timer);
+        handleAutoSubmit();
+      }
+    };
+
+    // Run once immediately
+    updateTimer();
+
+    const timer = setInterval(updateTimer, 1000);
 
     return () => clearInterval(timer);
-  }, [timeLeft, submitting]);
+  }, [endTime, submitting]);
 
   const handleSelectOption = (questionId: number, optionId: number) => {
     setAnswers((prev) => ({
@@ -109,12 +123,12 @@ export default function TakeQuizPage() {
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   };
 
-  const handleSubmit = async (isAuto = false) => {
+  const handleSubmit = async (isAuto = false, skipConfirm = false) => {
     if (!quiz || !attempt || submitting) return;
 
-    if (!isAuto && Object.keys(answers).length < (quiz.cau_hoi?.length || 0)) {
-      const confirmSubmit = window.confirm("Bạn chưa trả lời hết các câu hỏi. Bạn vẫn muốn nộp bài chứ?");
-      if (!confirmSubmit) return;
+    if (!isAuto && !skipConfirm && Object.keys(answers).length < (quiz.cau_hoi?.length || 0)) {
+      setShowConfirmModal(true);
+      return;
     }
 
     setSubmitting(true);
@@ -125,17 +139,16 @@ export default function TakeQuizPage() {
       }));
 
       const res = await apiService.submitQuiz(quiz.id, attempt.id, payloadAnswers);
-      alert(`Nộp bài thành công! Điểm số đạt được: ${res.score} / 10.`);
       router.push(`/quiz/${quiz.id}/review?attempt_id=${res.attempt_id}`);
     } catch (err: any) {
-      alert(err.message || "Không thể nộp bài thi.");
+      toast.error(err.message || "Không thể nộp bài thi.");
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleAutoSubmit = () => {
-    alert("Đã hết thời gian làm bài! Hệ thống tự động nộp bài thi của bạn.");
+    toast.info("Đã hết thời gian làm bài! Hệ thống tự động nộp bài thi của bạn.");
     handleSubmit(true);
   };
 
@@ -143,8 +156,58 @@ export default function TakeQuizPage() {
     return (
       <>
         <Navbar />
-        <main className="flex justify-center items-center h-screen bg-background">
-          <RefreshCw className="h-10 w-10 text-primary animate-spin" />
+        <main className="min-h-screen bg-slate-50 pt-28 pb-20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
+              {/* Left Column Skeleton */}
+              <div className="lg:col-span-3 space-y-8">
+                {/* Header Skeleton */}
+                <div className="p-6 bg-card border border-border/60 rounded-[1.5rem] shadow-sm flex justify-between items-center animate-pulse">
+                  <div className="space-y-2.5 w-2/3">
+                    <div className="h-6 bg-slate-200 rounded-md w-3/4"></div>
+                    <div className="h-3 bg-slate-200 rounded-md w-1/2"></div>
+                  </div>
+                  <div className="h-10 bg-slate-200 rounded-xl w-32"></div>
+                </div>
+
+                {/* Card Skeleton */}
+                <div className="bg-card text-card-foreground border border-border/60 rounded-[2rem] p-8 sm:p-10 shadow-2xl space-y-8 animate-pulse">
+                  <div className="flex justify-between items-center">
+                    <div className="h-7 bg-slate-200 rounded-lg w-28"></div>
+                    <div className="h-7 bg-slate-200 rounded-lg w-32"></div>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="h-5 bg-slate-200 rounded-md w-11/12"></div>
+                    <div className="h-5 bg-slate-200 rounded-md w-4/5"></div>
+                  </div>
+                  <div className="space-y-3 pt-4">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="h-16 bg-slate-100 rounded-2xl border border-slate-200/40 w-full"></div>
+                    ))}
+                  </div>
+                  <div className="flex justify-between items-center border-t border-border/40 pt-6 mt-8">
+                    <div className="h-10 bg-slate-200 rounded-xl w-32"></div>
+                    <div className="h-10 bg-slate-200 rounded-xl w-32"></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column Skeleton */}
+              <aside className="lg:col-span-1 space-y-6">
+                <div className="bg-card text-card-foreground border border-border/60 rounded-[2rem] p-6 shadow-sm space-y-6 animate-pulse">
+                  <div className="h-5 bg-slate-200 rounded-md w-1/2"></div>
+                  <div className="grid grid-cols-4 gap-3">
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <div key={i} className="aspect-square bg-slate-100 rounded-xl border border-slate-200/40"></div>
+                    ))}
+                  </div>
+                  <div className="pt-4 border-t border-border/40">
+                    <div className="h-14 bg-slate-200 rounded-2xl w-full"></div>
+                  </div>
+                </div>
+              </aside>
+            </div>
+          </div>
         </main>
       </>
     );
@@ -326,6 +389,42 @@ export default function TakeQuizPage() {
             </aside>
             </div>
         </div>
+
+        {/* Custom Confirm Modal */}
+        {showConfirmModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="bg-card text-card-foreground border border-border/80 rounded-[2.5rem] p-10 text-center max-w-md w-full space-y-6 shadow-2xl animate-in zoom-in-95 duration-300">
+              <div className="mx-auto bg-amber-500/10 text-amber-500 p-5 rounded-full w-20 h-20 flex items-center justify-center shadow-inner">
+                 <AlertCircle className="h-10 w-10 text-amber-500 animate-pulse" />
+              </div>
+              
+              <div className="space-y-2">
+                <h2 className="text-2xl font-black text-foreground tracking-tighter">Bạn chưa trả lời hết các câu hỏi!</h2>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest leading-relaxed">
+                  Bạn còn { (quiz?.cau_hoi?.length || 0) - Object.keys(answers).length } câu hỏi chưa trả lời. Bạn vẫn muốn nộp bài chứ?
+                </p>
+              </div>
+              
+              <div className="flex space-x-4 pt-4">
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  className="w-1/2 bg-secondary hover:bg-secondary/80 text-foreground font-black py-4 rounded-2xl transition-all text-xs uppercase tracking-widest cursor-pointer border border-border/60"
+                >
+                  Làm tiếp
+                </button>
+                <button
+                  onClick={() => {
+                    setShowConfirmModal(false);
+                    handleSubmit(false, true);
+                  }}
+                  className="w-1/2 bg-primary hover:bg-blue-700 text-white font-black py-4 rounded-2xl shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all text-xs uppercase tracking-widest cursor-pointer"
+                >
+                  Nộp bài
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
 
       <Footer />

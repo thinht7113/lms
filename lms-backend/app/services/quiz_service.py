@@ -8,7 +8,7 @@ from app.models.user import User
 from app.schemas.quiz import QuizCreate, QuestionCreate, QuizSubmitRequest
 from typing import List, Optional
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, timezone
 
 class QuizService:
     @staticmethod
@@ -110,6 +110,25 @@ class QuizService:
                     detail="Bạn phải đăng ký khóa học này mới được xem bài kiểm tra."
                 )
 
+        # Lấy các attempts của người dùng này cho bài quiz này
+        attempts_res = await db.execute(
+            select(QuizAttempt).where(
+                and_(
+                    QuizAttempt.ma_nguoi_dung == user_id,
+                    QuizAttempt.ma_bai_kiem_tra == quiz_id,
+                    QuizAttempt.trang_thai == "completed"
+                )
+            )
+        )
+        q_attempts = list(attempts_res.scalars().all())
+        quiz.attempts_count = len(q_attempts)
+        if q_attempts:
+            quiz.highest_score = max(att.diem_dat_duoc for att in q_attempts)
+            quiz.passed = any(att.da_qua_mon for att in q_attempts)
+        else:
+            quiz.highest_score = None
+            quiz.passed = False
+
         # Trả về quiz. Ta sẽ ẩn đáp án đúng trong các API endpoint bằng cách chuyển đổi options
         return quiz
 
@@ -139,7 +158,40 @@ class QuizService:
             .options(selectinload(Quiz.khoa_hoc), selectinload(Quiz.cau_hoi).selectinload(Question.lua_chon_cau_hoi))
             .where(Quiz.ma_khoa_hoc == course_id)
         )
-        return list(result.scalars().all())
+        quizzes = list(result.scalars().all())
+
+        # Lấy các attempts của người dùng này cho các bài quiz này
+        quiz_ids = [q.id for q in quizzes]
+        if quiz_ids:
+            attempts_res = await db.execute(
+                select(QuizAttempt).where(
+                    and_(
+                        QuizAttempt.ma_nguoi_dung == user_id,
+                        QuizAttempt.ma_bai_kiem_tra.in_(quiz_ids),
+                        QuizAttempt.trang_thai == "completed"
+                    )
+                )
+            )
+            attempts = list(attempts_res.scalars().all())
+        else:
+            attempts = []
+
+        from collections import defaultdict
+        attempts_by_quiz = defaultdict(list)
+        for att in attempts:
+            attempts_by_quiz[att.ma_bai_kiem_tra].append(att)
+
+        for quiz in quizzes:
+            q_attempts = attempts_by_quiz[quiz.id]
+            quiz.attempts_count = len(q_attempts)
+            if q_attempts:
+                quiz.highest_score = max(att.diem_dat_duoc for att in q_attempts)
+                quiz.passed = any(att.da_qua_mon for att in q_attempts)
+            else:
+                quiz.highest_score = None
+                quiz.passed = False
+
+        return quizzes
 
     # ==================== QUESTION SERVICES ====================
     @staticmethod
@@ -290,7 +342,7 @@ class QuizService:
             ma_nguoi_dung=user_id,
             ma_bai_kiem_tra=quiz_id,
             trang_thai="started",
-            ngay_bat_dau=datetime.now()
+            ngay_bat_dau=datetime.utcnow()
         )
         db.add(db_attempt)
         await db.commit()
@@ -345,10 +397,12 @@ class QuizService:
             )
 
         # 3. Kiểm tra thời gian làm bài
-        duration = datetime.now() - attempt.ngay_bat_dau
+        duration = datetime.utcnow() - attempt.ngay_bat_dau
         is_timeout = False
         if quiz.thoi_gian_lam_bai and quiz.thoi_gian_lam_bai > 0:
-            if duration.total_seconds() > (quiz.thoi_gian_lam_bai * 60):
+            # Thêm 60 giây thời gian ân hạn (grace period)
+            limit_seconds = (quiz.thoi_gian_lam_bai * 60) + 60
+            if duration.total_seconds() > limit_seconds:
                 is_timeout = True
 
         total_questions = len(quiz.cau_hoi)
@@ -389,7 +443,7 @@ class QuizService:
         attempt.diem_dat_duoc = score
         attempt.da_qua_mon = passed
         attempt.trang_thai = "completed"
-        attempt.ngay_lam_bai = datetime.now()
+        attempt.ngay_lam_bai = datetime.utcnow()
         db.add(attempt)
 
         # 5. Lưu chi tiết các câu trả lời học viên đã chọn
@@ -435,19 +489,27 @@ class QuizService:
             )
             enrollment = enroll_res.scalars().first()
             if enrollment:
-                # Xóa toàn bộ Progress
+                from sqlalchemy import update
+                # Cập nhật tất cả bài học trong tiến độ học tập về chưa hoàn thành (da_hoan_thanh = False)
                 await db.execute(
-                    delete(Progress).where(Progress.ma_dang_ky_hoc == enrollment.id)
+                    update(Progress)
+                    .where(Progress.ma_dang_ky_hoc == enrollment.id)
+                    .values(da_hoan_thanh=False, ngay_hoan_thanh=None)
                 )
-                # Xóa toàn bộ các lượt QuizAttempt cũ (kể cả lượt hiện tại) để giải phóng 3 lượt mới
+                # Lưu trữ các lượt làm bài cũ (đổi trạng thái sang 'archived' thay vì xóa cứng)
                 await db.execute(
-                    delete(QuizAttempt).where(
+                    update(QuizAttempt)
+                    .where(
                         and_(
                             QuizAttempt.ma_nguoi_dung == user_id,
-                            QuizAttempt.ma_bai_kiem_tra == quiz_id
+                            QuizAttempt.ma_bai_kiem_tra == quiz_id,
+                            QuizAttempt.trang_thai == "completed"
                         )
                     )
+                    .values(trang_thai="archived")
                 )
+                # Đổi trạng thái lượt hiện tại sang archived để không tính vào lượt làm mới
+                attempt.trang_thai = "archived"
                 await db.commit()
             
             warning_msg = "Bạn đã thi trượt cả 3 lần. Tiến trình học của bạn đã bị reset về 0%. Vui lòng học lại toàn bộ nội dung khóa học để được thi lại."

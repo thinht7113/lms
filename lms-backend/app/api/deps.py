@@ -37,6 +37,10 @@ async def get_current_user(
     if not auth_token:
         raise credentials_exception
 
+    from app.core.redis import redis_client
+    if await redis_client.get(f"blacklist:{auth_token}"):
+        raise credentials_exception
+
     try:
         # Giải mã mã JWT Token bằng Secret Key
         payload = jwt.decode(
@@ -65,6 +69,11 @@ async def get_current_user_optional(
     auth_token = token or session_token
     if not auth_token:
         return None
+
+    from app.core.redis import redis_client
+    if await redis_client.get(f"blacklist:{auth_token}"):
+        return None
+
     try:
         payload = jwt.decode(
             auth_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]

@@ -89,6 +89,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Nén Gzip response (giảm 60-80% kích thước JSON payload)
+from starlette.middleware.gzip import GZipMiddleware
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
 # Đăng ký V1 API Router hệ thống
 app.include_router(api_router, prefix="/api/v1")
 

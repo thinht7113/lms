@@ -10,7 +10,13 @@ from app.modules.learning.models import Enrollment, Progress
 from app.modules.learning.schemas import ProgressUpdate, ProgressResponse, CourseProgressResponse
 from app.modules.learning.services import CertService
 from app.modules.storage.services import StorageService
-from typing import List
+from typing import List, Dict, Any
+from pydantic import BaseModel
+
+class LearnerDashboardResponse(BaseModel):
+    courses: List[CourseResponse]
+    progress_map: Dict[int, Any]
+    quizzes_map: Dict[int, List[Any]]
 
 router = APIRouter()
 
@@ -30,6 +36,17 @@ async def get_my_courses(
         .where(Enrollment.ma_nguoi_dung == current_user.id)
     )
     return list(result.scalars().all())
+
+@router.get(
+    "/learn/my-dashboard",
+    response_model=LearnerDashboardResponse,
+    summary="Lấy toàn bộ thông tin tiến độ học tập và bài thi trắc nghiệm của học viên để tối ưu hóa dashboard"
+)
+async def get_my_dashboard(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return await CertService.get_user_dashboard(db, current_user.id)
 
 
 # ==================== LESSON LEARNING CONTENT ENDPOINT ====================

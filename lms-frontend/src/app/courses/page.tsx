@@ -135,7 +135,7 @@ function CoursesContent() {
     instructor: "Giảng viên chuyên gia",
     category: dbCategories.find(cat => cat.id === c.ma_danh_muc)?.ten_danh_muc || "Lập trình",
     level: c.trinh_do,
-    rating: Number(c.danh_gia_trung_binh) || 5.0,
+    rating: Number(c.danh_gia_trung_binh) || 0.0,
     price: Number(c.gia_tien),
     studentsCount: c.so_luong_hoc_vien || 0,
     gradient: getGradient(index)

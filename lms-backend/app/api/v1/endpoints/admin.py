@@ -315,7 +315,7 @@ async def update_user_role(
     await db.commit()
     await db.refresh(user)
     
-    await log_admin_action(db, current_admin.id, "UPDATE_USER_ROLE", f"User {user_id} -> {request.vai_tro}")
+    await log_admin_action(db, current_admin.id, "Cập nhật vai trò", f"Người dùng: {user.ho_ten or user.email} -> {request.vai_tro}")
     return user
 
 @router.put("/users/{user_id}/status", response_model=UserResponse)
@@ -363,7 +363,7 @@ async def delete_user(
     await db.delete(user)
     await db.commit()
     
-    await log_admin_action(db, current_admin.id, "DELETE_USER", f"Đã xóa User ID {user_id}")
+    await log_admin_action(db, current_admin.id, "Xóa người dùng", f"Người dùng: {user.ho_ten or user.email}")
     return {"message": "Đã xóa người dùng thành công."}
 
 @router.post("/users/{user_id}/reset-password")
@@ -387,11 +387,13 @@ async def reset_user_password(
     db.add(user)
     await db.commit()
     
-    await log_admin_action(db, current_admin.id, "RESET_PASSWORD", f"Đã reset mật khẩu ngẫu nhiên cho User ID {user_id}")
+    await log_admin_action(db, current_admin.id, "Khôi phục mật khẩu", f"Người dùng: {user.ho_ten or user.email}")
     return {"message": f"Mật khẩu đã được reset", "new_password": new_password}
 
 
 # ==================== CATEGORIES (ADMIN) ====================
+from app.core.redis import clear_categories_cache
+
 @router.put("/categories/{category_id}", response_model=CategoryResponse)
 async def update_category(
     category_id: int,
@@ -412,6 +414,7 @@ async def update_category(
     db.add(category)
     await db.commit()
     await db.refresh(category)
+    await clear_categories_cache()
     return category
 
 @router.delete("/categories/{category_id}")
@@ -427,6 +430,7 @@ async def delete_category(
         
     await db.delete(category)
     await db.commit()
+    await clear_categories_cache()
     return {"status": "success", "message": "Đã xóa danh mục thành công."}
 
 # ==================== COURSES (ADMIN) ====================
@@ -449,10 +453,22 @@ async def approve_course(
     course.trang_thai_phe_duyet = "approved"
     course.da_xuat_ban = True
     db.add(course)
+    
+    # Tự động duyệt toàn bộ bài học thuộc khóa học này
+    from app.modules.catalog.models import Section, Lesson
+    from sqlalchemy import update
+    await db.execute(
+        update(Lesson)
+        .where(Lesson.ma_chuong_hoc.in_(
+            select(Section.id).where(Section.ma_khoa_hoc == course_id)
+        ))
+        .values(trang_thai_phe_duyet="approved", da_xuat_ban=True)
+    )
+    
     await db.commit()
     await db.refresh(course)
     
-    await log_admin_action(db, current_admin.id, "APPROVE_COURSE", f"Đã duyệt Course ID {course_id}")
+    await log_admin_action(db, current_admin.id, "Duyệt khóa học", f"Khóa học: {course.tieu_de}")
     return course
 
 @router.put("/courses/{course_id}/reject", response_model=CourseResponse)
@@ -475,7 +491,7 @@ async def reject_course(
     await db.commit()
     await db.refresh(course)
     
-    await log_admin_action(db, current_admin.id, "REJECT_COURSE", f"Đã từ chối Course ID {course_id}")
+    await log_admin_action(db, current_admin.id, "Từ chối khóa học", f"Khóa học: {course.tieu_de}")
     return course
 
 @router.get("/lessons/pending")
@@ -523,6 +539,18 @@ async def approve_lesson(
     if not lesson:
         raise HTTPException(status_code=404, detail="Không tìm thấy bài học.")
     
+    # Kiểm tra xem khóa học của bài học này đã được duyệt chưa
+    if lesson.chuong_hoc:
+        course_res = await db.execute(
+            select(Course).where(Course.id == lesson.chuong_hoc.ma_khoa_hoc)
+        )
+        course = course_res.scalars().first()
+        if course and course.trang_thai_phe_duyet == "approved":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Khóa học của bài học này đã được duyệt. Không cần duyệt bài học riêng lẻ."
+            )
+    
     lesson.trang_thai_phe_duyet = "approved"
     lesson.da_xuat_ban = True
     db.add(lesson)
@@ -539,7 +567,7 @@ async def approve_lesson(
     )
     db_lesson = final_res.scalars().one()
     
-    await log_admin_action(db, current_admin.id, "APPROVE_LESSON", f"Đã duyệt Lesson ID {lesson_id}")
+    await log_admin_action(db, current_admin.id, "Duyệt bài học", f"Bài học: {db_lesson.tieu_de}")
     return db_lesson
 
 @router.put("/lessons/{lesson_id}/reject", response_model=LessonResponse)
@@ -561,6 +589,18 @@ async def reject_lesson(
     if not lesson:
         raise HTTPException(status_code=404, detail="Không tìm thấy bài học.")
     
+    # Kiểm tra xem khóa học của bài học này đã được duyệt chưa
+    if lesson.chuong_hoc:
+        course_res = await db.execute(
+            select(Course).where(Course.id == lesson.chuong_hoc.ma_khoa_hoc)
+        )
+        course = course_res.scalars().first()
+        if course and course.trang_thai_phe_duyet == "approved":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Khóa học của bài học này đã được duyệt. Không thể từ chối bài học riêng lẻ."
+            )
+            
     lesson.trang_thai_phe_duyet = "rejected"
     lesson.da_xuat_ban = False
     db.add(lesson)
@@ -577,7 +617,7 @@ async def reject_lesson(
     )
     db_lesson = final_res.scalars().one()
     
-    await log_admin_action(db, current_admin.id, "REJECT_LESSON", f"Đã từ chối Lesson ID {lesson_id}")
+    await log_admin_action(db, current_admin.id, "Từ chối bài học", f"Bài học: {db_lesson.tieu_de}")
     return db_lesson
 
 @router.get("/courses", response_model=List[CourseResponse])
@@ -605,7 +645,7 @@ async def delete_course_admin(
         
     await db.delete(course)
     await db.commit()
-    await log_admin_action(db, current_admin.id, "DELETE_COURSE", f"Xóa Course {course_id}")
+    await log_admin_action(db, current_admin.id, "Xóa khóa học", f"Khóa học: {course.tieu_de}")
     return {"status": "success", "message": "Đã xóa khóa học thành công."}
 
 # ==================== COUPONS (ADMIN) ====================
@@ -806,7 +846,7 @@ async def create_enrollment_admin(
             selectinload(Enrollment.khoa_hoc)
         ).where(Enrollment.id == new_enrollment.id))
         
-        await log_admin_action(db, current_admin.id, "CREATE_ENROLLMENT", f"Cấp quyền User {request.ma_nguoi_dung} vào Course {request.ma_khoa_hoc}")
+        await log_admin_action(db, current_admin.id, "Cấp quyền ghi danh", f"Cấp quyền cho User ID {request.ma_nguoi_dung} vào khóa học ID {request.ma_khoa_hoc}")
         return res.scalars().first()
     except IntegrityError:
         await db.rollback()
@@ -825,7 +865,7 @@ async def delete_enrollment_admin(
         
     await db.delete(enrollment)
     await db.commit()
-    await log_admin_action(db, current_admin.id, "DELETE_ENROLLMENT", f"Thu hồi quyền Enrollment {enrollment_id}")
+    await log_admin_action(db, current_admin.id, "Thu hồi ghi danh", f"Thu hồi quyền ghi danh ID {enrollment_id}")
     return {"status": "success", "message": "Đã thu hồi quyền truy cập khóa học thành công."}
 
 # ==================== CERTIFICATES (ADMIN) ====================
@@ -859,7 +899,7 @@ async def delete_certificate_admin(
         
     await db.delete(certificate)
     await db.commit()
-    await log_admin_action(db, current_admin.id, "DELETE_CERTIFICATE", f"Thu hồi Certificate {certificate_id}")
+    await log_admin_action(db, current_admin.id, "Thu hồi chứng chỉ", f"Chứng chỉ ID {certificate_id}")
     return {"status": "success", "message": "Đã thu hồi chứng chỉ thành công."}
 
 # ==================== ORDERS (ADMIN) ====================
@@ -889,7 +929,7 @@ async def approve_order_refund(
 ):
     from app.modules.commerce.services import OrderService
     order = await OrderService.approve_refund(db, order_id)
-    await log_admin_action(db, current_admin.id, "APPROVE_REFUND", f"Đã duyệt hoàn tiền Đơn hàng ID {order_id}")
+    await log_admin_action(db, current_admin.id, "Duyệt hoàn tiền", f"Đơn hàng: #{order_id}")
     return order
 
 @router.post(
@@ -904,7 +944,7 @@ async def reject_order_refund(
 ):
     from app.modules.commerce.services import OrderService
     order = await OrderService.reject_refund(db, order_id)
-    await log_admin_action(db, current_admin.id, "REJECT_REFUND", f"Đã từ chối hoàn tiền Đơn hàng ID {order_id}")
+    await log_admin_action(db, current_admin.id, "Từ chối hoàn tiền", f"Đơn hàng: #{order_id}")
     return order
 
 # ==================== ADMIN LOGS ====================
@@ -955,5 +995,5 @@ async def update_settings_bulk(
             updates += 1
             
     await db.commit()
-    await log_admin_action(db, current_admin.id, "UPDATE_SETTINGS", f"Đã cập nhật {updates} mục cấu hình")
+    await log_admin_action(db, current_admin.id, "Cập nhật cài đặt", f"Cập nhật {updates} mục hệ thống")
     return {"message": f"Đã cập nhật {updates} mục cấu hình thành công"}

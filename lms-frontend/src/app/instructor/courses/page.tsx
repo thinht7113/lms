@@ -135,9 +135,9 @@ export default function InstructorCoursesPage() {
           <div className="divide-y divide-slate-100">
             {courses.map((course) => (
               <article key={course.id} className="grid gap-4 p-5 lg:grid-cols-[120px_1fr_auto] lg:items-center">
-                <div className="h-24 overflow-hidden rounded-2xl bg-slate-100">
+                <div className="w-full aspect-[3/4] overflow-hidden rounded-2xl bg-slate-50 flex items-center justify-center">
                   {course.anh_dai_dien ? (
-                    <img src={course.anh_dai_dien} alt={course.tieu_de} className="h-full w-full object-cover" />
+                    <img src={course.anh_dai_dien} alt={course.tieu_de} className="h-full w-full object-contain p-1" />
                   ) : (
                     <div className="flex h-full items-center justify-center text-slate-400"><BookOpen className="h-8 w-8" /></div>
                   )}

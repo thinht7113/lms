@@ -264,6 +264,115 @@ class CertService:
             "progress_percentage": progress_percentage
         }
 
+    @staticmethod
+    async def get_user_dashboard(db: AsyncSession, user_id: int) -> dict:
+        # 1. Lấy danh sách khóa học học viên đã đăng ký
+        enrolled_courses_q = await db.execute(
+            select(Course)
+            .join(Enrollment, Enrollment.ma_khoa_hoc == Course.id)
+            .where(Enrollment.ma_nguoi_dung == user_id)
+        )
+        courses = list(enrolled_courses_q.scalars().all())
+        course_ids = [c.id for c in courses]
+        if not course_ids:
+            return {
+                "courses": [],
+                "progress_map": {},
+                "quizzes_map": {}
+            }
+
+        # 2. Đếm tổng số bài học (đã xuất bản) cho từng khóa học
+        total_lessons_q = await db.execute(
+            select(Section.ma_khoa_hoc, func.count(Lesson.id))
+            .join(Lesson, Lesson.ma_chuong_hoc == Section.id)
+            .where(and_(Section.ma_khoa_hoc.in_(course_ids), Lesson.da_xuat_ban == True))
+            .group_by(Section.ma_khoa_hoc)
+        )
+        total_lessons_map = {row[0]: row[1] for row in total_lessons_q.all()}
+
+        # 3. Đếm số bài học đã hoàn thành cho từng khóa học
+        completed_lessons_q = await db.execute(
+            select(Enrollment.ma_khoa_hoc, func.count(Progress.id))
+            .join(Progress, Progress.ma_dang_ky_hoc == Enrollment.id)
+            .join(Lesson, Progress.ma_bai_hoc == Lesson.id)
+            .where(and_(
+                Enrollment.ma_nguoi_dung == user_id,
+                Enrollment.ma_khoa_hoc.in_(course_ids),
+                Progress.da_hoan_thanh == True,
+                Lesson.da_xuat_ban == True
+            ))
+            .group_by(Enrollment.ma_khoa_hoc)
+        )
+        completed_lessons_map = {row[0]: row[1] for row in completed_lessons_q.all()}
+
+        # 4. Đếm tổng số bài kiểm tra cho từng khóa học
+        total_quizzes_q = await db.execute(
+            select(Quiz.ma_khoa_hoc, func.count(Quiz.id))
+            .where(Quiz.ma_khoa_hoc.in_(course_ids))
+            .group_by(Quiz.ma_khoa_hoc)
+        )
+        total_quizzes_map = {row[0]: row[1] for row in total_quizzes_q.all()}
+
+        # 5. Đếm số bài kiểm tra đã đỗ cho từng khóa học
+        passed_quizzes_q = await db.execute(
+            select(Quiz.ma_khoa_hoc, func.count(func.distinct(QuizAttempt.ma_bai_kiem_tra)))
+            .join(QuizAttempt, QuizAttempt.ma_bai_kiem_tra == Quiz.id)
+            .where(and_(
+                QuizAttempt.ma_nguoi_dung == user_id,
+                Quiz.ma_khoa_hoc.in_(course_ids),
+                QuizAttempt.da_qua_mon == True
+            ))
+            .group_by(Quiz.ma_khoa_hoc)
+        )
+        passed_quizzes_map = {row[0]: row[1] for row in passed_quizzes_q.all()}
+
+        # 6. Lấy toàn bộ quizzes của các khóa học này để hiển thị trên dashboard
+        quizzes_q = await db.execute(
+            select(Quiz)
+            .options(selectinload(Quiz.khoa_hoc))
+            .where(Quiz.ma_khoa_hoc.in_(course_ids))
+        )
+        all_quizzes = list(quizzes_q.scalars().all())
+
+        quizzes_map = {}
+        for quiz in all_quizzes:
+            if quiz.ma_khoa_hoc not in quizzes_map:
+                quizzes_map[quiz.ma_khoa_hoc] = []
+            quizzes_map[quiz.ma_khoa_hoc].append({
+                "id": quiz.id,
+                "ma_khoa_hoc": quiz.ma_khoa_hoc,
+                "tieu_de": quiz.tieu_de,
+                "diem_dat": float(quiz.diem_dat) if quiz.diem_dat else 5.0,
+                "thoi_gian_lam_bai": quiz.thoi_gian_lam_bai
+            })
+
+        # 7. Xây dựng progress_map
+        progress_map = {}
+        for cid in course_ids:
+            tot_l = total_lessons_map.get(cid, 0)
+            comp_l = completed_lessons_map.get(cid, 0)
+            tot_q = total_quizzes_map.get(cid, 0)
+            pass_q = passed_quizzes_map.get(cid, 0)
+
+            tot_items = tot_l + tot_q
+            comp_items = comp_l + pass_q
+            prog_pct = round((comp_items / tot_items) * 100.0, 2) if tot_items > 0 else 0.0
+
+            progress_map[cid] = {
+                "course_id": cid,
+                "total_lessons": tot_l,
+                "completed_lessons": comp_l,
+                "total_quizzes": tot_q,
+                "passed_quizzes": pass_q,
+                "progress_percentage": prog_pct
+            }
+
+        return {
+            "courses": courses,
+            "progress_map": progress_map,
+            "quizzes_map": quizzes_map
+        }
+
     # ==================== CERTIFICATE SERVICES ====================
     @staticmethod
     async def check_and_issue_certificate(db: AsyncSession, user_id: int, course_id: int) -> Optional[Certificate]:

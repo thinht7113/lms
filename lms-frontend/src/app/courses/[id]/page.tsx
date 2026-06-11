@@ -95,6 +95,10 @@ export default function CourseDetailPage() {
   };
 
   const handleAddToCart = async () => {
+    if (!tokenHelper.getToken()) {
+      router.push(`/login?next=/courses/${courseId}`);
+      return;
+    }
     setIsAddingToCart(true);
     try {
       await apiService.addToCart(courseId);
@@ -108,6 +112,10 @@ export default function CourseDetailPage() {
   };
 
   const handleBuyNow = async () => {
+    if (!tokenHelper.getToken()) {
+      router.push(`/login?next=/courses/${courseId}`);
+      return;
+    }
     setIsAddingToCart(true);
     try {
       await apiService.addToCart(courseId);

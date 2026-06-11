@@ -5,6 +5,7 @@ from fastapi import HTTPException, status
 from app.models.cart import CartItem
 from app.models.course import Course, Enrollment
 from app.models.order import Coupon, Order, OrderItem
+from app.models.notification import Notification
 from app.schemas.order import CouponCreate, CheckoutRequest, PaymentMockRequest
 from typing import List, Optional
 from decimal import Decimal
@@ -419,6 +420,35 @@ class OrderService:
             )
             coupon = coupon_res.scalars().first()
             if coupon:
+                # 1. Kiểm tra ngày hết hạn
+                if coupon.ngay_het_han and coupon.ngay_het_han < datetime.now():
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Mã giảm giá đã hết hạn sử dụng."
+                    )
+                # 2. Kiểm tra giới hạn lượt dùng
+                if coupon.so_luot_dung_toi_da is not None and coupon.so_luot_da_dung >= coupon.so_luot_dung_toi_da:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Mã giảm giá đã đạt số lần sử dụng tối đa."
+                    )
+                # 3. Kiểm tra xem người dùng đã sử dụng mã này cho đơn hàng thành công khác chưa
+                used_result = await db.execute(
+                    select(Order).where(
+                        and_(
+                            Order.ma_nguoi_dung == user_id,
+                            Order.ma_giam_gia_id == coupon.id,
+                            Order.trang_thai == "success",
+                            Order.id != order.id
+                        )
+                    )
+                )
+                if used_result.scalars().first():
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Bạn đã sử dụng mã giảm giá này cho một đơn hàng khác."
+                    )
+
                 coupon.so_luot_da_dung += 1
                 db.add(coupon)
 
@@ -575,6 +605,16 @@ class OrderService:
                 coupon.so_luot_da_dung -= 1
                 db.add(coupon)
 
+        # 6. Tạo thông báo cho học viên
+        thong_bao = Notification(
+            ma_nguoi_dung=order.ma_nguoi_dung,
+            tieu_de="Yêu cầu hoàn tiền được chấp nhận",
+            noi_dung=f"Yêu cầu hoàn tiền cho đơn hàng #{order.id} của bạn đã được chấp nhận thành công.",
+            loai="refund",
+            da_doc=False
+        )
+        db.add(thong_bao)
+
         await db.commit()
 
         # Tải lại đơn hàng cùng các quan hệ
@@ -608,6 +648,59 @@ class OrderService:
             )
 
         # 3. Khôi phục trạng thái đơn hàng sang 'success'
+        order.trang_thai = "success"
+        db.add(order)
+
+        # 4. Tạo thông báo cho học viên
+        thong_bao = Notification(
+            ma_nguoi_dung=order.ma_nguoi_dung,
+            tieu_de="Yêu cầu hoàn tiền bị từ chối",
+            noi_dung=f"Yêu cầu hoàn tiền cho đơn hàng #{order.id} của bạn đã bị từ chối.",
+            loai="refund",
+            da_doc=False
+        )
+        db.add(thong_bao)
+
+        await db.commit()
+
+        # Tải lại đơn hàng cùng các quan hệ
+        refreshed_result = await db.execute(
+            select(Order)
+            .options(selectinload(Order.chi_tiet_don_hang).selectinload(OrderItem.khoa_hoc))
+            .where(Order.id == order_id)
+        )
+        return refreshed_result.scalars().one()
+
+    @staticmethod
+    async def cancel_refund_request(db: AsyncSession, order_id: int, user_id: int) -> Order:
+        # 1. Tìm đơn hàng
+        result = await db.execute(
+            select(Order)
+            .options(selectinload(Order.chi_tiet_don_hang).selectinload(OrderItem.khoa_hoc))
+            .where(Order.id == order_id)
+        )
+        order = result.scalars().first()
+        if not order:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Đơn hàng không tồn tại."
+            )
+
+        # 2. Kiểm tra quyền sở hữu đơn hàng
+        if order.ma_nguoi_dung != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Bạn không có quyền hủy yêu cầu hoàn tiền cho đơn hàng này."
+            )
+
+        # 3. Kiểm tra trạng thái đơn hàng
+        if order.trang_thai != "refund_requested":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Chỉ có thể hủy yêu cầu hoàn tiền cho đơn hàng có trạng thái 'refund_requested' (Trạng thái hiện tại: {order.trang_thai})."
+            )
+
+        # 4. Khôi phục trạng thái đơn hàng sang 'success'
         order.trang_thai = "success"
         db.add(order)
 

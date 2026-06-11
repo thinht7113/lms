@@ -124,8 +124,34 @@ async def social_login(
     }
 
 
+from fastapi import Cookie
+from app.api.deps import oauth2_scheme
+from app.core.redis import redis_client
+import jwt
+from datetime import datetime, timezone
+from typing import Optional
+
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-async def logout(response: Response):
+async def logout(
+    response: Response,
+    token: Optional[str] = Depends(oauth2_scheme),
+    session_token: Optional[str] = Cookie(default=None, alias=settings.AUTH_COOKIE_NAME),
+):
+    auth_token = token or session_token
+    if auth_token:
+        try:
+            payload = jwt.decode(
+                auth_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            )
+            exp = payload.get("exp")
+            if exp:
+                now = int(datetime.now(timezone.utc).timestamp())
+                ttl = exp - now
+                if ttl > 0:
+                    await redis_client.setex(f"blacklist:{auth_token}", ttl, "true")
+        except jwt.PyJWTError:
+            pass
+
     response.delete_cookie(
         key=settings.AUTH_COOKIE_NAME,
         path="/",

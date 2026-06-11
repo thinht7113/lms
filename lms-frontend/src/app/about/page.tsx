@@ -81,101 +81,10 @@ export default function AboutPage() {
       <Navbar />
 
       <main>
-        {/* Hero */}
-        <section className="relative pt-36 pb-20 lg:pt-44 lg:pb-28">
-          <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.16),transparent_34%),radial-gradient(circle_at_80%_10%,rgba(16,185,129,0.13),transparent_28%),linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)]" />
-          <div className="absolute left-1/2 top-28 -z-10 h-72 w-72 -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
 
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-12 gap-12 items-center">
-            <div className="lg:col-span-7 space-y-8">
-              <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white/80 px-4 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-primary shadow-sm">
-                <Sparkles className="h-4 w-4" />
-                Về Lumina LMS
-              </div>
-
-              <div className="space-y-5">
-                <h1 className="max-w-4xl text-4xl sm:text-5xl lg:text-7xl font-black tracking-[-0.06em] leading-[0.95] text-slate-950">
-                  Nơi việc học trở nên sáng rõ, có lộ trình và thật sự tiến bộ.
-                </h1>
-                <p className="max-w-2xl text-base sm:text-lg text-slate-600 leading-8 font-medium">
-                  Lumina LMS là nền tảng học trực tuyến được xây dựng để giúp học viên đi từ tò mò đến năng lực thực tế. Chúng tôi kết hợp nội dung có cấu trúc, công cụ theo dõi tiến độ và trải nghiệm học tập nhẹ nhàng, hiện đại.
-                </p>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link
-                  href="/courses"
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-7 py-4 text-sm font-black uppercase tracking-widest text-white shadow-xl shadow-primary/20 transition-all hover:-translate-y-0.5 hover:bg-blue-700"
-                >
-                  Khám phá khóa học
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-                <Link
-                  href="/my-courses"
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-7 py-4 text-sm font-black uppercase tracking-widest text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:text-primary"
-                >
-                  Xem phòng học
-                </Link>
-              </div>
-            </div>
-
-            <div className="lg:col-span-5">
-              <div className="relative">
-                <div className="absolute -inset-6 rounded-[3rem] bg-gradient-to-br from-blue-100 via-white to-emerald-100 blur-2xl" />
-                <div className="relative rounded-[2.5rem] border border-white bg-white/85 p-5 shadow-2xl shadow-blue-900/10 backdrop-blur">
-                  <div className="rounded-[2rem] border border-slate-100 bg-slate-50 p-5 space-y-5">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Learning Campus</p>
-                        <h2 className="mt-1 text-xl font-black tracking-tight text-slate-950">Lộ trình Frontend</h2>
-                      </div>
-                      <div className="h-12 w-12 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/25">
-                        <GraduationCap className="h-6 w-6" />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-3">
-                      {["HTML", "React", "API"].map((item, index) => (
-                        <div key={item} className="rounded-2xl bg-white p-4 text-center shadow-sm border border-slate-100">
-                          <p className="text-lg font-black text-slate-950">{index === 0 ? "92%" : index === 1 ? "68%" : "41%"}</p>
-                          <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">{item}</p>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="rounded-3xl bg-white p-4 border border-slate-100 shadow-sm space-y-4">
-                      {[
-                        ["Tư duy giao diện", "Hoàn thành", "bg-emerald-500"],
-                        ["Component React", "Đang học", "bg-primary"],
-                        ["Kết nối API", "Tiếp theo", "bg-amber-400"]
-                      ].map(([title, status, color]) => (
-                        <div key={title} className="flex items-center gap-3">
-                          <div className={`h-3 w-3 rounded-full ${color}`} />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-bold text-slate-900">{title}</p>
-                            <p className="text-xs font-medium text-slate-500">{status}</p>
-                          </div>
-                          <CheckCircle2 className="h-5 w-5 text-slate-300" />
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="flex items-center justify-between rounded-3xl bg-slate-950 p-5 text-white">
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">Tuần này</p>
-                        <p className="mt-1 text-2xl font-black">7.5 giờ học</p>
-                      </div>
-                      <LineChart className="h-10 w-10 text-emerald-300" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
 
         {/* Stats */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20" style={{ marginTop: "100px" }}>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {stats.map((stat) => (
               <div key={stat.label} className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm shadow-slate-200/70">

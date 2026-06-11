@@ -1,4 +1,4 @@
-from sqlalchemy import String, Text, Numeric, Boolean, DateTime, ForeignKey, func, UniqueConstraint
+from sqlalchemy import String, Text, Numeric, Boolean, DateTime, ForeignKey, func, UniqueConstraint, Index
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime
@@ -90,6 +90,10 @@ class QuizAttempt(Base):
     ngay_bat_dau: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     ngay_lam_bai: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     trang_thai: Mapped[str] = mapped_column(String(50), default="started", nullable=False) # 'started', 'completed'
+
+    __table_args__ = (
+        Index("ix_attempt_user_quiz_status", "ma_nguoi_dung", "ma_bai_kiem_tra", "trang_thai"),
+    )
 
     # Relationships
     nguoi_dung = relationship("User", back_populates="lich_su_lam_bai")

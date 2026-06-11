@@ -154,7 +154,7 @@ export default function InstructorCourseForm({ courseId }: Props) {
               value={form.tieu_de}
               onChange={(e) => updateField("tieu_de", e.target.value)}
               className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none focus:border-purple-400 focus:bg-white"
-              placeholder="Ví dụ: FastAPI Backend Mastery"
+              placeholder=""
             />
           </div>
 
@@ -165,7 +165,6 @@ export default function InstructorCourseForm({ courseId }: Props) {
               onChange={(e) => updateField("mo_ta", e.target.value)}
               rows={8}
               className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium leading-relaxed outline-none focus:border-purple-400 focus:bg-white"
-              placeholder="Nội dung khóa học, đối tượng học, kết quả đạt được..."
             />
           </div>
 
@@ -241,7 +240,7 @@ export default function InstructorCourseForm({ courseId }: Props) {
             <button
               onClick={() => submit(false)}
               disabled={saving}
-              className="flex items-center justify-center gap-2 rounded-2xl bg-amber-100 px-5 py-4 text-sm font-black text-amber-700 shadow-sm hover:bg-amber-200 disabled:opacity-60"     
+              className="flex items-center justify-center gap-2 rounded-2xl bg-amber-100 px-5 py-4 text-sm font-black text-amber-700 shadow-sm hover:bg-amber-200 disabled:opacity-60"
             >
               {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               Lưu bản nháp

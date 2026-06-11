@@ -180,6 +180,7 @@ export interface Category {
   id: number;
   ten_danh_muc: string;
   mo_ta?: string;
+  course_count?: number;
 }
 
 export interface Banner {
@@ -239,6 +240,12 @@ export interface CourseDetail extends Course {
   danh_gia_khoa_hoc: Review[];
 }
 
+export interface LearnerDashboard {
+  courses: Course[];
+  progress_map: Record<number, CourseProgress>;
+  quizzes_map: Record<number, Quiz[]>;
+}
+
 export interface CartItem {
   id: number;
   ma_nguoi_dung: number;
@@ -276,6 +283,10 @@ export interface Order {
   tong_tien: number;
   trang_thai: string; // 'pending', 'success', 'fail'
   ngay_tao: string;
+  phuong_thuc_thanh_toan?: string;
+  ma_giao_dich?: string;
+  ngay_thanh_toan?: string;
+  ma_giam_gia_code?: string;
   chi_tiet_don_hang: OrderItem[];
 }
 
@@ -333,6 +344,9 @@ export interface Quiz {
   thoi_gian_lam_bai?: number;
   so_luot_lam_toi_da: number;
   ngay_tao: string;
+  attempts_count?: number;
+  highest_score?: number;
+  passed?: boolean;
 }
 
 export interface QuizDetail extends Quiz {
@@ -415,6 +429,16 @@ export interface LuminaPaymentResponse {
   ngay_thanh_toan?: string;
 }
 
+export interface Notification {
+  id: number;
+  ma_nguoi_dung: number;
+  tieu_de: string;
+  noi_dung: string;
+  loai: string;
+  da_doc: boolean;
+  ngay_tao: string;
+}
+
 export const apiService = {
   // 1. Banners API
   async getBanners(): Promise<Banner[]> {
@@ -433,6 +457,25 @@ export const apiService = {
     } catch (err) {
       console.warn("API Error (Categories):", err);
       return [];
+    }
+  },
+
+  async getCategoriesWithCounts(): Promise<Category[]> {
+    try {
+      return await getCachedJson<Category[]>(`${API_BASE_URL}/categories/with-counts`, 30_000);
+    } catch (err) {
+      console.warn("API Error (CategoriesWithCounts):", err);
+      return [];
+    }
+  },
+
+  async getFeaturedCourses(limit?: number): Promise<{ popular: Course[]; affordable: Course[]; newest: Course[] }> {
+    try {
+      const url = limit ? `${API_BASE_URL}/courses/featured?limit=${limit}` : `${API_BASE_URL}/courses/featured`;
+      return await getCachedJson<{ popular: Course[]; affordable: Course[]; newest: Course[] }>(url, 30_000);
+    } catch (err) {
+      console.warn("API Error (FeaturedCourses):", err);
+      return { popular: [], affordable: [], newest: [] };
     }
   },
 
@@ -683,6 +726,31 @@ export const apiService = {
     return await res.json();
   },
 
+  async cancelRefund(orderId: number): Promise<Order> {
+    const res = await fetchWithAuth(`${API_BASE_URL}/orders/${orderId}/cancel-refund`, {
+      method: "POST",
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || "Không thể hủy yêu cầu hoàn tiền");
+    }
+    return await res.json();
+  },
+
+  async getNotifications(): Promise<Notification[]> {
+    const res = await fetchWithAuth(`${API_BASE_URL}/notifications`);
+    if (!res.ok) throw new Error("Failed to fetch notifications");
+    return await res.json();
+  },
+
+  async markNotificationAsRead(notificationId: number): Promise<Notification> {
+    const res = await fetchWithAuth(`${API_BASE_URL}/notifications/${notificationId}/read`, {
+      method: "POST",
+    });
+    if (!res.ok) throw new Error("Failed to mark notification as read");
+    return await res.json();
+  },
+
   async payMock(orderId: number, paymentMethod = "visa", transactionCode = "TX" + Date.now()): Promise<LuminaPaymentResponse> {
     const res = await fetchWithAuth(`${API_BASE_URL}/payments/mock`, {
       method: "POST",
@@ -703,6 +771,12 @@ export const apiService = {
   async getMyEnrolledCourses(): Promise<Course[]> {
     const res = await fetchWithAuth(`${API_BASE_URL}/enrollments/my-courses`);
     if (!res.ok) throw new Error("Failed to fetch enrolled courses");
+    return await res.json();
+  },
+
+  async getMyDashboard(): Promise<LearnerDashboard> {
+    const res = await fetchWithAuth(`${API_BASE_URL}/learn/my-dashboard`);
+    if (!res.ok) throw new Error("Failed to fetch learner dashboard data");
     return await res.json();
   },
 

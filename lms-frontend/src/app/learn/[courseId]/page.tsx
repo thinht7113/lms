@@ -84,9 +84,9 @@ export default function LearnSpacePage() {
     if (!allLessonsCompleted) return true;
     const idx = quizzes.findIndex((q) => q.id === quizId);
     if (idx <= 0) return false;
-    const passedQuizzesCount = (courseProgress as any)?.passed_quizzes || 0;
-    return passedQuizzesCount < idx;
-  }, [quizzes, allLessonsCompleted, courseProgress]);
+    const prevQuiz = quizzes[idx - 1];
+    return !prevQuiz.passed;
+  }, [quizzes, allLessonsCompleted]);
 
   const formatRemainingTime = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -138,7 +138,7 @@ export default function LearnSpacePage() {
         setCourse(detail);
         setCourseProgress(progress);
         setQuizzes(quizzesData);
-        
+
         const sortedSections = [...(detail.chuong_hoc || [])].sort((a, b) => a.thu_tu - b.thu_tu);
         const firstLesson = sortedSections.flatMap((section) => [...(section.bai_hoc || [])].sort((a, b) => a.thu_tu - b.thu_tu))?.[0];
         setActiveLesson(firstLesson || null);
@@ -150,6 +150,17 @@ export default function LearnSpacePage() {
     }
 
     loadCourse();
+  }, [courseId]);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      if (courseId) {
+        apiService.getCourseProgress(courseId).then(setCourseProgress).catch(() => null);
+        apiService.getCourseQuizzes(courseId).then(setQuizzes).catch(() => null);
+      }
+    };
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, [courseId]);
 
   useEffect(() => {
@@ -264,9 +275,8 @@ export default function LearnSpacePage() {
                       <button
                         key={rate}
                         onClick={() => handleSpeedChange(rate)}
-                        className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                          playbackRate === rate ? "bg-white text-slate-950" : "text-white/75 hover:text-white"
-                        }`}
+                        className={`rounded-full px-3 py-1 text-xs font-semibold transition ${playbackRate === rate ? "bg-white text-slate-950" : "text-white/75 hover:text-white"
+                          }`}
                       >
                         {rate}x
                       </button>
@@ -329,7 +339,7 @@ export default function LearnSpacePage() {
         {index > 0 && title !== "TEXT" && (
           <p className="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-blue-600">{title}</p>
         )}
-        <div 
+        <div
           className="text-[17px] leading-9 text-slate-700"
           dangerouslySetInnerHTML={{ __html: content.noi_dung_text || "Bài đọc hiện chưa có nội dung văn bản cụ thể." }}
         />
@@ -371,7 +381,7 @@ export default function LearnSpacePage() {
                   {course?.tieu_de || "Không có thông tin khóa học"}
                 </p>
                 <h1 className="max-w-4xl text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
-                  {activeLesson?.tieu_de || "Chưa có bài học"}
+                  {activeQuiz ? activeQuiz.tieu_de : (activeLesson?.tieu_de || "Chưa có bài học")}
                 </h1>
                 <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-slate-500">
                   <span className="inline-flex items-center gap-2">
@@ -380,7 +390,10 @@ export default function LearnSpacePage() {
                   </span>
                   <span className="inline-flex items-center gap-2">
                     <Clock className="h-4 w-4" />
-                    {formatDuration(activeLesson?.thoi_luong)}
+                    {activeQuiz 
+                      ? (activeQuiz.thoi_gian_lam_bai ? `${activeQuiz.thoi_gian_lam_bai} phút` : "Không giới hạn")
+                      : formatDuration(activeLesson?.thoi_luong)
+                    }
                   </span>
                   <span className="inline-flex items-center gap-2">
                     <ShieldCheck className="h-4 w-4" />
@@ -389,18 +402,19 @@ export default function LearnSpacePage() {
                 </div>
               </div>
 
-              <button
-                onClick={handleMarkCompleted}
-                disabled={!activeLesson || lessonLoading || !!completedLessons[activeLesson.id] || (activeLesson && secondsSpent < Math.max(600, activeLesson.thoi_luong || 0))}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-6 py-3.5 text-sm font-bold uppercase tracking-widest text-white shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <CheckCircle2 className="h-5 w-5" />
-                {activeLesson && completedLessons[activeLesson.id]
-                  ? "Đã hoàn thành"
-                  : activeLesson && secondsSpent < Math.max(600, activeLesson.thoi_luong || 0)
-                  ? `Cần học thêm: ${formatRemainingTime(Math.max(600, activeLesson.thoi_luong || 0) - secondsSpent)}`
-                  : "Hoàn thành"}
-              </button>
+              {!activeQuiz && (
+                <button
+                  onClick={handleMarkCompleted}
+                  // Tạm thời tắt tính năng 10p mới được hoàn thành bài học
+                  disabled={!activeLesson || lessonLoading || !!completedLessons[activeLesson.id]}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-6 py-3.5 text-sm font-bold uppercase tracking-widest text-white shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <CheckCircle2 className="h-5 w-5" />
+                  {activeLesson && completedLessons[activeLesson.id]
+                    ? "Đã hoàn thành"
+                    : "Hoàn thành"}
+                </button>
+              )}
             </header>
 
             {lessonLoading && (
@@ -419,7 +433,7 @@ export default function LearnSpacePage() {
                 </div>
                 <div>
                   <p className="text-xs font-black uppercase tracking-widest text-blue-600">Bài kiểm tra cuối khóa</p>
-                  <h2 className="mt-2 text-2xl font-black text-slate-900">{activeQuiz.tieu_de}</h2>
+                  <h2 className="mt-2 text-2xl font-black text-slate-995">{activeQuiz.tieu_de}</h2>
                 </div>
                 <div className="mx-auto max-w-md divide-y divide-slate-100 rounded-2xl border border-slate-100 bg-slate-50/50 p-5 text-left text-sm font-semibold">
                   <div className="flex justify-between py-2.5">
@@ -434,21 +448,42 @@ export default function LearnSpacePage() {
                     <span className="text-slate-500">Số lượt làm tối đa</span>
                     <span className="text-slate-900 font-bold">{activeQuiz.so_luot_lam_toi_da} lượt</span>
                   </div>
+                  {activeQuiz.attempts_count !== undefined && activeQuiz.attempts_count > 0 && (
+                    <div className="flex justify-between py-2.5">
+                      <span className="text-slate-500">Điểm cao nhất của bạn</span>
+                      <span className={`font-bold ${activeQuiz.passed ? "text-emerald-600" : "text-rose-600"}`}>
+                        {activeQuiz.highest_score}/10 ({activeQuiz.passed ? "Đã đạt" : "Chưa đạt"})
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="pt-4">
-                  {isQuizLocked(activeQuiz.id) ? (
+                  {activeQuiz.passed ? (
+                    <div className="text-center text-sm font-bold text-emerald-700 bg-emerald-50 rounded-2xl p-5 border border-dashed border-emerald-200 flex flex-col items-center gap-2">
+                      <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+                      <span>Chúc mừng! Bạn đã vượt qua bài kiểm tra này và không phải làm lại.</span>
+                    </div>
+                  ) : isQuizLocked(activeQuiz.id) ? (
                     <div className="text-center text-sm font-bold text-slate-400 bg-slate-100/80 rounded-2xl p-4 border border-dashed border-slate-200">
                       Bạn phải hoàn thành toàn bộ bài học và các bài kiểm tra trước đó mới có thể làm bài này!
                     </div>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => window.open(`/quiz/${activeQuiz.id}`, "_blank")}
-                      className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-8 text-sm font-bold uppercase tracking-widest text-white shadow-lg shadow-blue-200 hover:bg-blue-700 transition"
-                    >
-                      Bắt đầu làm bài thi
-                      <ArrowRight className="h-4 w-4" />
-                    </button>
+                    <div className="space-y-3">
+                      {activeQuiz.attempts_count !== undefined && activeQuiz.attempts_count >= activeQuiz.so_luot_lam_toi_da ? (
+                        <div className="text-center text-sm font-bold text-rose-600 bg-rose-50 rounded-2xl p-4 border border-dashed border-rose-200">
+                          Bạn đã hết số lượt làm bài cho phép ({activeQuiz.so_luot_lam_toi_da} lượt).
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => window.open(`/quiz/${activeQuiz.id}`, "_blank")}
+                          className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-8 text-sm font-bold uppercase tracking-widest text-white shadow-lg shadow-blue-200 hover:bg-blue-700 transition"
+                        >
+                          Bắt đầu làm bài thi
+                          <ArrowRight className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
@@ -511,11 +546,10 @@ export default function LearnSpacePage() {
                                 setActiveLesson(lesson);
                                 setActiveQuiz(null);
                               }}
-                              className={`w-full border-l-2 px-3 py-3 text-left transition ${
-                                isSelected
+                              className={`w-full border-l-2 px-3 py-3 text-left transition ${isSelected
                                   ? "border-blue-600 bg-blue-50/60"
                                   : "border-transparent hover:border-blue-200 hover:bg-slate-50"
-                              } ${locked ? "opacity-50 cursor-not-allowed" : ""}`}
+                                } ${locked ? "opacity-50 cursor-not-allowed" : ""}`}
                             >
                               <div className="flex items-start gap-3">
                                 {locked ? (
@@ -561,15 +595,16 @@ export default function LearnSpacePage() {
                             setActiveQuiz(quiz);
                             setActiveLesson(null);
                           }}
-                          className={`w-full border-l-2 px-3 py-3 text-left transition ${
-                            isSelected
+                          className={`w-full border-l-2 px-3 py-3 text-left transition ${isSelected
                               ? "border-blue-600 bg-blue-50/60"
                               : "border-transparent hover:border-blue-200 hover:bg-slate-50"
-                          } ${locked ? "opacity-50" : ""}`}
+                            } ${locked ? "opacity-50" : ""}`}
                         >
                           <div className="flex items-start gap-3">
                             {locked ? (
                               <Lock className="mt-0.5 h-5 w-5 shrink-0 text-slate-400" />
+                            ) : quiz.passed ? (
+                              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
                             ) : (
                               <ClipboardList className={`mt-0.5 h-5 w-5 shrink-0 ${isSelected ? "text-blue-600" : "text-slate-400"}`} />
                             )}

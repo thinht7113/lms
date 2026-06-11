@@ -42,6 +42,9 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
 
 
 # ==================== CATEGORY ENDPOINTS ====================
+import json
+from app.core.redis import redis_client, clear_categories_cache
+
 @router.post(
     "/categories", 
     response_model=CategoryResponse, 
@@ -53,7 +56,9 @@ async def create_category(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    return await CourseService.create_category(db, category_in)
+    category = await CourseService.create_category(db, category_in)
+    await clear_categories_cache()
+    return category
 
 @router.get(
     "/categories", 
@@ -61,8 +66,55 @@ async def create_category(
     summary="Lấy danh sách danh mục khóa học"
 )
 async def get_categories(db: AsyncSession = Depends(get_db)):
-    return await CourseService.get_categories(db)
+    cache_key = "categories:all"
+    try:
+        cached = await redis_client.get(cache_key)
+        if cached:
+            return json.loads(cached)
+    except Exception:
+        pass
 
+    categories = await CourseService.get_categories(db)
+    
+    try:
+        data_to_cache = [CategoryResponse.model_validate(c).model_dump() for c in categories]
+        await redis_client.setex(cache_key, 3600, json.dumps(data_to_cache))
+    except Exception:
+        pass
+
+    return categories
+
+@router.get(
+    "/categories/with-counts",
+    summary="Lấy danh mục kèm số lượng khóa học (tối ưu cho trang chủ)"
+)
+async def get_categories_with_counts(db: AsyncSession = Depends(get_db)):
+    cache_key = "categories:with_counts"
+    try:
+        cached = await redis_client.get(cache_key)
+        if cached:
+            return json.loads(cached)
+    except Exception:
+        pass
+
+    data = await CourseService.get_categories_with_counts(db)
+
+    try:
+        await redis_client.setex(cache_key, 3600, json.dumps(data))
+    except Exception:
+        pass
+
+    return data
+
+@router.get(
+    "/courses/featured",
+    summary="Lấy khóa học nổi bật: phổ biến, giá tốt, mới nhất (tối ưu cho trang chủ)"
+)
+async def get_featured_courses(
+    limit: int = Query(default=8, le=20),
+    db: AsyncSession = Depends(get_db)
+):
+    return await CourseService.get_featured_courses(db, limit)
 
 # ==================== INSTRUCTOR COURSE ENDPOINTS ====================
 @router.post(

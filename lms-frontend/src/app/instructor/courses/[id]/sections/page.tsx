@@ -114,7 +114,7 @@ export default function InstructorCourseSectionsPage() {
                 value={form.tieu_de}
                 onChange={(e) => setForm((prev) => ({ ...prev, tieu_de: e.target.value }))}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none focus:border-purple-400 focus:bg-white"
-                placeholder="Ví dụ: Cơ bản FastAPI & Routing"
+                placeholder=""
               />
             </div>
             <div>

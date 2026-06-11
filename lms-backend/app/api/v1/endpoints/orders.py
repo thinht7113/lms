@@ -179,3 +179,16 @@ async def refund_order(
     current_user: User = Depends(get_current_user)
 ):
     return await OrderService.refund_order(db, order_id, current_user.id)
+
+
+@router.post(
+    "/orders/{order_id}/cancel-refund",
+    response_model=OrderResponse,
+    summary="Học viên hủy yêu cầu hoàn tiền cho đơn hàng"
+)
+async def cancel_refund_order(
+    order_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return await OrderService.cancel_refund_request(db, order_id, current_user.id)

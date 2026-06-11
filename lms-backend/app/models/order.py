@@ -50,6 +50,12 @@ class Order(Base):
     chi_tiet_don_hang = relationship("OrderItem", back_populates="don_hang", cascade="all, delete-orphan")
 
     @property
+    def ma_giam_gia_code(self) -> Optional[str]:
+        if "ma_giam_gia" in self.__dict__:
+            return self.ma_giam_gia.ma_code if self.ma_giam_gia else None
+        return None
+
+    @property
     def ma_don_hang(self) -> int:
         return self.id
 

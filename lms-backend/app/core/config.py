@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
     
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/lms_database"
+    REDIS_URL: str = "redis://localhost:6379/0"
 
     MOMO_PARTNER_CODE: Optional[str] = None
     MOMO_ACCESS_KEY: Optional[str] = None

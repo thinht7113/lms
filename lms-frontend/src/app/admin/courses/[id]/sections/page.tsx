@@ -1,14 +1,29 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import DynamicTable, { CustomAction } from "@/components/admin/DynamicTable";
 import { ArrowLeft, PlaySquare } from "lucide-react";
+import { apiService } from "@/services/api";
 
 export default function AdminSectionsPage() {
     const router = useRouter();
     const params = useParams();
     const courseId = params.id as string;
+    const [courseTitle, setCourseTitle] = useState<string>("");
+
+    useEffect(() => {
+        if (!courseId) return;
+        apiService.getCourseDetail(Number(courseId))
+            .then((course) => {
+                if (course) {
+                    setCourseTitle(course.tieu_de);
+                }
+            })
+            .catch((err) => {
+                console.error("Failed to fetch course detail:", err);
+            });
+    }, [courseId]);
 
     const columns = [
         { key: "tieu_de", label: "Tiêu đề Chương", type: "text" },
@@ -34,7 +49,7 @@ export default function AdminSectionsPage() {
     return (
         <div className="h-full flex flex-col space-y-4">
             <div className="flex items-center space-x-4">
-                <button 
+                <button
                     onClick={() => router.push("/admin/courses")}
                     className="p-2 hover:bg-secondary rounded-lg transition-colors flex items-center space-x-2 text-muted-foreground font-bold text-sm"
                 >
@@ -42,10 +57,10 @@ export default function AdminSectionsPage() {
                     <span>Quay lại Khóa học</span>
                 </button>
             </div>
-            
+
             <div className="flex-1">
-                <DynamicTable 
-                    title={`Chương học (Khóa ID: ${courseId})`}
+                <DynamicTable
+                    title={`Chương học (Khóa học: ${courseTitle || `ID: ${courseId}`})`}
                     endpoint="/dynamic-admin/sections"
                     filterCol="ma_khoa_hoc"
                     filterVal={courseId}

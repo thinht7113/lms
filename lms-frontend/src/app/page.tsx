@@ -12,7 +12,6 @@ export default function HomePage() {
   // Real DB states
   const [banners, setBanners] = useState<Banner[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [affordableCourses, setAffordableCourses] = useState<Course[]>([]);
   const [popularCourses, setPopularCourses] = useState<Course[]>([]);
   const [newCourses, setNewCourses] = useState<Course[]>([]);
@@ -25,32 +24,19 @@ export default function HomePage() {
     async function loadData() {
       setIsLoading(true);
       try {
-        const [bannersData, catsData, allDbCourses] = await Promise.all([
+        const [bannersData, catsData, featuredData] = await Promise.all([
           apiService.getBanners(),
-          apiService.getCategories(),
-          apiService.getCourses({ limit: 1000 }) // Fetch all courses to calculate counts
+          apiService.getCategoriesWithCounts(),
+          apiService.getFeaturedCourses(4)
         ]);
 
         // Lọc banner đang hiển thị và sắp xếp theo thu_tu
         setBanners(bannersData.filter(b => b.trang_thai).sort((a, b) => a.thu_tu - b.thu_tu));
         setCategories(catsData.slice(0, 8)); // Lấy 8 danh mục đầu
-        setAllCourses(allDbCourses);
-
-        if (allDbCourses.length > 0) {
-          // Khóa học giá tốt dựa trên giá bán thật trong CSDL
-          const affordable = [...allDbCourses]
-            .filter(c => Number(c.gia_tien) > 0)
-            .sort((a, b) => Number(a.gia_tien) - Number(b.gia_tien));
-          setAffordableCourses(affordable.slice(0, 4));
-
-          // Khóa học được học nhiều
-          const sortedPop = [...allDbCourses].sort((a, b) => (b.so_luong_hoc_vien || 0) - (a.so_luong_hoc_vien || 0));
-          setPopularCourses(sortedPop.slice(0, 4));
-
-          // Khóa học mới xuất bản (Sắp xếp theo id giảm dần hoặc ngay_tao)
-          const sortedNew = [...allDbCourses].sort((a, b) => b.id - a.id);
-          setNewCourses(sortedNew.slice(0, 4));
-        }
+        
+        setAffordableCourses(featuredData.affordable || []);
+        setPopularCourses(featuredData.popular || []);
+        setNewCourses(featuredData.newest || []);
       } catch (err) {
         console.error("Error loading DB data:", err);
       } finally {
@@ -90,7 +76,7 @@ export default function HomePage() {
     instructor: "Giảng viên chuyên gia",
     category: categories.find(cat => cat.id === c.ma_danh_muc)?.ten_danh_muc || "Lập trình",
     level: c.trinh_do,
-    rating: Number(c.danh_gia_trung_binh) || 5.0,
+    rating: Number(c.danh_gia_trung_binh) || 0.0,
     price: Number(c.gia_tien),
     studentsCount: c.so_luong_hoc_vien || 0,
     gradient: getGradient(index)
@@ -215,7 +201,7 @@ export default function HomePage() {
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {categories.length > 0 ? categories.map((cat) => {
-                    const courseCount = allCourses.filter(c => c.ma_danh_muc === cat.id).length;
+                    const courseCount = cat.course_count || 0;
 
                     return (
                         <Link

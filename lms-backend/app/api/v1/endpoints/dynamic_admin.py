@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+from sqlalchemy.orm import selectinload
 from app.api.v1.dynamic_crud import create_crud_router
 from app.modules.identity.models import User
 from app.modules.identity.schemas import UserResponse, UserRegister as UserCreate, UserUpdate
@@ -69,7 +70,16 @@ dynamic_router.include_router(
 
 # 4. Orders
 dynamic_router.include_router(
-    create_crud_router(model=Order, response_schema=OrderAdminResponse, create_schema=AdminGenericCreate, update_schema=AdminGenericUpdate, prefix="/orders", tags=["Dynamic Admin - Orders"], search_columns=["ma_giao_dich", "trang_thai"])
+    create_crud_router(
+        model=Order,
+        response_schema=OrderAdminResponse,
+        create_schema=AdminGenericCreate,
+        update_schema=AdminGenericUpdate,
+        prefix="/orders",
+        tags=["Dynamic Admin - Orders"],
+        search_columns=["ma_giao_dich", "trang_thai"],
+        options=[selectinload(Order.ma_giam_gia)]
+    )
 )
 
 # 5. Coupons

@@ -79,6 +79,10 @@ class QuizResponse(BaseModel):
     ngay_tao: datetime
     khoa_hoc: Optional[CourseMinimalResponse] = None
     
+    attempts_count: Optional[int] = 0
+    highest_score: Optional[Decimal] = None
+    passed: Optional[bool] = False
+    
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 class QuizDetailResponse(QuizResponse):

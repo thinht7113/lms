@@ -1,4 +1,4 @@
-from sqlalchemy import String, Text, Numeric, Boolean, DateTime, ForeignKey, func, UniqueConstraint, CheckConstraint
+from sqlalchemy import String, Text, Numeric, Boolean, DateTime, ForeignKey, func, UniqueConstraint, CheckConstraint, Index
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from datetime import datetime
 from typing import Optional, List
@@ -155,6 +155,7 @@ class Progress(Base):
 
     __table_args__ = (
         UniqueConstraint("ma_dang_ky_hoc", "ma_bai_hoc", name="uq_progress_enrollment_lesson"),
+        Index("ix_progress_enrollment_completed", "ma_dang_ky_hoc", "da_hoan_thanh"),
     )
 
     # Relationships

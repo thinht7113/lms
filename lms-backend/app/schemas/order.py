@@ -90,6 +90,10 @@ class OrderResponse(BaseModel):
     tong_tien: Decimal
     trang_thai: str  # 'pending', 'success', 'fail'
     ngay_tao: datetime
+    phuong_thuc_thanh_toan: Optional[str] = None
+    ma_giao_dich: Optional[str] = None
+    ngay_thanh_toan: Optional[datetime] = None
+    ma_giam_gia_code: Optional[str] = None
     chi_tiet_don_hang: List[OrderItemResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
@@ -101,6 +105,10 @@ class OrderAdminResponse(BaseModel):
     tong_tien: Decimal
     trang_thai: str  # 'pending', 'success', 'fail'
     ngay_tao: datetime
+    phuong_thuc_thanh_toan: Optional[str] = None
+    ma_giao_dich: Optional[str] = None
+    ngay_thanh_toan: Optional[datetime] = None
+    ma_giam_gia_code: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
