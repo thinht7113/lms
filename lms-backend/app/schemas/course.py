@@ -172,9 +172,16 @@ class CourseUpdate(BaseModel):
     da_xuat_ban: Optional[bool] = None
     trang_thai_phe_duyet: Optional[str] = None
 
+class UserMinimalResponse(BaseModel):
+    id: int
+    ho_ten: str
+
+    model_config = ConfigDict(from_attributes=True)
+
 class CourseResponse(BaseModel):
     id: int
     ma_giang_vien: Optional[int]
+    giang_vien: Optional[UserMinimalResponse] = None
     ma_danh_muc: Optional[int]
     tieu_de: str
     mo_ta: Optional[str]
@@ -186,13 +193,6 @@ class CourseResponse(BaseModel):
     danh_gia_trung_binh: Decimal
     ngay_tao: datetime
     so_luong_hoc_vien: int = Field(0, description="Số lượng học viên")
-
-    model_config = ConfigDict(from_attributes=True)
-
-# ==================== COURSE REVIEW SCHEMAS ====================
-class UserMinimalResponse(BaseModel):
-    id: int
-    ho_ten: str
 
     model_config = ConfigDict(from_attributes=True)
 

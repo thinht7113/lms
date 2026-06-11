@@ -102,8 +102,14 @@ class CourseService:
         )
         db.add(db_course)
         await db.commit()
-        await db.refresh(db_course)
-        return db_course
+        
+        # Reload course with all required relationships loaded
+        result = await db.execute(
+            select(Course)
+            .options(selectinload(Course.dang_ky_hoc), selectinload(Course.giang_vien))
+            .where(Course.id == db_course.id)
+        )
+        return result.scalars().one()
 
     @staticmethod
     async def get_course(db: AsyncSession, course_id: int) -> Course:
@@ -115,7 +121,9 @@ class CourseService:
                 .selectinload(Section.bai_hoc)
                 .selectinload(Lesson.noi_dung),
                 selectinload(Course.danh_gia_khoa_hoc)
-                .selectinload(CourseReview.nguoi_dung)
+                .selectinload(CourseReview.nguoi_dung),
+                selectinload(Course.giang_vien),
+                selectinload(Course.dang_ky_hoc)
             )
             .where(Course.id == course_id)
         )
@@ -152,10 +160,11 @@ class CourseService:
 
         query = (
             select(Course, func.coalesce(enrollment_count.c.student_count, 0))
+            .options(selectinload(Course.giang_vien), selectinload(Course.dang_ky_hoc))
             .outerjoin(enrollment_count, enrollment_count.c.course_id == Course.id)
             .where(
-            Course.da_xuat_ban == True,
-            Course.trang_thai_phe_duyet == "approved"
+                Course.da_xuat_ban == True,
+                Course.trang_thai_phe_duyet == "approved"
             )
         )
 
@@ -208,7 +217,8 @@ class CourseService:
             select(Course)
             .options(
                 selectinload(Course.chuong_hoc),
-                selectinload(Course.dang_ky_hoc)
+                selectinload(Course.dang_ky_hoc),
+                selectinload(Course.giang_vien)
             )
             .where(Course.ma_giang_vien == instructor_id)
         )
@@ -231,7 +241,14 @@ class CourseService:
 
         db.add(course)
         await db.commit()
-        await db.refresh(course)
+        
+        # Reload course with all required relationships loaded
+        result = await db.execute(
+            select(Course)
+            .options(selectinload(Course.dang_ky_hoc), selectinload(Course.giang_vien))
+            .where(Course.id == course_id)
+        )
+        course = result.scalars().one()
 
         if "gia_tien" in update_data and old_price is not None and Decimal(update_data["gia_tien"]) != Decimal(old_price):
             from app.models.notification import Notification

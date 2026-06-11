@@ -15,10 +15,15 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
+        hostname: 'storage.ducthinhdev.id.vn',
+      },
+      {
+        protocol: 'https',
         hostname: 'api.dicebear.com',
       }
     ],
   },
+  allowedDevOrigins: ['lms.ducthinhdev.id.vn'],
 };
 
 export default nextConfig;

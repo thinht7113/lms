@@ -466,7 +466,14 @@ async def approve_course(
     )
     
     await db.commit()
-    await db.refresh(course)
+    
+    # Reload course with all required relationships loaded
+    result = await db.execute(
+        select(Course)
+        .options(selectinload(Course.dang_ky_hoc), selectinload(Course.giang_vien))
+        .where(Course.id == course_id)
+    )
+    course = result.scalars().one()
     
     await log_admin_action(db, current_admin.id, "Duyệt khóa học", f"Khóa học: {course.tieu_de}")
     return course
@@ -489,7 +496,14 @@ async def reject_course(
     course.da_xuat_ban = False
     db.add(course)
     await db.commit()
-    await db.refresh(course)
+    
+    # Reload course with all required relationships loaded
+    result = await db.execute(
+        select(Course)
+        .options(selectinload(Course.dang_ky_hoc), selectinload(Course.giang_vien))
+        .where(Course.id == course_id)
+    )
+    course = result.scalars().one()
     
     await log_admin_action(db, current_admin.id, "Từ chối khóa học", f"Khóa học: {course.tieu_de}")
     return course
@@ -628,7 +642,13 @@ async def get_all_courses_admin(
     current_admin: User = Depends(get_current_admin_user)
 ):
     # Trả về tất cả khóa học kể cả chưa xuất bản để Admin duyệt
-    query = select(Course).options(selectinload(Course.dang_ky_hoc)).order_by(Course.id.desc()).offset(skip).limit(limit)
+    query = (
+        select(Course)
+        .options(selectinload(Course.dang_ky_hoc), selectinload(Course.giang_vien))
+        .order_by(Course.id.desc())
+        .offset(skip)
+        .limit(limit)
+    )
     result = await db.execute(query)
     return result.scalars().all()
 

@@ -51,6 +51,7 @@ export default function AdminQuizzesPage() {
   const [selectedQuiz, setSelectedQuiz] = useState<AdminQuizDetail | null>(null);
   const [isLoadingQuizzes, setIsLoadingQuizzes] = useState(true);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const [courseTitle, setCourseTitle] = useState<string>("");
 
   // Modal States
   const [isCreateQuizOpen, setIsCreateQuizOpen] = useState(false);
@@ -82,8 +83,20 @@ export default function AdminQuizzesPage() {
   useEffect(() => {
     if (courseId) {
       fetchQuizzes();
+      fetchCourseDetail();
     }
   }, [courseId]);
+
+  const fetchCourseDetail = async () => {
+    try {
+      const course = await apiService.getCourseDetail(courseId);
+      if (course) {
+        setCourseTitle(course.tieu_de);
+      }
+    } catch (err: any) {
+      console.error("Không thể tải thông tin khóa học", err);
+    }
+  };
 
   useEffect(() => {
     if (isCreateQuizOpen || isAddQuestionOpen) {
@@ -293,7 +306,9 @@ export default function AdminQuizzesPage() {
               <ClipboardList className="w-6 h-6 text-blue-500" />
               <span>Quản lý bài kiểm tra</span>
             </h1>
-            <p className="text-xs text-muted-foreground font-medium">Khóa học ID: #{courseId}</p>
+            <p className="text-xs text-muted-foreground font-medium">
+              Khóa học: <span className="font-extrabold text-blue-600">{courseTitle || `ID: #${courseId}`}</span>
+            </p>
           </div>
         </div>
 

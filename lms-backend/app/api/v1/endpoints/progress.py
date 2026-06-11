@@ -32,6 +32,7 @@ async def get_my_courses(
 ):
     result = await db.execute(
         select(Course)
+        .options(selectinload(Course.dang_ky_hoc), selectinload(Course.giang_vien))
         .join(Enrollment, Enrollment.ma_khoa_hoc == Course.id)
         .where(Enrollment.ma_nguoi_dung == current_user.id)
     )

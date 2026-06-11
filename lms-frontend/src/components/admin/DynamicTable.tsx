@@ -124,7 +124,10 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
     };
 
     const renderCell = (item: DynamicTableRow, col: Column) => {
-        const val = item[col.key];
+        const getNestedValue = (obj: any, path: string) => {
+            return path.split('.').reduce((acc, part) => acc && acc[part], obj);
+        };
+        const val = getNestedValue(item, col.key);
         if (val === null || val === undefined) return "-";
 
         if (col.type === "boolean") {

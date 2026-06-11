@@ -1,6 +1,5 @@
 services:
 
-  # 2. Bộ nhớ đệm & Lưu trữ Session tạm thời: Redis
   redis:
     image: redis:7-alpine
     container_name: lms_redis
@@ -12,7 +11,6 @@ services:
     networks:
       - lms_network
 
-  # 2b. Lưu trữ đối tượng tương thích S3: MinIO
   minio:
     image: minio/minio:RELEASE.2024-01-28T22-35-53Z
     container_name: lms_minio
@@ -29,13 +27,11 @@ services:
     networks:
       - lms_network
 
-  # 3. Ứng dụng Backend API: FastAPI (Python)
   web:
     build: .
     container_name: lms_fastapi_app
     restart: always
-    # Sử dụng cờ --reload và mount volumes giúp tự động phát hiện code thay đổi trên máy thật và reload container lập tức
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     volumes:
       - .:/app
     ports:
@@ -49,7 +45,8 @@ services:
       - ENABLE_MOCK_PAYMENTS=${ENABLE_MOCK_PAYMENTS:-false}
       - PAYMENT_WEBHOOK_SECRET=${PAYMENT_WEBHOOK_SECRET}
       - MINIO_ENDPOINT_URL=http://minio:9000
-      - MINIO_PUBLIC_URL=http://localhost:9000
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-http://localhost:9000}
+      - CORS_ORIGINS=${CORS_ORIGINS}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -58,12 +55,10 @@ services:
     networks:
       - lms_network
 
-# 4. Định nghĩa các phân vùng lưu trữ bền vững (Persistent Volumes) giúp tránh mất dữ liệu khi tắt container
 volumes:
   redis_data:
   minio_data:
 
-# 5. Thiết lập mạng nội bộ phân giải DNS nội bộ giữa các service
 networks:
   lms_network:
     driver: bridge

@@ -17,6 +17,7 @@ export default function AdminCoursesPage() {
     const columns = [
         { key: "anh_dai_dien", label: "Ảnh", type: "image" },
         { key: "tieu_de", label: "Tiêu đề", type: "text" },
+        { key: "giang_vien.ho_ten", label: "Giảng viên", type: "text" },
         { key: "trinh_do", label: "Trình độ", type: "text" },
         { key: "gia_tien", label: "Giá tiền", type: "number" },
         { key: "da_xuat_ban", label: "Xuất bản", type: "boolean" },

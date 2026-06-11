@@ -65,7 +65,16 @@ dynamic_router.include_router(
 
 # 3. Courses
 dynamic_router.include_router(
-    create_crud_router(model=Course, response_schema=CourseResponse, create_schema=CourseCreate, update_schema=CourseUpdate, prefix="/courses", tags=["Dynamic Admin - Courses"], search_columns=["tieu_de"])
+    create_crud_router(
+        model=Course,
+        response_schema=CourseResponse,
+        create_schema=CourseCreate,
+        update_schema=CourseUpdate,
+        prefix="/courses",
+        tags=["Dynamic Admin - Courses"],
+        search_columns=["tieu_de"],
+        options=[selectinload(Course.dang_ky_hoc), selectinload(Course.giang_vien)]
+    )
 )
 
 # 4. Orders
