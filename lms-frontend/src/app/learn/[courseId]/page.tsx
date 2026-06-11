@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { useParams } from "next/navigation";
 import {
   AlertCircle,
@@ -15,9 +14,12 @@ import {
   PlayCircle,
   RefreshCw,
   ShieldCheck,
+  Lock,
+  ClipboardList,
+  ArrowRight,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
-import { apiService, CourseDetail, CourseProgress, Lesson, LessonContent } from "@/services/api";
+import { apiService, CourseDetail, CourseProgress, Lesson, LessonContent, Quiz } from "@/services/api";
 import dynamic from 'next/dynamic';
 
 const PdfViewer = dynamic(() => import('@/components/PdfViewer'), { ssr: false });
@@ -46,6 +48,9 @@ export default function LearnSpacePage() {
   const [activeLessonContent, setActiveLessonContent] = useState<Lesson | null>(null);
   const [completedLessons, setCompletedLessons] = useState<Record<number, boolean>>({});
   const [courseProgress, setCourseProgress] = useState<CourseProgress | null>(null);
+  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
+  const [secondsSpent, setSecondsSpent] = useState(0);
   const [loading, setLoading] = useState(true);
   const [lessonLoading, setLessonLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +58,50 @@ export default function LearnSpacePage() {
   const [videoResumeSeconds, setVideoResumeSeconds] = useState(0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  const flatLessons = React.useMemo(() => {
+    if (!course?.chuong_hoc) return [];
+    const sortedSections = [...course.chuong_hoc].sort((a, b) => a.thu_tu - b.thu_tu);
+    return sortedSections.flatMap((section) => {
+      const sortedLessons = [...(section.bai_hoc || [])].sort((a, b) => a.thu_tu - b.thu_tu);
+      return sortedLessons;
+    });
+  }, [course]);
+
+  const isLessonLocked = React.useCallback((lessonId: number) => {
+    const idx = flatLessons.findIndex((l) => l.id === lessonId);
+    if (idx <= 0) return false;
+    const prevLesson = flatLessons[idx - 1];
+    return !completedLessons[prevLesson.id];
+  }, [flatLessons, completedLessons]);
+
+  const allLessonsCompleted = React.useMemo(() => {
+    if (flatLessons.length === 0) return false;
+    return flatLessons.every((l) => completedLessons[l.id]);
+  }, [flatLessons, completedLessons]);
+
+  const isQuizLocked = React.useCallback((quizId: number) => {
+    if (!allLessonsCompleted) return true;
+    const idx = quizzes.findIndex((q) => q.id === quizId);
+    if (idx <= 0) return false;
+    const passedQuizzesCount = (courseProgress as any)?.passed_quizzes || 0;
+    return passedQuizzesCount < idx;
+  }, [quizzes, allLessonsCompleted, courseProgress]);
+
+  const formatRemainingTime = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}p ${s}s`;
+  };
+
+  useEffect(() => {
+    setSecondsSpent(0);
+    if (!activeLesson) return;
+    const timer = setInterval(() => {
+      setSecondsSpent((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [activeLesson?.id]);
 
   const totalLessons = getLessonCount(course);
   const progressPercent = Math.max(0, Math.min(100, Math.round(courseProgress?.progress_percentage || 0)));
@@ -76,9 +125,10 @@ export default function LearnSpacePage() {
       setError(null);
 
       try {
-        const [detail, progress] = await Promise.all([
+        const [detail, progress, quizzesData] = await Promise.all([
           apiService.getCourseDetail(courseId),
           apiService.getCourseProgress(courseId).catch(() => null),
+          apiService.getCourseQuizzes(courseId).catch(() => []),
         ]);
         if (!detail) {
           setError("Không tìm thấy khóa học hoặc khóa học chưa khả dụng.");
@@ -87,7 +137,10 @@ export default function LearnSpacePage() {
 
         setCourse(detail);
         setCourseProgress(progress);
-        const firstLesson = detail.chuong_hoc?.flatMap((section) => section.bai_hoc || [])?.[0];
+        setQuizzes(quizzesData);
+        
+        const sortedSections = [...(detail.chuong_hoc || [])].sort((a, b) => a.thu_tu - b.thu_tu);
+        const firstLesson = sortedSections.flatMap((section) => [...(section.bai_hoc || [])].sort((a, b) => a.thu_tu - b.thu_tu))?.[0];
         setActiveLesson(firstLesson || null);
       } catch (err: unknown) {
         setError(getErrorMessage(err, "Không thể tải lớp học."));
@@ -175,34 +228,52 @@ export default function LearnSpacePage() {
     const title = content.loai_noi_dung ? content.loai_noi_dung.toUpperCase() : `Nội dung ${index + 1}`;
 
     if (type === "video") {
+      const isYouTube = content.duong_dan_file?.includes("youtube.com") || content.duong_dan_file?.includes("youtu.be");
+      const videoUrl = content.duong_dan_file || "";
+      const embedUrl = isYouTube && videoUrl ? (() => {
+        const match = videoUrl.match(/^.*(youtu.be\/|v\/|vi\/|u\/\w\/|embed\/|shorts\/|watch\?v=|\&v=)([^#\&\?]*).*/);
+        return match && match[2].length === 11 ? `https://www.youtube.com/embed/${match[2]}` : videoUrl;
+      })() : "";
+
       return (
         <div key={content.id || index} className="my-10">
           {content.duong_dan_file ? (
             <div className="relative overflow-hidden rounded-2xl bg-slate-950">
-              <video
-                ref={index === 0 ? videoRef : undefined}
-                src={content.duong_dan_file}
-                controls
-                className="aspect-video w-full object-contain"
-                onLoadedMetadata={() => {
-                  if (index === 0 && videoRef.current && videoResumeSeconds > 0) {
-                    videoRef.current.currentTime = videoResumeSeconds;
-                  }
-                }}
-              />
-              <div className="absolute right-4 top-4 flex items-center gap-1 rounded-full bg-black/60 p-1 text-white backdrop-blur">
-                {[1, 1.25, 1.5, 2].map((rate) => (
-                  <button
-                    key={rate}
-                    onClick={() => handleSpeedChange(rate)}
-                    className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                      playbackRate === rate ? "bg-white text-slate-950" : "text-white/75 hover:text-white"
-                    }`}
-                  >
-                    {rate}x
-                  </button>
-                ))}
-              </div>
+              {isYouTube ? (
+                <iframe
+                  className="aspect-video w-full object-contain bg-black"
+                  src={embedUrl}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                <>
+                  <video
+                    ref={index === 0 ? videoRef : undefined}
+                    src={content.duong_dan_file}
+                    controls
+                    className="aspect-video w-full object-contain"
+                    onLoadedMetadata={() => {
+                      if (index === 0 && videoRef.current && videoResumeSeconds > 0) {
+                        videoRef.current.currentTime = videoResumeSeconds;
+                      }
+                    }}
+                  />
+                  <div className="absolute right-4 top-4 flex items-center gap-1 rounded-full bg-black/60 p-1 text-white backdrop-blur">
+                    {[1, 1.25, 1.5, 2].map((rate) => (
+                      <button
+                        key={rate}
+                        onClick={() => handleSpeedChange(rate)}
+                        className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                          playbackRate === rate ? "bg-white text-slate-950" : "text-white/75 hover:text-white"
+                        }`}
+                      >
+                        {rate}x
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <EmptyContent icon={<PlayCircle className="h-10 w-10" />} title="Bài học chưa có video." />
@@ -227,12 +298,9 @@ export default function LearnSpacePage() {
       return (
         <figure key={content.id || index} className="my-10">
           {content.duong_dan_file ? (
-            <Image
+            <img
               src={content.duong_dan_file}
               alt={activeLesson?.tieu_de || "Nội dung bài học"}
-              width={1200}
-              height={800}
-              unoptimized
               className="mx-auto h-auto max-h-[72vh] w-auto max-w-full rounded-2xl object-contain"
             />
           ) : (
@@ -323,11 +391,15 @@ export default function LearnSpacePage() {
 
               <button
                 onClick={handleMarkCompleted}
-                disabled={!activeLesson || lessonLoading}
+                disabled={!activeLesson || lessonLoading || !!completedLessons[activeLesson.id] || (activeLesson && secondsSpent < Math.max(600, activeLesson.thoi_luong || 0))}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-6 py-3.5 text-sm font-bold uppercase tracking-widest text-white shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <CheckCircle2 className="h-5 w-5" />
-                Hoàn thành
+                {activeLesson && completedLessons[activeLesson.id]
+                  ? "Đã hoàn thành"
+                  : activeLesson && secondsSpent < Math.max(600, activeLesson.thoi_luong || 0)
+                  ? `Cần học thêm: ${formatRemainingTime(Math.max(600, activeLesson.thoi_luong || 0) - secondsSpent)}`
+                  : "Hoàn thành"}
               </button>
             </header>
 
@@ -340,7 +412,49 @@ export default function LearnSpacePage() {
               </div>
             )}
 
-            {!lessonLoading && !error && activeLessonContent && (
+            {!lessonLoading && !error && activeQuiz && (
+              <div className="mx-auto max-w-2xl bg-white border border-slate-200 rounded-[2rem] p-8 sm:p-10 shadow-xl text-center space-y-6">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                  <ClipboardList className="h-8 w-8" />
+                </div>
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-blue-600">Bài kiểm tra cuối khóa</p>
+                  <h2 className="mt-2 text-2xl font-black text-slate-900">{activeQuiz.tieu_de}</h2>
+                </div>
+                <div className="mx-auto max-w-md divide-y divide-slate-100 rounded-2xl border border-slate-100 bg-slate-50/50 p-5 text-left text-sm font-semibold">
+                  <div className="flex justify-between py-2.5">
+                    <span className="text-slate-500">Điểm tối thiểu cần đạt</span>
+                    <span className="text-slate-900 font-bold">{Number(activeQuiz.diem_dat)}/10</span>
+                  </div>
+                  <div className="flex justify-between py-2.5">
+                    <span className="text-slate-500">Thời gian làm bài</span>
+                    <span className="text-slate-900 font-bold">{activeQuiz.thoi_gian_lam_bai ? `${activeQuiz.thoi_gian_lam_bai} phút` : "Không giới hạn"}</span>
+                  </div>
+                  <div className="flex justify-between py-2.5">
+                    <span className="text-slate-500">Số lượt làm tối đa</span>
+                    <span className="text-slate-900 font-bold">{activeQuiz.so_luot_lam_toi_da} lượt</span>
+                  </div>
+                </div>
+                <div className="pt-4">
+                  {isQuizLocked(activeQuiz.id) ? (
+                    <div className="text-center text-sm font-bold text-slate-400 bg-slate-100/80 rounded-2xl p-4 border border-dashed border-slate-200">
+                      Bạn phải hoàn thành toàn bộ bài học và các bài kiểm tra trước đó mới có thể làm bài này!
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => window.open(`/quiz/${activeQuiz.id}`, "_blank")}
+                      className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-8 text-sm font-bold uppercase tracking-widest text-white shadow-lg shadow-blue-200 hover:bg-blue-700 transition"
+                    >
+                      Bắt đầu làm bài thi
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {!lessonLoading && !error && activeLessonContent && !activeQuiz && (
               <div className="mx-auto max-w-4xl">
                 {activeLessonContent.noi_dung?.length ? (
                   activeLessonContent.noi_dung
@@ -353,7 +467,7 @@ export default function LearnSpacePage() {
               </div>
             )}
 
-            {!lessonLoading && !error && !activeLesson && (
+            {!lessonLoading && !error && !activeLesson && !activeQuiz && (
               <EmptyContent icon={<BookOpen className="h-10 w-10" />} title="Khóa học chưa có bài học để hiển thị." />
             )}
           </article>
@@ -373,39 +487,99 @@ export default function LearnSpacePage() {
             </div>
 
             <div className="space-y-6 p-5">
-              {course?.chuong_hoc?.map((section) => (
-                <section key={section.id} className="space-y-3">
-                  <h3 className="px-1 text-xs font-black uppercase tracking-widest text-blue-600">
-                    {section.tieu_de}
+              {/* Sorted chapters */}
+              {[...(course?.chuong_hoc || [])]
+                .sort((a, b) => a.thu_tu - b.thu_tu)
+                .map((section) => (
+                  <section key={section.id} className="space-y-3">
+                    <h3 className="px-1 text-xs font-black uppercase tracking-widest text-blue-600">
+                      {section.tieu_de}
+                    </h3>
+                    <div className="space-y-2">
+                      {[...(section.bai_hoc || [])]
+                        .sort((a, b) => a.thu_tu - b.thu_tu)
+                        .map((lesson) => {
+                          const isSelected = activeLesson?.id === lesson.id && !activeQuiz;
+                          const isCompleted = !!completedLessons[lesson.id];
+                          const locked = isLessonLocked(lesson.id);
+
+                          return (
+                            <button
+                              key={lesson.id}
+                              disabled={locked}
+                              onClick={() => {
+                                setActiveLesson(lesson);
+                                setActiveQuiz(null);
+                              }}
+                              className={`w-full border-l-2 px-3 py-3 text-left transition ${
+                                isSelected
+                                  ? "border-blue-600 bg-blue-50/60"
+                                  : "border-transparent hover:border-blue-200 hover:bg-slate-50"
+                              } ${locked ? "opacity-50 cursor-not-allowed" : ""}`}
+                            >
+                              <div className="flex items-start gap-3">
+                                {locked ? (
+                                  <Lock className="mt-0.5 h-5 w-5 shrink-0 text-slate-400" />
+                                ) : isCompleted ? (
+                                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
+                                ) : (
+                                  <PlayCircle className={`mt-0.5 h-5 w-5 shrink-0 ${isSelected ? "text-blue-600" : "text-slate-400"}`} />
+                                )}
+                                <div>
+                                  <p className={`line-clamp-2 text-sm font-semibold leading-6 ${isSelected ? "text-blue-600" : "text-slate-800"}`}>
+                                    {lesson.tieu_de}
+                                  </p>
+                                  <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                                    <Clock className="h-3.5 w-3.5" />
+                                    {formatDuration(lesson.thoi_luong)}
+                                  </p>
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                    </div>
+                  </section>
+                ))}
+
+              {/* Course final quizzes in Sidebar */}
+              {quizzes.length > 0 && (
+                <section className="space-y-3 pt-4 border-t border-slate-200">
+                  <h3 className="px-1 text-xs font-black uppercase tracking-widest text-blue-600 flex items-center gap-1.5">
+                    <ClipboardList className="w-4 h-4" />
+                    Bài kiểm tra cuối khóa
                   </h3>
                   <div className="space-y-2">
-                    {section.bai_hoc?.map((lesson) => {
-                      const isSelected = activeLesson?.id === lesson.id;
-                      const isCompleted = !!completedLessons[lesson.id];
+                    {quizzes.map((quiz) => {
+                      const isSelected = activeQuiz?.id === quiz.id;
+                      const locked = isQuizLocked(quiz.id);
 
                       return (
                         <button
-                          key={lesson.id}
-                          onClick={() => setActiveLesson(lesson)}
+                          key={quiz.id}
+                          onClick={() => {
+                            setActiveQuiz(quiz);
+                            setActiveLesson(null);
+                          }}
                           className={`w-full border-l-2 px-3 py-3 text-left transition ${
                             isSelected
                               ? "border-blue-600 bg-blue-50/60"
                               : "border-transparent hover:border-blue-200 hover:bg-slate-50"
-                          }`}
+                          } ${locked ? "opacity-50" : ""}`}
                         >
                           <div className="flex items-start gap-3">
-                            {isCompleted ? (
-                              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
+                            {locked ? (
+                              <Lock className="mt-0.5 h-5 w-5 shrink-0 text-slate-400" />
                             ) : (
-                              <PlayCircle className={`mt-0.5 h-5 w-5 shrink-0 ${isSelected ? "text-blue-600" : "text-slate-400"}`} />
+                              <ClipboardList className={`mt-0.5 h-5 w-5 shrink-0 ${isSelected ? "text-blue-600" : "text-slate-400"}`} />
                             )}
                             <div>
                               <p className={`line-clamp-2 text-sm font-semibold leading-6 ${isSelected ? "text-blue-600" : "text-slate-800"}`}>
-                                {lesson.tieu_de}
+                                {quiz.tieu_de}
                               </p>
                               <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-slate-500">
                                 <Clock className="h-3.5 w-3.5" />
-                                {formatDuration(lesson.thoi_luong)}
+                                {quiz.thoi_gian_lam_bai ? `${quiz.thoi_gian_lam_bai} phút` : "Không giới hạn"}
                               </p>
                             </div>
                           </div>
@@ -414,7 +588,7 @@ export default function LearnSpacePage() {
                     })}
                   </div>
                 </section>
-              ))}
+              )}
             </div>
           </aside>
         </div>

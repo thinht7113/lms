@@ -21,6 +21,12 @@ type ContentBlock = LessonContentPayload & {
   isUploading?: boolean;
 };
 
+const getYouTubeEmbedUrl = (url: string) => {
+  if (!url) return "";
+  const match = url.match(/^.*(youtu.be\/|v\/|vi\/|u\/\w\/|embed\/|shorts\/|watch\?v=|\&v=)([^#\&\?]*).*/);
+  return match && match[2].length === 11 ? `https://www.youtube.com/embed/${match[2]}` : url;
+};
+
 type Props = {
   courseId: number;
   sectionId: number;
@@ -73,12 +79,7 @@ const renderEmbeddedPreview = (block: ContentBlock) => {
     const isYouTube = block.duong_dan_file.includes("youtube.com") || block.duong_dan_file.includes("youtu.be");
     
     if (isYouTube) {
-      let embedUrl = block.duong_dan_file;
-      if (embedUrl.includes("watch?v=")) {
-        embedUrl = embedUrl.replace("watch?v=", "embed/").split("&")[0];
-      } else if (embedUrl.includes("youtu.be/")) {
-        embedUrl = embedUrl.replace("youtu.be/", "youtube.com/embed/").split("?")[0];
-      }
+      const embedUrl = getYouTubeEmbedUrl(block.duong_dan_file);
       
       return (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-950">

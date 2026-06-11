@@ -7,6 +7,12 @@ import { ArrowLeft, Edit3, FileText, Plus, RefreshCw, Trash2, Video, Send } from
 import { apiService, CourseDetail, Lesson } from "@/services/api";
 import { useToast } from "@/contexts/ToastContext";
 
+const getYouTubeEmbedUrl = (url: string) => {
+  if (!url) return "";
+  const match = url.match(/^.*(youtu.be\/|v\/|vi\/|u\/\w\/|embed\/|shorts\/|watch\?v=|\&v=)([^#\&\?]*).*/);
+  return match && match[2].length === 11 ? `https://www.youtube.com/embed/${match[2]}` : url;
+};
+
 export default function InstructorLessonsPage() {
   const params = useParams();
   const toast = useToast();
@@ -262,7 +268,7 @@ export default function InstructorLessonsPage() {
                             block.duong_dan_file.includes("youtube.com") || block.duong_dan_file.includes("youtu.be") ? (
                               <iframe
                                 className="w-full aspect-video rounded-2xl overflow-hidden border border-slate-200"
-                                src={block.duong_dan_file.replace("watch?v=", "embed/").replace("youtu.be/", "youtube.com/embed/")}
+                                src={getYouTubeEmbedUrl(block.duong_dan_file)}
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                 allowFullScreen
                               />

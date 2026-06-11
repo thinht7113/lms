@@ -58,52 +58,48 @@ export default function CourseCard({
           />
         ) : (
           <div className={`absolute inset-0 bg-gradient-to-br ${gradient} flex items-center justify-center p-8`}>
-             <BookOpen className="w-12 h-12 text-white/40 group-hover:scale-125 transition-transform duration-500" />
+            <BookOpen className="w-12 h-12 text-white/40 group-hover:scale-125 transition-transform duration-500" />
           </div>
         )}
-        
+
         {/* Overlay Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-2">
-            <span className="bg-background/90 backdrop-blur-md text-foreground text-[10px] font-black uppercase px-3 py-1 rounded-lg border border-border shadow-sm">
-                {category}
-            </span>
-        </div>
-        
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
-            <p className="text-[10px] text-white font-bold uppercase tracking-widest">Xem chi tiết khóa học</p>
+          <span className="bg-background/90 backdrop-blur-md text-foreground text-[10px] font-black uppercase px-3 py-1 rounded-lg border border-border shadow-sm">
+            {category}
+          </span>
         </div>
       </div>
 
       {/* Content Block */}
       <div className="p-6 flex flex-col flex-grow space-y-4">
         <div className="space-y-2 flex-grow">
-            <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">
-                <div className="flex items-center space-x-1">
-                    <BarChart3 className="w-3 h-3 text-primary" />
-                    <span>{levelLabels[level] || level}</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                    <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
-                    <span className="text-foreground">{rating.toFixed(1)}</span>
-                </div>
+          <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">
+            <div className="flex items-center space-x-1">
+              <BarChart3 className="w-3 h-3 text-primary" />
+              <span>{levelLabels[level] || level}</span>
             </div>
-            
-            <h3 className="font-sans font-black text-base text-foreground leading-tight line-clamp-2 group-hover:text-primary transition-colors">
-                {title}
-            </h3>
-            
-            <p className="text-[11px] text-muted-foreground font-medium">
-                Dẫn dắt bởi <span className="text-foreground font-bold">{instructor}</span>
-            </p>
+            <div className="flex items-center space-x-1">
+              <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+              <span className="text-foreground">{rating.toFixed(1)}</span>
+            </div>
+          </div>
+
+          <h3 className="font-sans font-black text-base text-foreground leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+            {title}
+          </h3>
+
+          <p className="text-[11px] text-muted-foreground font-medium">
+            Dẫn dắt bởi <span className="text-foreground font-bold">{instructor}</span>
+          </p>
         </div>
 
         {/* Footer Meta */}
         <div className="pt-4 border-t border-border/40 flex items-center justify-between">
-            <div className="flex flex-col">
-                <span className="text-lg font-black text-primary tracking-tighter">
-                    {formatPrice(price)}
-                </span>
-            </div>
+          <div className="flex flex-col">
+            <span className="text-lg font-black text-primary tracking-tighter">
+              {formatPrice(price)}
+            </span>
+          </div>
         </div>
       </div>
     </Link>

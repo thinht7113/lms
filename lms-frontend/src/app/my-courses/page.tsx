@@ -9,6 +9,7 @@ import {
   BookOpenText,
   CheckCircle2,
   Clock3,
+  ClipboardList,
   Compass,
   GraduationCap,
   LibraryBig,
@@ -18,7 +19,7 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { apiService, Course, CourseProgress, tokenHelper } from "@/services/api";
+import { apiService, Course, CourseProgress, Quiz, tokenHelper } from "@/services/api";
 import { useToast } from "@/contexts/ToastContext";
 
 type CourseFilter = "all" | "learning" | "completed";
@@ -39,6 +40,7 @@ export default function MyCoursesPage() {
   const toast = useToast();
   const [courses, setCourses] = useState<Course[]>([]);
   const [progressMap, setProgressMap] = useState<Record<number, CourseProgress>>({});
+  const [quizzesMap, setQuizzesMap] = useState<Record<number, Quiz[]>>({});
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<CourseFilter>("all");
@@ -56,20 +58,39 @@ export default function MyCoursesPage() {
         const enrolledCourses = await apiService.getMyEnrolledCourses();
         setCourses(enrolledCourses);
 
-        const progressList = await Promise.all(
-          enrolledCourses.map(async (course) => {
-            try {
-              const progress = await apiService.getCourseProgress(course.id);
-              return { courseId: course.id, progress };
-            } catch {
-              return { courseId: course.id, progress: emptyProgress(course.id) };
-            }
-          })
-        );
+        const [progressList, quizzesList] = await Promise.all([
+          Promise.all(
+            enrolledCourses.map(async (course) => {
+              try {
+                const progress = await apiService.getCourseProgress(course.id);
+                return { courseId: course.id, progress };
+              } catch {
+                return { courseId: course.id, progress: emptyProgress(course.id) };
+              }
+            })
+          ),
+          Promise.all(
+            enrolledCourses.map(async (course) => {
+              try {
+                const quizzes = await apiService.getCourseQuizzes(course.id);
+                return { courseId: course.id, quizzes };
+              } catch {
+                return { courseId: course.id, quizzes: [] };
+              }
+            })
+          )
+        ]);
 
         setProgressMap(
           progressList.reduce<Record<number, CourseProgress>>((acc, item) => {
             acc[item.courseId] = item.progress;
+            return acc;
+          }, {})
+        );
+
+        setQuizzesMap(
+          quizzesList.reduce<Record<number, Quiz[]>>((acc, item) => {
+            acc[item.courseId] = item.quizzes;
             return acc;
           }, {})
         );
@@ -300,6 +321,36 @@ export default function MyCoursesPage() {
                                 />
                               </div>
                             </div>
+
+                            {/* Quizzes List */}
+                            {quizzesMap[course.id] && quizzesMap[course.id].length > 0 && (
+                              <div className="mt-5 pt-4 border-t border-slate-100 space-y-2.5">
+                                <p className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                                  <ClipboardList className="w-3.5 h-3.5" />
+                                  Bài kiểm tra ({quizzesMap[course.id].length})
+                                </p>
+                                <div className="space-y-2">
+                                  {quizzesMap[course.id].map((quiz) => (
+                                    <div key={quiz.id} className="flex items-center justify-between text-xs font-semibold bg-slate-50/60 rounded-xl p-3 border border-slate-100/60 hover:bg-slate-50 transition-colors">
+                                      <div className="min-w-0 pr-2">
+                                        <p className="font-bold text-slate-800 truncate" title={quiz.tieu_de}>
+                                          {quiz.tieu_de}
+                                        </p>
+                                        <p className="text-[10px] text-slate-400 mt-0.5">
+                                          Cần đạt: {Number(quiz.diem_dat)}/10 • {quiz.thoi_gian_lam_bai ? `${quiz.thoi_gian_lam_bai} phút` : "Không giới hạn"}
+                                        </p>
+                                      </div>
+                                      <Link
+                                        href={`/quiz/${quiz.id}`}
+                                        className="shrink-0 bg-white hover:bg-primary hover:text-white text-primary border border-primary/20 hover:border-transparent px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-300 shadow-sm"
+                                      >
+                                        Làm bài
+                                      </Link>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
 
                             {isCompleted ? (
                               <button

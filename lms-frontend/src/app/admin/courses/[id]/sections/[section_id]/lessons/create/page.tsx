@@ -13,6 +13,12 @@ const CKEditorWrapper = dynamic(() => import("@/components/CKEditorWrapper"), { 
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
+const getYouTubeEmbedUrl = (url: string) => {
+    if (!url) return "";
+    const match = url.match(/^.*(youtu.be\/|v\/|vi\/|u\/\w\/|embed\/|shorts\/|watch\?v=|\&v=)([^#\&\?]*).*/);
+    return match && match[2].length === 11 ? `https://www.youtube.com/embed/${match[2]}` : url;
+};
+
 interface ContentBlock {
     id: string; // Tạm thời để quản lý state trên UI
     loai_noi_dung: "video" | "pdf" | "text" | "code" | "image";
@@ -58,6 +64,10 @@ export default function CreateMultimediaLessonPage() {
         setBlocks(prev => prev.map(b => b.id === id ? { ...b, [key]: value } : b));
     };
 
+    const updateBlockFields = (id: string, fields: Partial<ContentBlock>) => {
+        setBlocks(prev => prev.map(b => b.id === id ? { ...b, ...fields } : b));
+    };
+
     const handleDragEnd = (result: any) => {
         if (!result.destination) return;
         
@@ -74,7 +84,7 @@ export default function CreateMultimediaLessonPage() {
         const block = blocks.find(b => b.id === blockId);
         const assetType = block?.loai_noi_dung === "pdf" ? "pdf" : block?.loai_noi_dung === "video" ? "video" : "lesson-image";
 
-        updateBlock(blockId, "isUploading", true);
+        updateBlockFields(blockId, { isUploading: true });
         try {
             const formData = new FormData();
             formData.append("file", file);
@@ -87,13 +97,12 @@ export default function CreateMultimediaLessonPage() {
 
             if (!res.ok) throw new Error("Upload file thất bại");
             const data = await res.json();
-            
-            updateBlock(blockId, "duong_dan_file", data.url);
+
+            updateBlockFields(blockId, { duong_dan_file: data.url, isUploading: false });
             toast.success("Tải lên thành công!");
         } catch (err: any) {
             toast.error(err.message || "Lỗi khi upload file");
-        } finally {
-            updateBlock(blockId, "isUploading", false);
+            updateBlockFields(blockId, { isUploading: false });
         }
     };
 
@@ -231,6 +240,7 @@ export default function CreateMultimediaLessonPage() {
                         <button onClick={() => addBlock("video")} className="p-2 hover:bg-white rounded-lg flex items-center gap-1 transition-colors text-xs font-bold text-muted-foreground hover:text-foreground" title="Thêm Video"><Video className="w-4 h-4"/> Video</button>
                         <button onClick={() => addBlock("text")} className="p-2 hover:bg-white rounded-lg flex items-center gap-1 transition-colors text-xs font-bold text-muted-foreground hover:text-foreground" title="Thêm Đoạn văn"><FileText className="w-4 h-4"/> Văn bản</button>
                         <button onClick={() => addBlock("pdf")} className="p-2 hover:bg-white rounded-lg flex items-center gap-1 transition-colors text-xs font-bold text-muted-foreground hover:text-foreground" title="Thêm File đính kèm"><File className="w-4 h-4"/> Tài liệu</button>
+                        <button onClick={() => addBlock("image")} className="p-2 hover:bg-white rounded-lg flex items-center gap-1 transition-colors text-xs font-bold text-muted-foreground hover:text-foreground" title="Thêm Hình ảnh"><ImageIcon className="w-4 h-4"/> Hình ảnh</button>
                     </div>
                 </div>
 
@@ -240,6 +250,7 @@ export default function CreateMultimediaLessonPage() {
                             <Video className="w-8 h-8" />
                             <FileText className="w-8 h-8" />
                             <File className="w-8 h-8" />
+                            <ImageIcon className="w-8 h-8" />
                         </div>
                         <p className="text-sm font-bold text-muted-foreground">Bài học này chưa có nội dung nào.</p>
                         <p className="text-xs font-medium text-muted-foreground mt-1">Bấm vào các nút bên trên để thêm khối nội dung.</p>
@@ -286,6 +297,7 @@ export default function CreateMultimediaLessonPage() {
                                                             {block.loai_noi_dung === "video" && <Video className="w-4 h-4" />}
                                                             {block.loai_noi_dung === "text" && <FileText className="w-4 h-4" />}
                                                             {block.loai_noi_dung === "pdf" && <File className="w-4 h-4" />}
+                                                            {block.loai_noi_dung === "image" && <ImageIcon className="w-4 h-4" />}
                                                             <span>Khối {block.loai_noi_dung}</span>
                                                         </div>
                                                     </div>
@@ -322,7 +334,7 @@ export default function CreateMultimediaLessonPage() {
                                                                     {block.duong_dan_file.includes('youtube.com') || block.duong_dan_file.includes('youtu.be') ? (
                                                                         <iframe 
                                                                             className="w-full h-full"
-                                                                            src={block.duong_dan_file.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')} 
+                                                                            src={getYouTubeEmbedUrl(block.duong_dan_file)} 
                                                                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                                                             allowFullScreen 
                                                                         />
@@ -389,6 +401,41 @@ export default function CreateMultimediaLessonPage() {
                                                                     onChange={data => updateBlock(block.id, "noi_dung_text", data)} 
                                                                 />
                                                             </div>
+                                                        </div>
+                                                    )}
+
+                                                    {block.loai_noi_dung === "image" && (
+                                                        <div className="space-y-2 pl-4">
+                                                            <label className="text-xs font-bold text-muted-foreground">Đường dẫn Hình ảnh hoặc Tải lên</label>
+                                                            <div className="flex gap-2">
+                                                                <input
+                                                                    type="text"
+                                                                    value={block.duong_dan_file}
+                                                                    onChange={e => updateBlock(block.id, "duong_dan_file", e.target.value)}
+                                                                    placeholder="https://example.com/image.png"
+                                                                    className="flex-1 bg-secondary border border-border/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                                                />
+                                                                <div className="relative">
+                                                                    <input
+                                                                        type="file"
+                                                                        accept="image/png,image/jpeg,image/gif,image/webp"
+                                                                        onChange={(e) => handleFileUpload(e, block.id)}
+                                                                        disabled={block.isUploading}
+                                                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                                                                    />
+                                                                    <div className={`h-full flex items-center space-x-2 px-4 rounded-xl border border-border/60 transition-colors ${block.isUploading ? 'bg-secondary opacity-70' : 'bg-primary/5 hover:bg-primary/10 text-primary'}`}>
+                                                                        {block.isUploading ? <RefreshCw className="w-4 h-4 animate-spin text-muted-foreground" /> : <UploadCloud className="w-4 h-4" />}
+                                                                        <span className="text-xs font-bold whitespace-nowrap">
+                                                                            {block.isUploading ? "Đang tải..." : "Upload Ảnh"}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            {block.duong_dan_file && (
+                                                                <div className="mt-4 max-w-md bg-black rounded-xl overflow-hidden border border-border/60 shadow-inner">
+                                                                    <img src={block.duong_dan_file} alt="Preview" className="w-full h-auto object-contain" />
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>

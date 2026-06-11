@@ -293,6 +293,8 @@ export interface CourseProgress {
   total_lessons: number;
   completed_lessons: number;
   progress_percentage: number;
+  total_quizzes?: number;
+  passed_quizzes?: number;
 }
 
 export interface Option {

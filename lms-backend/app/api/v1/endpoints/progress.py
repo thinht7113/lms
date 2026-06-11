@@ -76,6 +76,9 @@ async def get_lesson_learning_content(
         if lsn.noi_dung:
             for content in lsn.noi_dung:
                 if content.duong_dan_file:
+                    # Images are publicly accessible via bucket policy, no signing needed
+                    if content.loai_noi_dung and content.loai_noi_dung.lower() == "image":
+                        continue
                     content.duong_dan_file = StorageService.generate_presigned_url(content.duong_dan_file)
         return lsn
 

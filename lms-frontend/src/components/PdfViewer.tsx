@@ -99,18 +99,38 @@ function PdfPage({ pageNumber, pdfDoc }: { pageNumber: number; pdfDoc: any }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const renderTaskRef = useRef<any>(null);
+  const runningPromiseRef = useRef<Promise<any> | null>(null);
+  const renderIdRef = useRef<number>(0);
 
   const renderPage = useCallback(async () => {
     if (!pdfDoc || !canvasRef.current) return;
 
-    // Cancel any in-progress render before starting a new one
+    const currentRenderId = ++renderIdRef.current;
+
+    // Cancel any in-progress render task before starting a new one
     if (renderTaskRef.current) {
       renderTaskRef.current.cancel();
       renderTaskRef.current = null;
     }
 
+    // Wait for any previously cancelled or active render task to fully finish/reject
+    if (runningPromiseRef.current) {
+      try {
+        await runningPromiseRef.current;
+      } catch (e) {
+        // Ignore cancellation errors from previous task
+      }
+    }
+
+    // If a newer render request was initiated while we were waiting, abort this stale render
+    if (currentRenderId !== renderIdRef.current) {
+      return;
+    }
+
     try {
       const page = await pdfDoc.getPage(pageNumber);
+      if (currentRenderId !== renderIdRef.current) return;
+
       const canvas = canvasRef.current;
       if (!canvas) return;
       const context = canvas.getContext("2d");
@@ -132,12 +152,18 @@ function PdfPage({ pageNumber, pdfDoc }: { pageNumber: number; pdfDoc: any }) {
 
       const task = page.render({ canvasContext: context, viewport });
       renderTaskRef.current = task;
+      runningPromiseRef.current = task.promise;
+
       await task.promise;
-      renderTaskRef.current = null;
     } catch (err: unknown) {
       // Ignore cancellation errors (expected when re-rendering)
       if (err instanceof Error && err.message?.includes("Rendering cancelled")) return;
       console.error(`Error rendering page ${pageNumber}:`, err);
+    } finally {
+      if (currentRenderId === renderIdRef.current) {
+        renderTaskRef.current = null;
+        runningPromiseRef.current = null;
+      }
     }
   }, [pdfDoc, pageNumber]);
 

@@ -41,6 +41,7 @@ export default function CourseDetailPage() {
   const [relatedCourses, setRelatedCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [isEnrolled, setIsEnrolled] = useState(false);
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
@@ -68,6 +69,11 @@ export default function CourseDetailPage() {
           limit: 8,
         });
         setRelatedCourses(related.filter((item) => item.id !== courseId).slice(0, 6));
+
+        if (tokenHelper.getToken()) {
+          const enrolled = await apiService.getMyEnrolledCourses();
+          setIsEnrolled(enrolled.some((item) => item.id === courseId));
+        }
       } catch (err) {
         toast.error("Lỗi khi tải dữ liệu khóa học");
       } finally {
@@ -265,6 +271,15 @@ export default function CourseDetailPage() {
                     className="flex h-12 flex-1 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-black text-white shadow-lg shadow-blue-100 transition hover:bg-blue-700"
                   >
                     Vào kênh giảng viên
+                  </button>
+                ) : isEnrolled ? (
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/learn/${courseId}`)}
+                    className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 text-sm font-black text-white shadow-lg shadow-emerald-100 transition hover:bg-emerald-700"
+                  >
+                    <PlayCircle className="h-5 w-5" />
+                    Vào học ngay
                   </button>
                 ) : (
                   <>

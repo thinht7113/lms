@@ -254,7 +254,6 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                                         ))}
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end space-x-2">
-                                                {/* Nút tùy chỉnh (ví dụ: Khóa user, Reset pass) */}
                                                 {customActions && customActions
                                                     .filter((action) => !action.shouldShow || action.shouldShow(item))
                                                     .map((action, i) => {
@@ -271,7 +270,6 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                                                         );
                                                     })}
 
-                                                {/* Nút Sửa gốc (Ẩn hoàn toàn đối với bảng users) */}
                                                 {formFields && formFields.length > 0 && !disableEdit && !endpoint.includes("/users") && (
                                                     <button
                                                         onClick={() => handleEdit(item)}
@@ -300,7 +298,6 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                     </table>
                 </div>
 
-                {/* Pagination */}
                 <div className="p-4 border-t border-border/40 flex items-center justify-between bg-slate-50/50">
                     <span className="text-xs font-bold text-muted-foreground">
                         Đang xem {skip + 1}-{Math.min(skip + limit, total)} trên tổng số {total}
@@ -314,7 +311,6 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                             <ChevronLeft className="h-4 w-4 text-foreground" />
                         </button>
 
-                        {/* Page Numbers */}
                         {renderPageNumbers()}
 
                         <button
@@ -328,7 +324,6 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                 </div>
             </div>
 
-            {/* Form Modal */}
             {isFormOpen && formFields && formFields.length > 0 && (
                 <DynamicForm
                     title={editingItem ? `Chỉnh sửa ${title}` : `Thêm mới ${title}`}

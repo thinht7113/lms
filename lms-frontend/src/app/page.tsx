@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, BookOpen, Layers, Star, Zap, Briefcase, Building, ArrowRight, ImageIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, BookOpen, Layers, Star, Zap, Briefcase, Building, ArrowRight, ImageIcon, ArrowUpRight } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import CourseCard from "@/components/CourseCard";
@@ -12,6 +12,7 @@ export default function HomePage() {
   // Real DB states
   const [banners, setBanners] = useState<Banner[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [affordableCourses, setAffordableCourses] = useState<Course[]>([]);
   const [popularCourses, setPopularCourses] = useState<Course[]>([]);
   const [newCourses, setNewCourses] = useState<Course[]>([]);
@@ -27,12 +28,13 @@ export default function HomePage() {
         const [bannersData, catsData, allDbCourses] = await Promise.all([
           apiService.getBanners(),
           apiService.getCategories(),
-          apiService.getCourses({ limit: 24 }) // Enough for homepage sections without over-fetching
+          apiService.getCourses({ limit: 1000 }) // Fetch all courses to calculate counts
         ]);
 
         // Lọc banner đang hiển thị và sắp xếp theo thu_tu
         setBanners(bannersData.filter(b => b.trang_thai).sort((a, b) => a.thu_tu - b.thu_tu));
         setCategories(catsData.slice(0, 8)); // Lấy 8 danh mục đầu
+        setAllCourses(allDbCourses);
 
         if (allDbCourses.length > 0) {
           // Khóa học giá tốt dựa trên giá bán thật trong CSDL
@@ -208,23 +210,28 @@ export default function HomePage() {
 
         {/* 5. CATEGORIES SECTION */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-2xl font-black tracking-tight mb-8 flex items-center gap-2">
-                 Chủ đề chuyên môn
+            <h2 className="text-2xl font-black tracking-tight mb-8">
+                 Các chủ đề chuyên môn
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {categories.length > 0 ? categories.map((cat) => (
-                    <Link
-                        key={cat.id}
-                        href={`/courses?ma_danh_muc=${cat.id}`}
-                        className="bg-card border border-border/60 hover:border-primary hover:shadow-lg hover:shadow-primary/10 rounded-2xl p-6 transition-all group flex flex-col items-center text-center gap-3 cursor-pointer"
-                    >
-                        <div className="w-14 h-14 bg-primary/10 text-primary rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <BookOpen className="w-6 h-6" />
-                        </div>
-                        <h3 className="font-bold text-sm text-foreground">{cat.ten_danh_muc}</h3>
-                    </Link>
-                )) : isLoading ? Array.from({ length: 4 }).map((_, idx) => (
-                    <div key={idx} className="h-40 rounded-2xl border border-border/60 bg-card p-6 animate-pulse" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {categories.length > 0 ? categories.map((cat) => {
+                    const courseCount = allCourses.filter(c => c.ma_danh_muc === cat.id).length;
+
+                    return (
+                        <Link
+                            key={cat.id}
+                            href={`/courses?ma_danh_muc=${cat.id}`}
+                            className="bg-white border border-slate-200/80 hover:border-primary/40 hover:bg-slate-50/50 rounded-xl px-5 py-4 transition-all group flex items-center justify-between cursor-pointer"
+                        >
+                            <span className="font-bold text-slate-800 text-sm group-hover:text-primary transition-colors">{cat.ten_danh_muc}</span>
+                            <div className="flex items-center gap-2 text-slate-400">
+                                <span className="text-xs font-bold text-slate-400/70">{courseCount}</span>
+                                <ArrowUpRight className="w-4 h-4 text-slate-300 group-hover:text-primary group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
+                            </div>
+                        </Link>
+                    );
+                }) : isLoading ? Array.from({ length: 8 }).map((_, idx) => (
+                    <div key={idx} className="h-[52px] rounded-xl border border-slate-200/80 bg-white animate-pulse" />
                 )) : null}
             </div>
         </section>

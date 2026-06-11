@@ -253,7 +253,7 @@ class QuizService:
         active_attempt_res = await db.execute(
             select(QuizAttempt)
             .options(
-                selectinload(QuizAttempt.bai_kiem_tra),
+                selectinload(QuizAttempt.bai_kiem_tra).selectinload(Quiz.khoa_hoc),
                 selectinload(QuizAttempt.cau_tra_loi_chi_tiet)
             )
             .where(
@@ -299,7 +299,7 @@ class QuizService:
         res_attempt = await db.execute(
             select(QuizAttempt)
             .options(
-                selectinload(QuizAttempt.bai_kiem_tra),
+                selectinload(QuizAttempt.bai_kiem_tra).selectinload(Quiz.khoa_hoc),
                 selectinload(QuizAttempt.cau_tra_loi_chi_tiet)
             )
             .where(QuizAttempt.id == db_attempt.id)
@@ -467,6 +467,7 @@ class QuizService:
             select(QuizAttempt)
             .options(
                 selectinload(QuizAttempt.bai_kiem_tra).selectinload(Quiz.cau_hoi).selectinload(Question.lua_chon_cau_hoi),
+                selectinload(QuizAttempt.bai_kiem_tra).selectinload(Quiz.khoa_hoc),
                 selectinload(QuizAttempt.cau_tra_loi_chi_tiet)
             )
             .where(QuizAttempt.id == attempt_id)
