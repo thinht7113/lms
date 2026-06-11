@@ -30,6 +30,7 @@ import {
     SourceEditing,
     CodeBlock,
     PasteFromOffice,
+    GeneralHtmlSupport,
     SpecialCharacters,
     SpecialCharactersEssentials,
     SpecialCharactersMathematical,
@@ -91,9 +92,19 @@ function EditorComponent({ value, onChange, placeholder = "Nhập nội dung..."
                         Heading, Link, List, Paragraph, Indent, IndentBlock, Alignment, Font,
                         Image, ImageCaption, ImageStyle, ImageUpload, MediaEmbed,
                         Table, TableToolbar, SourceEditing, CodeBlock,
-                        PasteFromOffice, SpecialCharacters, SpecialCharactersEssentials, SpecialCharactersMathematical,
+                        PasteFromOffice, GeneralHtmlSupport, SpecialCharacters, SpecialCharactersEssentials, SpecialCharactersMathematical,
                         Subscript, Superscript
                     ],
+                    htmlSupport: {
+                        allow: [
+                            {
+                                name: /.*/,
+                                attributes: true,
+                                classes: true,
+                                styles: true
+                            }
+                        ]
+                    },
                     toolbar: {
                         items: [
                             'undo', 'redo', '|',

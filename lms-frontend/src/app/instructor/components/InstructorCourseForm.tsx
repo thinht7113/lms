@@ -3,8 +3,9 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ImagePlus, RefreshCw, Save, Send } from "lucide-react";
+import { ArrowLeft, Clock, CheckCircle, ImagePlus, RefreshCw, Save, Send } from "lucide-react";
 import { apiService, Category, Course, CoursePayload } from "@/services/api";
+import { useToast } from "@/contexts/ToastContext";
 
 type Props = {
   courseId?: number;
@@ -22,6 +23,7 @@ const emptyPayload: CoursePayload = {
 
 export default function InstructorCourseForm({ courseId }: Props) {
   const router = useRouter();
+  const toast = useToast();
   const isEdit = Boolean(courseId);
   const [categories, setCategories] = useState<Category[]>([]);
   const [form, setForm] = useState<CoursePayload>(emptyPayload);
@@ -100,7 +102,26 @@ export default function InstructorCourseForm({ courseId }: Props) {
         ? await apiService.updateInstructorCourse(courseId, payload)
         : await apiService.createInstructorCourse(payload);
 
-      router.push(`/instructor/courses/${course.id}/sections`);
+      if (review) {
+        toast.success("Đã gửi admin duyệt thành công!");
+        setForm({
+          tieu_de: course.tieu_de,
+          mo_ta: course.mo_ta || "",
+          gia_tien: Number(course.gia_tien || 0),
+          ma_danh_muc: course.ma_danh_muc || null,
+          trinh_do: course.trinh_do || "beginner",
+          anh_dai_dien: course.anh_dai_dien || "",
+          trang_thai_phe_duyet: course.trang_thai_phe_duyet || "pending",
+          da_xuat_ban: course.da_xuat_ban,
+        });
+
+        if (!isEdit) {
+          router.push(`/instructor/courses/${course.id}/edit`);
+        }
+      } else {
+        toast.success("Đã lưu bản nháp thành công!");
+        router.push(`/instructor/courses/${course.id}/sections`);
+      }
     } catch (err: any) {
       setError(err.message || "Không thể lưu khóa học");
     } finally {
@@ -239,21 +260,72 @@ export default function InstructorCourseForm({ courseId }: Props) {
           <div className="grid gap-3">
             <button
               onClick={() => submit(false)}
-              disabled={saving}
-              className="flex items-center justify-center gap-2 rounded-2xl bg-amber-100 px-5 py-4 text-sm font-black text-amber-700 shadow-sm hover:bg-amber-200 disabled:opacity-60"
+              disabled={saving || form.trang_thai_phe_duyet === "pending" || form.trang_thai_phe_duyet === "approved"}
+              className="flex items-center justify-center gap-2 rounded-2xl bg-amber-100 px-5 py-4 text-sm font-black text-amber-700 shadow-sm hover:bg-amber-200 disabled:opacity-50 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed transition-all"
             >
               {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               Lưu bản nháp
             </button>
-            <button
-              onClick={() => submit(true)}
-              disabled={saving}
-              className="flex items-center justify-center gap-2 rounded-2xl bg-purple-600 px-5 py-4 text-sm font-black text-white shadow-lg hover:bg-purple-700 disabled:opacity-60"
-            >
-              {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              Gửi admin duyệt
-            </button>
+            {form.trang_thai_phe_duyet === "approved" ? (
+              <button
+                disabled
+                className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-100 border border-emerald-200 px-5 py-4 text-sm font-black text-emerald-700 cursor-not-allowed"
+              >
+                <CheckCircle className="h-4 w-4" />
+                Đã được duyệt
+              </button>
+            ) : form.trang_thai_phe_duyet === "pending" ? (
+              <button
+                disabled
+                className="flex items-center justify-center gap-2 rounded-2xl bg-amber-100 border border-amber-200 px-5 py-4 text-sm font-black text-amber-700 cursor-not-allowed"
+              >
+                <Clock className="h-4 w-4" />
+                Đang đợi duyệt
+              </button>
+            ) : (
+              <button
+                onClick={() => submit(true)}
+                disabled={saving}
+                className="flex items-center justify-center gap-2 rounded-2xl bg-purple-600 px-5 py-4 text-sm font-black text-white shadow-lg hover:bg-purple-700 disabled:opacity-60 transition-all"
+              >
+                {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                Gửi admin duyệt
+              </button>
+            )}
           </div>
+
+          {form.trang_thai_phe_duyet === "pending" && (
+            <div className="mt-2 rounded-2xl border border-amber-200 bg-amber-50/50 p-4 text-center text-sm font-bold text-amber-800 shadow-sm animate-in fade-in duration-300">
+              <div className="flex items-center justify-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                </span>
+                <span>Đã gửi admin duyệt</span>
+              </div>
+            </div>
+          )}
+
+          {form.trang_thai_phe_duyet === "approved" && (
+            <div className="mt-2 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 text-center text-sm font-bold text-emerald-800 shadow-sm animate-in fade-in duration-300">
+              <div className="flex items-center justify-center gap-2">
+                <CheckCircle className="h-4 w-4 text-emerald-500" />
+                <span>Khóa học đã được duyệt và xuất bản</span>
+              </div>
+            </div>
+          )}
+
+          {form.trang_thai_phe_duyet === "rejected" && (
+            <div className="mt-2 rounded-2xl border border-rose-200 bg-rose-50/50 p-4 text-center text-sm font-bold text-rose-800 shadow-sm animate-in fade-in duration-300">
+              <div className="flex items-center justify-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                </span>
+                <span>Khóa học bị từ chối phê duyệt. Vui lòng cập nhật lại nội dung và gửi duyệt lại.</span>
+              </div>
+            </div>
+          )}
         </aside>
       </div>
     </div>
