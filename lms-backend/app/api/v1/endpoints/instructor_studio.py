@@ -254,8 +254,8 @@ async def create_payout_request(
     if payout_in.amount > available_balance:
         raise HTTPException(status_code=400, detail="Số dư khả dụng không đủ.")
         
-    if payout_in.amount < 500000:
-        raise HTTPException(status_code=400, detail="Số tiền rút tối thiểu là 500.000 đ.")
+    if payout_in.amount < 100000:
+        raise HTTPException(status_code=400, detail="Số tiền rút tối thiểu là 100.000 đ.")
 
     new_payout = PayoutRequest(
         ma_giang_vien=current_user.id,

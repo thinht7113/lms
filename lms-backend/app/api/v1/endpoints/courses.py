@@ -49,7 +49,7 @@ from app.core.redis import redis_client, clear_categories_cache
     "/categories", 
     response_model=CategoryResponse, 
     status_code=status.HTTP_201_CREATED,
-    summary="Admin tạo danh mục khóa học mới"
+    summary="Admin creates a new course category"
 )
 async def create_category(
     category_in: CategoryCreate,
@@ -63,7 +63,7 @@ async def create_category(
 @router.get(
     "/categories", 
     response_model=List[CategoryResponse],
-    summary="Lấy danh sách danh mục khóa học"
+    summary="Get course category list"
 )
 async def get_categories(db: AsyncSession = Depends(get_db)):
     cache_key = "categories:all"
@@ -86,7 +86,7 @@ async def get_categories(db: AsyncSession = Depends(get_db)):
 
 @router.get(
     "/categories/with-counts",
-    summary="Lấy danh mục kèm số lượng khóa học (tối ưu cho trang chủ)"
+    summary="Get categories with course count (optimized for homepage)"
 )
 async def get_categories_with_counts(db: AsyncSession = Depends(get_db)):
     cache_key = "categories:with_counts"
@@ -108,7 +108,7 @@ async def get_categories_with_counts(db: AsyncSession = Depends(get_db)):
 
 @router.get(
     "/courses/featured",
-    summary="Lấy khóa học nổi bật: phổ biến, giá tốt, mới nhất (tối ưu cho trang chủ)"
+    summary="Get featured courses: popular, affordable, newest (optimized for homepage)"
 )
 async def get_featured_courses(
     limit: int = Query(default=8, le=20),
@@ -121,7 +121,7 @@ async def get_featured_courses(
     "/instructor/courses",
     response_model=CourseResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Giảng viên tạo khóa học mới (Bản nháp)"
+    summary="Instructor creates a new course (Draft)"
 )
 async def create_course(
     course_in: CourseCreate,
@@ -133,7 +133,7 @@ async def create_course(
 @router.get(
     "/instructor/courses",
     response_model=List[CourseResponse],
-    summary="Lấy danh sách khóa học do giảng viên hiện tại quản lý"
+    summary="Get list of courses managed by current instructor"
 )
 async def get_instructor_courses(
     db: AsyncSession = Depends(get_db),
@@ -144,7 +144,7 @@ async def get_instructor_courses(
 @router.get(
     "/instructor/courses/{course_id}/students",
     response_model=List[UserResponse],
-    summary="Lấy danh sách học viên của khóa học"
+    summary="Get list of students in a course"
 )
 async def get_course_students(
     course_id: int,
@@ -174,7 +174,7 @@ async def get_course_students(
 @router.put(
     "/courses/{course_id}",
     response_model=CourseResponse,
-    summary="Giảng viên cập nhật thông tin khóa học"
+    summary="Instructor updates course information"
 )
 async def update_course(
     course_id: int,
@@ -196,7 +196,7 @@ async def update_course(
     "/courses/{course_id}/sections",
     response_model=SectionResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Giảng viên thêm chương học mới vào khóa học"
+    summary="Instructor adds a new chapter to the course"
 )
 async def create_section(
     course_id: int,
@@ -209,7 +209,7 @@ async def create_section(
 @router.put(
     "/sections/{section_id}",
     response_model=SectionResponse,
-    summary="Giảng viên cập nhật chương học"
+    summary="Instructor updates chapter"
 )
 async def update_section(
     section_id: int,
@@ -221,7 +221,7 @@ async def update_section(
 
 @router.delete(
     "/sections/{section_id}",
-    summary="Giảng viên xóa chương học"
+    summary="Instructor deletes a chapter"
 )
 async def delete_section(
     section_id: int,
@@ -237,7 +237,7 @@ async def delete_section(
     "/sections/{section_id}/lessons",
     response_model=LessonResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Giảng viên thêm bài học mới vào chương học"
+    summary="Instructor adds a new lesson to a chapter"
 )
 async def create_lesson(
     section_id: int,
@@ -250,7 +250,7 @@ async def create_lesson(
 @router.put(
     "/lessons/{lesson_id}",
     response_model=LessonResponse,
-    summary="Giảng viên cập nhật nội dung bài học"
+    summary="Instructor updates lesson content"
 )
 async def update_lesson(
     lesson_id: int,
@@ -268,7 +268,7 @@ async def update_lesson(
 
 @router.delete(
     "/lessons/{lesson_id}",
-    summary="Giảng viên xóa bài học"
+    summary="Instructor deletes a lesson"
 )
 async def delete_lesson(
     lesson_id: int,
@@ -283,7 +283,7 @@ async def delete_lesson(
     "/lessons/{lesson_id}/contents",
     response_model=LessonContentResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Giảng viên thêm block nội dung vào bài học"
+    summary="Instructor adds a content block to a lesson"
 )
 async def create_lesson_content(
     lesson_id: int,
@@ -296,7 +296,7 @@ async def create_lesson_content(
 @router.put(
     "/lesson-contents/{content_id}",
     response_model=LessonContentResponse,
-    summary="Giảng viên cập nhật block nội dung bài học"
+    summary="Instructor updates a content block"
 )
 async def update_lesson_content(
     content_id: int,
@@ -308,7 +308,7 @@ async def update_lesson_content(
 
 @router.delete(
     "/lesson-contents/{content_id}",
-    summary="Giảng viên xóa block nội dung khỏi bài học"
+    summary="Instructor deletes a content block from a lesson"
 )
 async def delete_lesson_content(
     content_id: int,
@@ -323,7 +323,7 @@ async def delete_lesson_content(
 @router.get(
     "/courses",
     response_model=List[CourseResponse],
-    summary="Tìm kiếm, lọc và sắp xếp khóa học dành cho học viên và khách vãng lai"
+    summary="Search, filter, and sort courses for students and guests"
 )
 async def get_courses(
     q: Optional[str] = Query(None, description="Từ khóa tìm kiếm trong tiêu đề và mô tả"),
@@ -347,7 +347,7 @@ async def get_courses(
 @router.get(
     "/courses/wishlist/me",
     response_model=List[WishlistResponse],
-    summary="Lấy danh sách khóa học yêu thích cá nhân"
+    summary="Get personal favorite courses list"
 )
 async def get_my_wishlist(
     db: AsyncSession = Depends(get_db),
@@ -358,7 +358,7 @@ async def get_my_wishlist(
 @router.get(
     "/courses/{course_id}",
     response_model=CourseDetailResponse,
-    summary="Xem chi tiết đề cương khóa học (Mọi người có thể xem)"
+    summary="View course syllabus details (Publicly accessible)"
 )
 async def get_course_detail(
     course_id: int,
@@ -393,7 +393,7 @@ async def get_course_detail(
     "/courses/{course_id}/reviews",
     response_model=ReviewResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Học viên gửi đánh giá cho khóa học"
+    summary="Student submits a course review"
 )
 async def create_course_review(
     course_id: int,
@@ -406,7 +406,7 @@ async def create_course_review(
 @router.get(
     "/courses/{course_id}/reviews",
     response_model=List[ReviewResponse],
-    summary="Lấy danh sách đánh giá của khóa học"
+    summary="Get course review list"
 )
 async def get_course_reviews(
     course_id: int,
@@ -419,7 +419,7 @@ async def get_course_reviews(
 # ==================== COURSE WISHLIST ENDPOINTS ====================
 @router.post(
     "/courses/{course_id}/wishlist",
-    summary="Yêu thích / Bỏ yêu thích khóa học"
+    summary="Favorite / Unfavorite course"
 )
 async def toggle_course_wishlist(
     course_id: int,

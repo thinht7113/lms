@@ -10,7 +10,7 @@ class UserRegister(BaseModel):
     email: EmailStr = Field(..., description="Địa chỉ email đăng ký")
     mat_khau: str = Field(..., min_length=6, description="Mật khẩu tối thiểu 6 ký tự")
     ho_ten: str = Field(..., min_length=2, description="Họ và tên của người dùng")
-    so_dien_thoai: Optional[str] = Field(None, description="Số điện thoại")
+    so_dien_thoai: Optional[str] = Field(None, pattern=r"^0\d{9}$", description="Số điện thoại (Bắt đầu bằng 0, gồm 10 chữ số)")
     vai_tro: Optional[str] = Field("student", description="Vai trò: student hoặc instructor")
 
 # 2. Schema dữ liệu gửi lên khi Đăng nhập (Login Request)
@@ -29,10 +29,15 @@ class SocialLoginRequest(BaseModel):
 # 4. Schema Cập nhật thông tin cá nhân (Update Request)
 class UserUpdate(BaseModel):
     ho_ten: Optional[str] = Field(None, min_length=2, description="Họ và tên mới")
-    so_dien_thoai: Optional[str] = Field(None, description="Số điện thoại")
+    so_dien_thoai: Optional[str] = Field(None, pattern=r"^0\d{9}$", description="Số điện thoại (Bắt đầu bằng 0, gồm 10 chữ số)")
     avatar_url: Optional[str] = Field(None, description="URL ảnh đại diện mới")
     mat_khau_cu: Optional[str] = Field(None, description="Mật khẩu cũ (để xác nhận đổi mật khẩu)")
     mat_khau_moi: Optional[str] = Field(None, min_length=6, description="Mật khẩu mới")
+
+# 4.1 Schema Cập nhật thông tin bởi Admin
+class AdminUserUpdate(UserUpdate):
+    vai_tro: Optional[str] = Field(None, description="Vai trò: student, instructor, admin")
+    trang_thai_hoat_dong: Optional[bool] = Field(None, description="Trạng thái hoạt động")
 
 # 5. Schema thông tin chi tiết người dùng trả về (Response) - Bảo mật, không trả về mật khẩu!
 class UserResponse(BaseModel):
@@ -40,6 +45,7 @@ class UserResponse(BaseModel):
     email: EmailStr
     ho_ten: str
     vai_tro: str
+    trang_thai_hoat_dong: bool
     ngay_tao: datetime
     so_dien_thoai: Optional[str] = None
     avatar_url: Optional[str] = None

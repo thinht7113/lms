@@ -24,10 +24,10 @@ export default function AdminUsersPage() {
     ];
 
     const formFields: FormField[] = [
-        { key: "email", label: "Email đăng nhập", type: "email", required: true },
-        { key: "mat_khau", label: "Mật khẩu (ít nhất 6 ký tự)", type: "password", required: true },
-        { key: "ho_ten", label: "Họ và tên", type: "text", required: true },
-        { key: "so_dien_thoai", label: "Số điện thoại", type: "text" },
+        { key: "email", label: "Email đăng nhập", type: "email", required: true, hideOnEdit: true },
+        { key: "mat_khau", label: "Mật khẩu (ít nhất 6 ký tự)", type: "password", required: true, hideOnEdit: true },
+        { key: "ho_ten", label: "Họ và tên", type: "text", required: true, hideOnEdit: true },
+        { key: "so_dien_thoai", label: "Số điện thoại", type: "text", hideOnEdit: true },
         {
             key: "vai_tro",
             label: "Vai trò",
@@ -40,7 +40,7 @@ export default function AdminUsersPage() {
         },
     ];
 
-    const handleToggleStatus = async (item: DynamicTableRow) => {
+    const handleToggleStatus = async (item: DynamicTableRow, refresh: () => void) => {
         const userId = Number(item.id);
         const isActive = Boolean(item.trang_thai_hoat_dong);
         const actionName = isActive ? "khóa" : "mở khóa";
@@ -57,13 +57,13 @@ export default function AdminUsersPage() {
             }
 
             success(`Đã ${actionName} tài khoản thành công!`);
-            setTimeout(() => { window.location.reload(); }, 1500);
+            refresh();
         } catch (err: unknown) {
             error(getErrorMessage(err, `Lỗi khi ${actionName} tài khoản`));
         }
     };
 
-    const handleResetPassword = async (item: DynamicTableRow) => {
+    const handleResetPassword = async (item: DynamicTableRow, refresh: () => void) => {
         const userId = Number(item.id);
 
         try {

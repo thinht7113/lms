@@ -73,7 +73,7 @@ export default function HomePage() {
     id: c.id,
     title: c.tieu_de,
     thumbnail: c.anh_dai_dien,
-    instructor: "Giảng viên chuyên gia",
+    description: c.mo_ta,
     category: categories.find(cat => cat.id === c.ma_danh_muc)?.ten_danh_muc || "Lập trình",
     level: c.trinh_do,
     rating: Number(c.danh_gia_trung_binh) || 0.0,

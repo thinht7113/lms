@@ -10,7 +10,7 @@ router = APIRouter()
 @router.get(
     "", 
     response_model=CartResponse, 
-    summary="Người dùng xem chi tiết giỏ hàng hiện tại kèm tổng tiền tạm tính"
+    summary="User views current cart details with subtotal"
 )
 async def get_cart(
     db: AsyncSession = Depends(get_db),
@@ -22,7 +22,7 @@ async def get_cart(
     "/items", 
     response_model=CartItemResponse, 
     status_code=status.HTTP_201_CREATED,
-    summary="Người dùng thêm khóa học vào giỏ hàng"
+    summary="User adds course to cart"
 )
 async def add_to_cart(
     item_in: CartItemAdd,
@@ -33,7 +33,7 @@ async def add_to_cart(
 
 @router.delete(
     "/items/{course_id}", 
-    summary="Người dùng xóa một khóa học ra khỏi giỏ hàng"
+    summary="User removes course from cart"
 )
 async def remove_from_cart(
     course_id: int,

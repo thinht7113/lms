@@ -24,7 +24,7 @@ router = APIRouter()
 @router.get(
     "/enrollments/my-courses",
     response_model=List[CourseResponse],
-    summary="Học viên lấy danh sách toàn bộ khóa học đã sở hữu (đã mua)"
+    summary="Student gets all owned (purchased) courses"
 )
 async def get_my_courses(
     db: AsyncSession = Depends(get_db),
@@ -41,7 +41,7 @@ async def get_my_courses(
 @router.get(
     "/learn/my-dashboard",
     response_model=LearnerDashboardResponse,
-    summary="Lấy toàn bộ thông tin tiến độ học tập và bài thi trắc nghiệm của học viên để tối ưu hóa dashboard"
+    summary="Get all learning progress and quiz data to optimize student dashboard"
 )
 async def get_my_dashboard(
     db: AsyncSession = Depends(get_db),
@@ -54,7 +54,7 @@ async def get_my_dashboard(
 @router.get(
     "/learn/courses/{course_id}/lessons/{lesson_id}",
     response_model=LessonResponse,
-    summary="Học viên xem nội dung chi tiết bài học (Bảo mật - Chỉ dành cho học viên đã mua)"
+    summary="Student views lesson details (Secure - Only for enrolled students)"
 )
 async def get_lesson_learning_content(
     course_id: int,
@@ -186,7 +186,7 @@ async def get_lesson_learning_content(
 @router.get(
     "/progress/lessons/{lesson_id}",
     response_model=ProgressResponse,
-    summary="Lấy trạng thái và vị trí xem gần nhất của bài học",
+    summary="Get status and last watched position of a lesson",
 )
 async def get_lesson_progress(
     lesson_id: int,
@@ -199,7 +199,7 @@ async def get_lesson_progress(
 @router.put(
     "/progress/lessons/{lesson_id}",
     response_model=ProgressResponse,
-    summary="Học viên đánh dấu đã hoàn thành bài học hoặc cập nhật vị trí video phát"
+    summary="Student marks lesson as completed or updates video playback position"
 )
 async def update_lesson_progress(
     lesson_id: int,
@@ -214,7 +214,7 @@ async def update_lesson_progress(
 @router.get(
     "/learn/courses/{course_id}/progress",
     response_model=CourseProgressResponse,
-    summary="Học viên xem phần trăm tiến độ hoàn thành khóa học thực tế"
+    summary="Student views actual course completion percentage"
 )
 async def get_course_progress(
     course_id: int,

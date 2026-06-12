@@ -28,7 +28,7 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
 @router.post(
     "/coupons/apply",
     response_model=CouponApplyResponse,
-    summary="Học viên áp dụng mã giảm giá"
+    summary="Student applies a coupon code"
 )
 async def apply_coupon(
     payload: CouponApplyRequest,
@@ -60,7 +60,7 @@ async def apply_coupon(
 @router.post(
     "/admin/coupons",
     status_code=status.HTTP_201_CREATED,
-    summary="Admin tạo mã giảm giá mới",
+    summary="Admin creates a new coupon code",
 )
 async def create_coupon(
     coupon_in: CouponCreate,
@@ -79,7 +79,7 @@ async def create_coupon(
 @router.post(
     "/checkout",
     response_model=OrderResponse,
-    summary="Học viên chốt giỏ hàng tạo đơn hàng mới"
+    summary="Student checks out cart to create a new order"
 )
 async def checkout(
     checkout_in: CheckoutRequest,
@@ -91,7 +91,7 @@ async def checkout(
 @router.get(
     "/my-orders",
     response_model=List[OrderResponse],
-    summary="Học viên xem lịch sử giao dịch mua hàng"
+    summary="Student views order transaction history"
 )
 async def get_my_orders(
     db: AsyncSession = Depends(get_db),
@@ -104,7 +104,7 @@ async def get_my_orders(
 @router.post(
     "/payments/mock",
     response_model=PaymentResponse,
-    summary="Giả lập thanh toán hóa đơn (Dùng thử E2E)"
+    summary="Simulate bill payment (E2E trial)"
 )
 async def pay_mock(
     payment_in: PaymentMockRequest,
@@ -120,7 +120,7 @@ async def pay_mock(
 
 @router.post(
     "/payments/webhook",
-    summary="API nhận tín hiệu thanh toán thành công ngầm từ Momo/VNPay"
+    summary="API receives background success payment signal from Momo/VNPay"
 )
 async def payment_webhook(
     request: Request,
@@ -171,7 +171,7 @@ async def payment_webhook(
 @router.post(
     "/orders/{order_id}/refund",
     response_model=OrderResponse,
-    summary="Học viên yêu cầu hoàn tiền cho đơn hàng (Trong vòng 7 ngày)"
+    summary="Student requests order refund (Within 7 days)"
 )
 async def refund_order(
     order_id: int,
@@ -184,7 +184,7 @@ async def refund_order(
 @router.post(
     "/orders/{order_id}/cancel-refund",
     response_model=OrderResponse,
-    summary="Học viên hủy yêu cầu hoàn tiền cho đơn hàng"
+    summary="Student cancels order refund request"
 )
 async def cancel_refund_order(
     order_id: int,

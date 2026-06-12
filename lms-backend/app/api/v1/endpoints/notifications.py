@@ -24,7 +24,7 @@ class NotificationResponse(BaseModel):
     class Config:
         from_attributes = True
 
-@router.get("/", response_model=List[NotificationResponse], summary="Lấy danh sách thông báo của người dùng")
+@router.get("/", response_model=List[NotificationResponse], summary="Get user notification list")
 async def get_my_notifications(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -36,7 +36,7 @@ async def get_my_notifications(
     )
     return result.scalars().all()
 
-@router.post("/{notification_id}/read", response_model=NotificationResponse, summary="Đánh dấu thông báo đã đọc")
+@router.post("/{notification_id}/read", response_model=NotificationResponse, summary="Mark notification as read")
 async def mark_notification_as_read(
     notification_id: int,
     db: AsyncSession = Depends(get_db),

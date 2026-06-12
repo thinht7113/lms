@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from sqlalchemy.orm import selectinload
 from app.api.v1.dynamic_crud import create_crud_router
 from app.modules.identity.models import User
-from app.modules.identity.schemas import UserResponse, UserRegister as UserCreate, UserUpdate
+from app.modules.identity.schemas import UserResponse, UserRegister as UserCreate, UserUpdate, AdminUserUpdate
 from app.modules.catalog.models import Category, Course, Section, Lesson, LessonContent, Banner
 from app.modules.catalog.schemas import (
     BannerCreate,
@@ -55,7 +55,7 @@ dynamic_router = APIRouter()
 
 # 1. Users
 dynamic_router.include_router(
-    create_crud_router(model=User, response_schema=UserResponse, create_schema=UserCreate, update_schema=UserUpdate, prefix="/users", tags=["Dynamic Admin - Users"], search_columns=["email", "ho_ten", "so_dien_thoai"])
+    create_crud_router(model=User, response_schema=UserResponse, create_schema=UserCreate, update_schema=AdminUserUpdate, prefix="/users", tags=["Dynamic Admin - Users"], search_columns=["email", "ho_ten", "so_dien_thoai"])
 )
 
 # 2. Categories

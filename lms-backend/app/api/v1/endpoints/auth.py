@@ -38,7 +38,7 @@ def set_auth_cookie(response: Response, access_token: str) -> None:
     "/register", 
     response_model=UserResponse, 
     status_code=status.HTTP_201_CREATED,
-    summary="Đăng ký tài khoản học viên hoặc giảng viên"
+    summary="Register student or instructor account"
 )
 async def register(
     user_in: UserRegister, 
@@ -51,7 +51,7 @@ async def register(
 @router.post(
     "/login", 
     response_model=TokenResponse, 
-    summary="Đăng nhập nhận Token JWT truy cập hệ thống"
+    summary="Login to get JWT access token"
 )
 async def login(
     login_data: UserLogin,
@@ -75,7 +75,7 @@ async def login(
     "/login/swagger",
     response_model=TokenResponse,
     include_in_schema=False,
-    summary="Đăng nhập dành riêng cho Swagger UI"
+    summary="Login exclusively for Swagger UI"
 )
 async def login_swagger(
     response: Response,
@@ -97,7 +97,7 @@ async def login_swagger(
 @router.post(
     "/social",
     response_model=TokenResponse,
-    summary="Đăng nhập hoặc đăng ký bằng tài khoản mạng xã hội (Google/Facebook)"
+    summary="Login or register using social media account (Google/Facebook)"
 )
 async def social_login(
     social_data: SocialLoginRequest,
@@ -165,7 +165,7 @@ async def logout(
 @router.get(
     "/profile", 
     response_model=UserResponse, 
-    summary="Lấy thông tin tài khoản đang đăng nhập"
+    summary="Get current logged-in account info"
 )
 async def get_profile(
     current_user: User = Depends(get_current_user)
@@ -176,7 +176,7 @@ async def get_profile(
 @router.put(
     "/profile", 
     response_model=UserResponse, 
-    summary="Cập nhật thông tin tài khoản đang đăng nhập"
+    summary="Update current logged-in account info"
 )
 async def update_profile(
     update_in: UserUpdate,
@@ -188,7 +188,7 @@ async def update_profile(
 
 @router.post(
     "/forgot-password",
-    summary="Yêu cầu gửi mã khôi phục mật khẩu qua Email"
+    summary="Request password recovery code via Email"
 )
 async def forgot_password(
     request: ForgotPasswordRequest,
@@ -199,7 +199,7 @@ async def forgot_password(
 
 @router.post(
     "/reset-password",
-    summary="Đặt lại mật khẩu mới bằng mã khôi phục"
+    summary="Reset password using recovery code"
 )
 async def reset_password(
     request: ResetPasswordRequest,

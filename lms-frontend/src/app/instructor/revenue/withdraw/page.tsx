@@ -48,8 +48,8 @@ export default function WithdrawAtmPage() {
         
         const withdrawAmount = parseInt(amount.replace(/\D/g, ''));
         
-        if (!withdrawAmount || withdrawAmount < 500000) {
-            toast.error("Số tiền rút tối thiểu là 500,000 đ");
+        if (!withdrawAmount || withdrawAmount < 100000) {
+            toast.error("Số tiền rút tối thiểu là 100,000 đ");
             return;
         }
         
@@ -170,14 +170,14 @@ export default function WithdrawAtmPage() {
                                         type="text" 
                                         value={amount}
                                         onChange={handleAmountChange}
-                                        placeholder="500.000"
+                                        placeholder="100.000"
                                         className="w-full bg-white border border-slate-200 text-slate-900 rounded-2xl py-4 pl-6 pr-16 text-2xl font-black tracking-wider focus:outline-none focus:border-purple-400 focus:ring-4 focus:ring-purple-400/10 transition-all placeholder:text-slate-300 shadow-sm"
                                         required
                                     />
                                     <span className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 font-black">đ</span>
                                 </div>
                                 <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-600 mt-2">
-                                    <AlertCircle className="w-3 h-3" /> Tối thiểu 500,000 đ
+                                    <AlertCircle className="w-3 h-3" /> Tối thiểu 100,000 đ
                                 </div>
                             </div>
 

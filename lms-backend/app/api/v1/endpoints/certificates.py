@@ -15,7 +15,7 @@ router = APIRouter()
 @router.get(
     "/public/{certificate_uuid}/pdf",
     response_class=Response,
-    summary="Tải bản PDF công khai của chứng chỉ đã xác minh"
+    summary="Download public PDF of verified certificate"
 )
 async def get_public_certificate_pdf(
     certificate_uuid: str,
@@ -50,7 +50,7 @@ async def get_public_certificate_pdf(
 @router.get(
     "/my-certificates",
     response_model=List[CertificateResponse],
-    summary="Học viên lấy danh sách các chứng chỉ số đã được cấp"
+    summary="Student gets list of issued digital certificates"
 )
 async def get_my_certificates(
     db: AsyncSession = Depends(get_db),
@@ -61,7 +61,7 @@ async def get_my_certificates(
 @router.get(
     "/{course_id}/download",
     response_model=CertificateResponse,
-    summary="Học viên tải xuống tệp PDF chứng chỉ số (Chỉ dành cho học viên đã thi đỗ và hoàn thành)"
+    summary="Student downloads digital certificate PDF (Only for passed and completed students)"
 )
 async def download_certificate(
     course_id: int,
@@ -92,7 +92,7 @@ async def download_certificate(
 @router.get(
     "/verify/{certificate_uuid}",
     response_model=CertificateVerifyResponse,
-    summary="Nhà tuyển dụng tra cứu và xác thực tính pháp lý của chứng chỉ số qua mã UUID"
+    summary="Employer looks up and verifies the legality of digital certificate via UUID"
 )
 async def verify_certificate(
     certificate_uuid: str,

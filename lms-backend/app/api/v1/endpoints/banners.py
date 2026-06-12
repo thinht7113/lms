@@ -11,7 +11,7 @@ from app.modules.catalog.schemas import BannerCreate, BannerUpdate, BannerRespon
 
 router = APIRouter()
 
-@router.get("/", response_model=List[BannerResponse], summary="Lấy danh sách Banner hiển thị (Public)")
+@router.get("/", response_model=List[BannerResponse], summary="Get public banner list")
 async def get_active_banners(db: AsyncSession = Depends(get_db)):
     """Lấy danh sách banner có trạng thái hoạt động (Dành cho trang chủ)"""
     result = await db.execute(
@@ -21,7 +21,7 @@ async def get_active_banners(db: AsyncSession = Depends(get_db)):
     )
     return result.scalars().all()
 
-@router.get("/admin", response_model=List[BannerResponse], summary="Lấy tất cả Banner (Admin)")
+@router.get("/admin", response_model=List[BannerResponse], summary="Get all banners (Admin)")
 async def get_all_banners(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -32,7 +32,7 @@ async def get_all_banners(
     result = await db.execute(select(Banner).order_by(asc(Banner.thu_tu), asc(Banner.id)))
     return result.scalars().all()
 
-@router.post("/", response_model=BannerResponse, summary="Thêm mới Banner (Admin)")
+@router.post("/", response_model=BannerResponse, summary="Create new banner (Admin)")
 async def create_banner(
     banner_in: BannerCreate,
     db: AsyncSession = Depends(get_db),
@@ -47,7 +47,7 @@ async def create_banner(
     await db.refresh(db_banner)
     return db_banner
 
-@router.put("/{banner_id}", response_model=BannerResponse, summary="Cập nhật Banner (Admin)")
+@router.put("/{banner_id}", response_model=BannerResponse, summary="Update banner (Admin)")
 async def update_banner(
     banner_id: int,
     banner_in: BannerUpdate,
@@ -71,7 +71,7 @@ async def update_banner(
     await db.refresh(db_banner)
     return db_banner
 
-@router.delete("/{banner_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Xóa Banner (Admin)")
+@router.delete("/{banner_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete banner (Admin)")
 async def delete_banner(
     banner_id: int,
     db: AsyncSession = Depends(get_db),

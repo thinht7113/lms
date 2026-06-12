@@ -10,6 +10,7 @@ export interface Column {
     key: string;
     label: string;
     type?: "text" | "number" | "boolean" | "date" | "image";
+    render?: (val: any, item: any) => React.ReactNode;
 }
 
 export type DynamicTableRow = Record<string, unknown>;
@@ -17,7 +18,7 @@ export type DynamicTableRow = Record<string, unknown>;
 export interface CustomAction {
     icon: React.ElementType;
     label: string;
-    onClick: (item: DynamicTableRow) => void;
+    onClick: (item: DynamicTableRow, refresh: () => void) => void;
     colorClass?: string; // e.g. "text-amber-500 bg-amber-50 hover:bg-amber-100"
     shouldShow?: (item: DynamicTableRow) => boolean;
 }
@@ -128,12 +129,17 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
             return path.split('.').reduce((acc, part) => acc && acc[part], obj);
         };
         const val = getNestedValue(item, col.key);
+        
+        if (col.render) {
+            return col.render(val, item);
+        }
+
         if (val === null || val === undefined) return "-";
 
         if (col.type === "boolean") {
             return (
                 <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${val ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-slate-500/10 text-slate-500 border border-slate-500/20'}`}>
-                    {val ? "Có" : "Không"}
+                    {val ? "Active" : "Inactive"}
                 </span>
             );
         }
@@ -259,21 +265,18 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                                             <div className="flex items-center justify-end space-x-2">
                                                 {customActions && customActions
                                                     .filter((action) => !action.shouldShow || action.shouldShow(item))
-                                                    .map((action, i) => {
-                                                        const ActionIcon = action.icon;
-                                                        return (
-                                                            <button
-                                                                key={i}
-                                                                onClick={() => action.onClick(item)}
-                                                                title={action.label}
-                                                                className={`p-2 rounded-lg transition-colors ${action.colorClass || 'text-slate-600 bg-slate-50 hover:bg-slate-100'}`}
-                                                            >
-                                                                <ActionIcon className="h-4 w-4" />
-                                                            </button>
-                                                        );
-                                                    })}
+                                                    .map((action, aIdx) => (
+                                                        <button
+                                                            key={aIdx}
+                                                            onClick={() => action.onClick(item, fetchData)}
+                                                            className={`p-1.5 rounded-lg transition-all ${action.colorClass || 'text-slate-600 hover:bg-slate-100'}`}
+                                                            title={action.label}
+                                                        >
+                                                            <action.icon className="h-4 w-4" />
+                                                        </button>
+                                                    ))}
 
-                                                {formFields && formFields.length > 0 && !disableEdit && !endpoint.includes("/users") && (
+                                                {formFields && formFields.length > 0 && !disableEdit && (
                                                     <button
                                                         onClick={() => handleEdit(item)}
                                                         className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"

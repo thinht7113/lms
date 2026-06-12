@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { Activity, BookOpen, DollarSign, RefreshCw, ShoppingCart, TrendingUp, Users } from "lucide-react";
 import { apiService } from "@/services/api";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 interface ChartDataPoint {
     name: string;
@@ -45,6 +46,8 @@ interface AdminStats {
     total_courses: number;
     total_orders: number;
     total_revenue: number;
+    instructor_revenue: number;
+    platform_revenue: number;
     chart_data: ChartDataPoint[];
     recent_activities: RecentActivityItem[];
     top_courses: TopCourseItem[];
@@ -88,30 +91,13 @@ export default function AdminDashboardPage() {
     const totalChartRevenue = chartData.reduce((sum, item) => sum + item.revenue, 0);
     const maxRevenue = Math.max(1, ...(chartData.length ? chartData.map((item) => item.revenue) : [0]));
 
-    const chartWidth = 760;
-    const chartHeight = 360;
-    const chartPadding = { top: 58, right: 28, bottom: 54, left: 72 };
-    const chartInnerWidth = chartWidth - chartPadding.left - chartPadding.right;
-    const chartInnerHeight = chartHeight - chartPadding.top - chartPadding.bottom;
-    const chartBaseY = chartPadding.top + chartInnerHeight;
-    const chartPoints = chartData.map((item, index) => {
-        const x = chartData.length === 1
-            ? chartPadding.left + chartInnerWidth / 2
-            : chartPadding.left + (index / (chartData.length - 1)) * chartInnerWidth;
-        const y = chartPadding.top + (1 - item.revenue / maxRevenue) * chartInnerHeight;
-        return { ...item, x, y };
-    });
-    const linePath = chartPoints.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
-    const areaPath = chartPoints.length
-        ? `M ${chartPoints[0].x} ${chartBaseY} ${chartPoints.map((point) => `L ${point.x} ${point.y}`).join(" ")} L ${chartPoints[chartPoints.length - 1].x} ${chartBaseY} Z`
-        : "";
-    const yAxisTicks = [1, 0.5, 0];
-
     const metricCards = [
         { label: "Tổng người dùng", value: stats?.total_users || 0, icon: Users, color: "text-blue-500", bg: "bg-blue-500/10" },
         { label: "Tổng khóa học", value: stats?.total_courses || 0, icon: BookOpen, color: "text-emerald-500", bg: "bg-emerald-500/10" },
         { label: "Đơn hàng", value: stats?.total_orders || 0, icon: ShoppingCart, color: "text-amber-500", bg: "bg-amber-500/10" },
         { label: "Tổng doanh thu", value: formatCurrency(stats?.total_revenue || 0), icon: DollarSign, color: "text-violet-500", bg: "bg-violet-500/10" },
+        { label: "Doanh thu Giảng viên (70%)", value: formatCurrency(stats?.instructor_revenue || 0), icon: DollarSign, color: "text-rose-500", bg: "bg-rose-500/10" },
+        { label: "Lợi nhuận Hệ thống (30%)", value: formatCurrency(stats?.platform_revenue || 0), icon: TrendingUp, color: "text-indigo-500", bg: "bg-indigo-500/10" },
     ];
 
     return (
@@ -121,7 +107,7 @@ export default function AdminDashboardPage() {
                 <p className="mt-1 text-muted-foreground">Số liệu thực tế được cập nhật trực tiếp từ cơ sở dữ liệu.</p>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                 {metricCards.map((stat) => (
                     <div key={stat.label} className="rounded-[1.5rem] border border-border/60 bg-card p-6 shadow-sm transition-shadow hover:shadow-md">
                         <div className="flex items-start justify-between">
@@ -163,63 +149,49 @@ export default function AdminDashboardPage() {
                                 </div>
                             </div>
 
-                            <div className="overflow-x-auto pt-4">
-                                <svg
-                                    viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-                                    role="img"
-                                    aria-label="Biểu đồ đường doanh thu 6 tháng gần nhất"
-                                    className="min-w-[680px] w-full"
-                                >
-                                    <defs>
-                                        <linearGradient id="revenueLineFill" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor="rgb(37 99 235)" stopOpacity="0.22" />
-                                            <stop offset="100%" stopColor="rgb(37 99 235)" stopOpacity="0.02" />
-                                        </linearGradient>
-                                    </defs>
-
-                                    {yAxisTicks.map((tick) => {
-                                        const y = chartPadding.top + (1 - tick) * chartInnerHeight;
-                                        return (
-                                            <g key={tick}>
-                                                <line
-                                                    x1={chartPadding.left}
-                                                    y1={y}
-                                                    x2={chartWidth - chartPadding.right}
-                                                    y2={y}
-                                                    stroke="rgb(226 232 240)"
-                                                    strokeDasharray={tick === 0 ? "0" : "5 5"}
-                                                />
-                                                <text x={chartPadding.left - 12} y={y + 4} textAnchor="end" className="fill-slate-400 text-[11px] font-bold">
-                                                    {formatCurrency(maxRevenue * tick)}
-                                                </text>
-                                            </g>
-                                        );
-                                    })}
-
-                                    {areaPath && <path d={areaPath} fill="url(#revenueLineFill)" />}
-                                    {linePath && (
-                                        <path
-                                            d={linePath}
-                                            fill="none"
-                                            stroke="rgb(37 99 235)"
-                                            strokeWidth="4"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
+                            <div className="h-[360px] w-full pt-4">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart
+                                        data={chartData}
+                                        margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                                    >
+                                        <defs>
+                                            <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                        <XAxis 
+                                            dataKey="name" 
+                                            axisLine={false} 
+                                            tickLine={false} 
+                                            tick={{ fill: '#64748b', fontSize: 12, fontWeight: 700 }}
+                                            dy={10}
                                         />
-                                    )}
-
-                                    {chartPoints.map((point) => (
-                                        <g key={point.name}>
-                                            <line x1={point.x} y1={chartPadding.top} x2={point.x} y2={chartBaseY} stroke="rgb(241 245 249)" />
-                                            <circle cx={point.x} cy={point.y} r="6" fill="white" stroke="rgb(37 99 235)" strokeWidth="4">
-                                                <title>{`${point.name}: ${formatCurrency(point.revenue)} - ${point.students} học viên mới`}</title>
-                                            </circle>
-                                            <text x={point.x} y={chartBaseY + 28} textAnchor="middle" className="fill-slate-500 text-[12px] font-black">
-                                                {point.name}
-                                            </text>
-                                        </g>
-                                    ))}
-                                </svg>
+                                        <YAxis 
+                                            axisLine={false} 
+                                            tickLine={false} 
+                                            tickFormatter={(value) => value === 0 ? "0 đ" : (value >= 1000000 ? (value / 1000000).toFixed(1) + "M" : (value / 1000).toFixed(0) + "K")}
+                                            tick={{ fill: '#64748b', fontSize: 11, fontWeight: 700 }}
+                                            width={60}
+                                        />
+                                        <Tooltip 
+                                            formatter={(value: any) => [formatCurrency(value as number), "Doanh thu"]}
+                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)', fontWeight: 700, padding: '12px' }}
+                                            itemStyle={{ fontWeight: 800, color: '#3b82f6' }}
+                                        />
+                                        <Area 
+                                            type="monotone" 
+                                            dataKey="revenue" 
+                                            stroke="#3b82f6" 
+                                            strokeWidth={4}
+                                            fillOpacity={1} 
+                                            fill="url(#colorRevenue)" 
+                                            activeDot={{ r: 6, strokeWidth: 0, fill: '#3b82f6' }}
+                                        />
+                                    </AreaChart>
+                                </ResponsiveContainer>
                             </div>
                         </div>
                     ) : (

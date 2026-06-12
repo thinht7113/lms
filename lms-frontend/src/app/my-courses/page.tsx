@@ -9,7 +9,6 @@ import {
   BookOpenText,
   CheckCircle2,
   Clock3,
-  ClipboardList,
   Compass,
   GraduationCap,
   LibraryBig,
@@ -289,35 +288,7 @@ export default function MyCoursesPage() {
                               </div>
                             </div>
 
-                            {/* Quizzes List */}
-                            {quizzesMap[course.id] && quizzesMap[course.id].length > 0 && (
-                              <div className="mt-5 pt-4 border-t border-slate-100 space-y-2.5">
-                                <p className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                                  <ClipboardList className="w-3.5 h-3.5" />
-                                  Bài kiểm tra ({quizzesMap[course.id].length})
-                                </p>
-                                <div className="space-y-2">
-                                  {quizzesMap[course.id].map((quiz) => (
-                                    <div key={quiz.id} className="flex items-center justify-between text-xs font-semibold bg-slate-50/60 rounded-xl p-3 border border-slate-100/60 hover:bg-slate-50 transition-colors">
-                                      <div className="min-w-0 pr-2">
-                                        <p className="font-bold text-slate-800 truncate" title={quiz.tieu_de}>
-                                          {quiz.tieu_de}
-                                        </p>
-                                        <p className="text-[10px] text-slate-400 mt-0.5">
-                                          Cần đạt: {Number(quiz.diem_dat)}/10 • {quiz.thoi_gian_lam_bai ? `${quiz.thoi_gian_lam_bai} phút` : "Không giới hạn"}
-                                        </p>
-                                      </div>
-                                      <Link
-                                        href={`/quiz/${quiz.id}`}
-                                        className="shrink-0 bg-white hover:bg-primary hover:text-white text-primary border border-primary/20 hover:border-transparent px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-300 shadow-sm"
-                                      >
-                                        Làm bài
-                                      </Link>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
+
 
                             {isCompleted ? (
                               <button

@@ -80,7 +80,7 @@ export const tokenHelper = {
 // Helper for Fetching with Auth Token
 export async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
   const headers = new Headers(options.headers || {});
-  
+
   if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
@@ -1240,6 +1240,30 @@ export const apiService = {
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
       throw new Error(errData.detail || "Không thể yêu cầu rút tiền");
+    }
+    return await res.json();
+  }
+};
+
+export const certificateApi = {
+  verifyCertificate: async (uuid: string): Promise<any> => {
+    const res = await fetch(`${API_BASE_URL}/certificates/verify/${uuid}`);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || "Không thể xác minh chứng chỉ");
+    }
+    return await res.json();
+  },
+  getMyCertificates: async (): Promise<any[]> => {
+    const res = await fetchWithAuth(`${API_BASE_URL}/certificates/my-certificates`);
+    if (!res.ok) throw new Error("Failed to fetch certificates");
+    return await res.json();
+  },
+  downloadCertificate: async (courseId: number): Promise<any> => {
+    const res = await fetchWithAuth(`${API_BASE_URL}/certificates/${courseId}/download`);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || "Không thể tải chứng chỉ");
     }
     return await res.json();
   }

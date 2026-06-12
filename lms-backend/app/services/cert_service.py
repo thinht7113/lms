@@ -269,6 +269,7 @@ class CertService:
         # 1. Lấy danh sách khóa học học viên đã đăng ký
         enrolled_courses_q = await db.execute(
             select(Course)
+            .options(selectinload(Course.dang_ky_hoc), selectinload(Course.giang_vien))
             .join(Enrollment, Enrollment.ma_khoa_hoc == Course.id)
             .where(Enrollment.ma_nguoi_dung == user_id)
         )

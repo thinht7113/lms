@@ -9,7 +9,7 @@ interface CourseCardProps {
   id: number;
   title: string;
   thumbnail?: string;
-  instructor: string;
+  description?: string;
   category: string;
   level: string;
   rating: number;
@@ -22,7 +22,7 @@ export default function CourseCard({
   id,
   title,
   thumbnail,
-  instructor,
+  description,
   category,
   level,
   rating,
@@ -88,8 +88,8 @@ export default function CourseCard({
             {title}
           </h3>
 
-          <p className="text-[11px] text-muted-foreground font-medium">
-            Dẫn dắt bởi <span className="text-foreground font-bold">{instructor}</span>
+          <p className="text-[11px] text-muted-foreground font-medium line-clamp-2 min-h-[32px]" title={description}>
+            {description}
           </p>
         </div>
 

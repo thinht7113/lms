@@ -31,7 +31,7 @@ class OrderService:
     async def get_cart(db: AsyncSession, user_id: int):
         result = await db.execute(
             select(CartItem)
-            .options(selectinload(CartItem.khoa_hoc))
+            .options(selectinload(CartItem.khoa_hoc).selectinload(Course.giang_vien))
             .where(CartItem.ma_nguoi_dung == user_id)
         )
         cart_items = list(result.scalars().all())
@@ -606,10 +606,12 @@ class OrderService:
                 db.add(coupon)
 
         # 6. Tạo thông báo cho học viên
+        course_names = ", ".join([item.khoa_hoc.tieu_de for item in order.chi_tiet_don_hang if item.khoa_hoc])
+        target_name = f"khóa học '{course_names}'" if course_names else f"đơn hàng #{order.id}"
         thong_bao = Notification(
             ma_nguoi_dung=order.ma_nguoi_dung,
             tieu_de="Yêu cầu hoàn tiền được chấp nhận",
-            noi_dung=f"Yêu cầu hoàn tiền cho đơn hàng #{order.id} của bạn đã được chấp nhận thành công.",
+            noi_dung=f"Yêu cầu hoàn tiền cho {target_name} của bạn đã được chấp nhận thành công.",
             loai="refund",
             da_doc=False
         )
@@ -652,10 +654,12 @@ class OrderService:
         db.add(order)
 
         # 4. Tạo thông báo cho học viên
+        course_names = ", ".join([item.khoa_hoc.tieu_de for item in order.chi_tiet_don_hang if item.khoa_hoc])
+        target_name = f"khóa học '{course_names}'" if course_names else f"đơn hàng #{order.id}"
         thong_bao = Notification(
             ma_nguoi_dung=order.ma_nguoi_dung,
             tieu_de="Yêu cầu hoàn tiền bị từ chối",
-            noi_dung=f"Yêu cầu hoàn tiền cho đơn hàng #{order.id} của bạn đã bị từ chối.",
+            noi_dung=f"Yêu cầu hoàn tiền cho {target_name} của bạn đã bị từ chối.",
             loai="refund",
             da_doc=False
         )

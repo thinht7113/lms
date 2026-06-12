@@ -59,6 +59,8 @@ class SystemStats(BaseModel):
     total_courses: int
     total_orders: int
     total_revenue: float
+    instructor_revenue: float
+    platform_revenue: float
     revenue_this_month: float
     completion_rate: float
     chart_data: List[ChartDataPoint]
@@ -120,6 +122,8 @@ async def get_system_stats(
         select(func.sum(Order.tong_tien)).where(Order.trang_thai == "success")
     )
     total_revenue = float(revenue_res.scalar() or 0)
+    instructor_revenue = total_revenue * 0.7  # 70% share for instructors
+    platform_revenue = total_revenue * 0.3    # 30% share for platform
 
     from app.modules.administration.models import AdminLog
     
@@ -261,6 +265,8 @@ async def get_system_stats(
         total_courses=total_courses,
         total_orders=total_orders,
         total_revenue=total_revenue,
+        instructor_revenue=instructor_revenue,
+        platform_revenue=platform_revenue,
         revenue_this_month=revenue_this_month,
         completion_rate=completion_rate,
         chart_data=chart_data,
@@ -299,9 +305,6 @@ async def update_user_role(
     db: AsyncSession = Depends(get_db),
     current_admin: User = Depends(get_current_admin_user)
 ):
-    """
-    Cập nhật vai trò của người dùng (student, instructor, admin).
-    """
     if request.vai_tro not in ["student", "instructor", "admin"]:
         raise HTTPException(status_code=400, detail="Vai trò không hợp lệ.")
         
@@ -940,7 +943,7 @@ async def get_all_orders(
 @router.post(
     "/orders/{order_id}/approve-refund",
     response_model=OrderResponse,
-    summary="Admin phê duyệt yêu cầu hoàn tiền khóa học"
+    summary="Admin approves course refund request"
 )
 async def approve_order_refund(
     order_id: int,
@@ -955,7 +958,7 @@ async def approve_order_refund(
 @router.post(
     "/orders/{order_id}/reject-refund",
     response_model=OrderResponse,
-    summary="Admin từ chối yêu cầu hoàn tiền khóa học"
+    summary="Admin rejects course refund request"
 )
 async def reject_order_refund(
     order_id: int,

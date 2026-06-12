@@ -17,6 +17,8 @@ import {
     Settings,
     ShoppingCart,
     Users,
+    MessageSquare,
+    Medal,
 } from "lucide-react";
 import { tokenHelper, apiService } from "@/services/api";
 import SystemLogo from "@/components/SystemLogo";
@@ -32,6 +34,7 @@ const sidebarGroups = [
         title: "Tài khoản",
         items: [
             { name: "Người dùng", href: "/admin/users", icon: Users },
+            { name: "Chứng chỉ", href: "/admin/certificates", icon: Medal },
         ],
     },
     {
@@ -42,6 +45,7 @@ const sidebarGroups = [
             { name: "Khóa học", href: "/admin/courses", icon: BookOpen },
             { name: "Ghi danh", href: "/admin/enrollments", icon: Award },
             { name: "Kiểm duyệt nội dung", href: "/admin/moderation", icon: FileText },
+            { name: "Kiểm duyệt đánh giá", href: "/admin/reviews", icon: MessageSquare },
         ],
     },
     {

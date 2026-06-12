@@ -13,6 +13,8 @@ export interface FormField {
     options?: { value: string | number; label: string }[]; // For select type
     placeholder?: string;
     disabled?: boolean;
+    disableOnEdit?: boolean;
+    hideOnEdit?: boolean;
     defaultValue?: any;
 }
 
@@ -178,7 +180,7 @@ export default function DynamicForm({ title, fields, initialData, endpoint, onSu
                         value={value || ""}
                         onChange={(e) => handleChange(field.key, e.target.value)}
                         placeholder={field.placeholder}
-                        disabled={field.disabled || isLoading}
+                        disabled={field.disabled || (isEditMode && field.disableOnEdit) || isLoading}
                         rows={4}
                         className="w-full bg-secondary border border-border/60 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                     />
@@ -191,7 +193,7 @@ export default function DynamicForm({ title, fields, initialData, endpoint, onSu
                             type="checkbox"
                             checked={!!value}
                             onChange={(e) => handleChange(field.key, e.target.checked)}
-                            disabled={field.disabled || isLoading}
+                            disabled={field.disabled || (isEditMode && field.disableOnEdit) || isLoading}
                             className="sr-only peer"
                         />
                         <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
@@ -204,7 +206,7 @@ export default function DynamicForm({ title, fields, initialData, endpoint, onSu
                     <select
                         value={value !== undefined ? value : ""}
                         onChange={(e) => handleChange(field.key, e.target.value)}
-                        disabled={field.disabled || isLoading}
+                        disabled={field.disabled || (isEditMode && field.disableOnEdit) || isLoading}
                         className="w-full bg-secondary border border-border/60 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
                     >
                         <option value="" disabled>-- Chọn {field.label} --</option>
@@ -227,7 +229,7 @@ export default function DynamicForm({ title, fields, initialData, endpoint, onSu
                                 type="file"
                                 accept="image/png,image/jpeg,image/gif,image/webp"
                                 onChange={(e) => handleImageUpload(e, field.key)}
-                                disabled={field.disabled || isLoading || uploadingImage}
+                                disabled={field.disabled || (isEditMode && field.disableOnEdit) || isLoading || uploadingImage}
                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                             />
                             <div className="flex items-center space-x-2 bg-secondary border border-border/60 px-4 py-2.5 rounded-xl hover:bg-secondary/70 transition-colors w-fit">
@@ -247,7 +249,7 @@ export default function DynamicForm({ title, fields, initialData, endpoint, onSu
                         value={value !== undefined && value !== null ? value : ""}
                         onChange={(e) => handleChange(field.key, e.target.value)}
                         placeholder={field.placeholder}
-                        disabled={field.disabled || isLoading}
+                        disabled={field.disabled || (isEditMode && field.disableOnEdit) || isLoading}
                         className="w-full bg-secondary border border-border/60 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                     />
                 );
@@ -283,14 +285,17 @@ export default function DynamicForm({ title, fields, initialData, endpoint, onSu
                     )}
 
                     <form id="dynamic-form" onSubmit={handleSubmit} className="space-y-5">
-                        {fields.map((field) => (
-                            <div key={field.key} className="space-y-1.5">
-                                <label className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">
-                                    {field.label} {field.required && <span className="text-rose-500">*</span>}
-                                </label>
-                                {renderInput(field)}
-                            </div>
-                        ))}
+                        {fields.map((field) => {
+                            if (isEditMode && field.hideOnEdit) return null;
+                            return (
+                                <div key={field.key} className="space-y-1.5">
+                                    <label className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">
+                                        {field.label} {field.required && <span className="text-rose-500">*</span>}
+                                    </label>
+                                    {renderInput(field)}
+                                </div>
+                            );
+                        })}
                     </form>
                 </div>
 

@@ -29,7 +29,7 @@ def require_instructor(current_user: User = Depends(get_current_user)) -> User:
     "/courses/{course_id}/quizzes",
     response_model=QuizResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Giảng viên tạo bài kiểm tra mới cho khóa học"
+    summary="Instructor creates a new quiz for the course"
 )
 async def create_quiz(
     course_id: int,
@@ -42,7 +42,7 @@ async def create_quiz(
 @router.delete(
     "/courses/{course_id}/quizzes/{quiz_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Giảng viên xóa bài kiểm tra"
+    summary="Instructor deletes a quiz"
 )
 async def delete_quiz(
     course_id: int,
@@ -57,7 +57,7 @@ async def delete_quiz(
     "/quizzes/{quiz_id}/questions",
     response_model=QuestionResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Giảng viên thêm câu hỏi và bộ đáp án trắc nghiệm vào bài kiểm tra"
+    summary="Instructor adds questions and options to the quiz"
 )
 async def create_question(
     quiz_id: int,
@@ -70,7 +70,7 @@ async def create_question(
 @router.delete(
     "/questions/{question_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Giảng viên xóa câu hỏi"
+    summary="Instructor deletes a question"
 )
 async def delete_question(
     question_id: int,
@@ -85,7 +85,7 @@ async def delete_question(
 @router.get(
     "/courses/{course_id}/quizzes",
     response_model=List[QuizResponse],
-    summary="Học viên lấy danh sách toàn bộ bài kiểm tra của khóa học đã mua"
+    summary="Student gets all quizzes of a purchased course"
 )
 async def get_course_quizzes(
     course_id: int,
@@ -97,7 +97,7 @@ async def get_course_quizzes(
 @router.get(
     "/quizzes/{quiz_id}",
     response_model=QuizDetailResponse,
-    summary="Học viên lấy nội dung bài thi trắc nghiệm (Tự động ẩn đáp án đúng để chống gian lận)"
+    summary="Student gets quiz content (Auto-hide correct answers to prevent cheating)"
 )
 async def get_quiz(
     quiz_id: int,
@@ -110,7 +110,7 @@ async def get_quiz(
     "/quizzes/{quiz_id}/start",
     response_model=QuizAttemptResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Học viên bắt đầu làm bài kiểm tra trắc nghiệm"
+    summary="Student starts a quiz"
 )
 async def start_quiz(
     quiz_id: int,
@@ -122,7 +122,7 @@ async def start_quiz(
 @router.post(
     "/quizzes/{quiz_id}/submit",
     response_model=QuizSubmitResponse,
-    summary="Học viên nộp bài kiểm tra và nhận kết quả chấm điểm tự động"
+    summary="Student submits quiz and gets auto-graded result"
 )
 async def submit_quiz(
     quiz_id: int,
@@ -135,7 +135,7 @@ async def submit_quiz(
 @router.get(
     "/quizzes/attempts/{attempt_id}",
     response_model=QuizAttemptResponse,
-    summary="Học viên xem lại chi tiết lịch sử một lượt làm bài đã qua"
+    summary="Student views details of a past quiz attempt"
 )
 async def get_attempt(
     attempt_id: int,
@@ -148,7 +148,7 @@ async def get_attempt(
 @router.get(
     "/quizzes/attempts/{attempt_id}/review",
     response_model=QuizAttemptReviewResponse,
-    summary="Học viên xem bảng sửa bài sau khi đã nộp bài kiểm tra"
+    summary="Student views quiz correction after submission"
 )
 async def get_attempt_review(
     attempt_id: int,

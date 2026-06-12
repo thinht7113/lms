@@ -82,7 +82,12 @@ export default function Footer() {
               </li>
               <li>
                 <Link href="/certificates" className="text-sm text-muted-foreground font-medium hover:text-primary transition-colors">
-                  Xác minh chứng chỉ Lumina
+                  Chứng chỉ của tôi
+                </Link>
+              </li>
+              <li>
+                <Link href="/verify-certificate" className="text-sm text-muted-foreground font-medium hover:text-primary transition-colors">
+                  Xác minh chứng chỉ công khai
                 </Link>
               </li>
               <li>

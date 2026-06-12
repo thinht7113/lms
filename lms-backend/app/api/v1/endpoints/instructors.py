@@ -15,7 +15,7 @@ router = APIRouter()
 @router.get(
     "",
     response_model=List[InstructorResponse],
-    summary="Lấy danh sách Giảng viên công khai"
+    summary="Get public instructor list"
 )
 async def get_public_instructors(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
@@ -50,7 +50,7 @@ async def get_public_instructors(db: AsyncSession = Depends(get_db)):
 @router.get(
     "/{instructor_id}",
     response_model=InstructorDetailResponse,
-    summary="Lấy chi tiết Giảng viên và danh sách khóa học"
+    summary="Get instructor details and course list"
 )
 async def get_instructor_detail(instructor_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
