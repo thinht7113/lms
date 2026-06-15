@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, FileText, ImageIcon, Plus, RefreshCw, Save, Trash2, UploadCloud, Video } from "lucide-react";
 import { apiService, CourseDetail, Lesson, LessonContentPayload } from "@/services/api";
 import dynamic from "next/dynamic";
+import { setBreadcrumbLabel } from "@/utils/breadcrumbStore";
 
 const CKEditorWrapper = dynamic(() => import("@/components/CKEditorWrapper"), {
   ssr: false,
@@ -148,10 +149,13 @@ export default function InstructorLessonForm({ courseId, sectionId, lessonId }: 
       try {
         const detail = await apiService.getCourseDetailWithAuth(courseId);
         setCourse(detail);
+        setBreadcrumbLabel(detail.id, detail.tieu_de);
         const currentSection = detail.chuong_hoc?.find((section) => section.id === sectionId);
+        if (currentSection) setBreadcrumbLabel(currentSection.id, currentSection.tieu_de);
         const currentLesson = currentSection?.bai_hoc?.find((item) => item.id === lessonId);
         if (isEdit && !currentLesson) throw new Error("Không tìm thấy bài học trong khóa học này");
         if (currentLesson) {
+          setBreadcrumbLabel(currentLesson.id, currentLesson.tieu_de);
           setLesson(currentLesson);
           setForm({
             tieu_de: currentLesson.tieu_de,
@@ -169,6 +173,9 @@ export default function InstructorLessonForm({ courseId, sectionId, lessonId }: 
             duong_dan_file: content.duong_dan_file || "",
             thu_tu: content.thu_tu,
           })));
+        } else if (!isEdit) {
+          const nextThuTu = currentSection?.bai_hoc?.length ? Math.max(...currentSection.bai_hoc.map(l => l.thu_tu)) + 1 : 1;
+          setForm(prev => ({ ...prev, thu_tu: nextThuTu }));
         }
       } catch (err: any) {
         setError(err.message || "Không thể tải bài học");

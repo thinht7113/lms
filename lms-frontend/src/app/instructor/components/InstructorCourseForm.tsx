@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowLeft, Clock, CheckCircle, ImagePlus, RefreshCw, Save, Send } from "lucide-react";
 import { apiService, Category, Course, CoursePayload } from "@/services/api";
 import { useToast } from "@/contexts/ToastContext";
+import { setBreadcrumbLabel } from "@/utils/breadcrumbStore";
 
 type Props = {
   courseId?: number;
@@ -52,6 +53,7 @@ export default function InstructorCourseForm({ courseId }: Props) {
           trang_thai_phe_duyet: course.trang_thai_phe_duyet || "draft",
           da_xuat_ban: course.da_xuat_ban,
         });
+        setBreadcrumbLabel(course.id, course.tieu_de);
       } catch (err: any) {
         setError(err.message || "Không thể tải khóa học");
       } finally {

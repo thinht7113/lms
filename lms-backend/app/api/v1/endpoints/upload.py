@@ -130,9 +130,9 @@ async def _validate_upload(file: UploadFile, current_user: User, requested_asset
 
 
 @router.post(
-    "/video",
+    "",
     status_code=status.HTTP_201_CREATED,
-    summary="Securely upload video resource",
+    summary="Securely upload resource",
     description="Chỉ cho phép đúng loại file theo ngữ cảnh upload: ảnh, PDF hoặc video.",
 )
 async def upload_file(

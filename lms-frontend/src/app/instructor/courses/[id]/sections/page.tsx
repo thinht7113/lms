@@ -3,8 +3,10 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, BookOpen, Edit3, Layers, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Edit3, Layers, Plus, RefreshCw, Save, Trash2, X } from "lucide-react";
 import { apiService, CourseDetail, Section } from "@/services/api";
+import { useToast } from "@/contexts/ToastContext";
+import { setBreadcrumbLabel } from "@/utils/breadcrumbStore";
 
 export default function InstructorCourseSectionsPage() {
   const params = useParams();
@@ -15,14 +17,20 @@ export default function InstructorCourseSectionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState({ tieu_de: "", thu_tu: 1 });
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const loadCourse = async () => {
     setLoading(true);
     setError(null);
     try {
       const detail = await apiService.getCourseDetailWithAuth(courseId);
+      setBreadcrumbLabel(detail.id, detail.tieu_de);
       detail.chuong_hoc = [...(detail.chuong_hoc || [])].sort((a, b) => a.thu_tu - b.thu_tu);
       setCourse(detail);
+      if (!editingId) {
+        const nextThuTu = detail.chuong_hoc.length ? Math.max(...detail.chuong_hoc.map(s => s.thu_tu)) + 1 : 1;
+        setForm(prev => ({ ...prev, thu_tu: nextThuTu }));
+      }
     } catch (err: any) {
       setError(err.message || "Không thể tải khóa học");
     } finally {
@@ -36,12 +44,14 @@ export default function InstructorCourseSectionsPage() {
 
   const resetForm = () => {
     setEditingId(null);
-    setForm({ tieu_de: "", thu_tu: (course?.chuong_hoc?.length || 0) + 1 });
+    const nextThuTu = course?.chuong_hoc?.length ? Math.max(...course.chuong_hoc.map(s => s.thu_tu)) + 1 : 1;
+    setForm({ tieu_de: "", thu_tu: nextThuTu });
   };
 
   const startEdit = (section: Section) => {
     setEditingId(section.id);
     setForm({ tieu_de: section.tieu_de, thu_tu: section.thu_tu });
+    setIsModalOpen(true);
   };
 
   const saveSection = async () => {
@@ -57,6 +67,7 @@ export default function InstructorCourseSectionsPage() {
       } else {
         await apiService.createSection(courseId, form);
       }
+      setIsModalOpen(false);
       resetForm();
       await loadCourse();
     } catch (err: any) {
@@ -96,51 +107,35 @@ export default function InstructorCourseSectionsPage() {
             <h1 className="text-3xl font-black tracking-tight text-slate-950">{course?.tieu_de || "Khóa học"}</h1>
           </div>
         </div>
-        <Link href={`/instructor/courses/${courseId}/edit`} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-purple-50 px-5 py-3 text-sm font-black text-purple-700 hover:bg-purple-100">
-          <Edit3 className="h-4 w-4" />
-          Sửa thông tin khóa
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => { resetForm(); setIsModalOpen(true); }}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-purple-600 px-5 py-3 text-sm font-black text-white shadow-sm hover:bg-purple-700"
+          >
+            <Plus className="h-4 w-4" />
+            Thêm chương
+          </button>
+          <Link href={`/instructor/courses/${courseId}/edit`} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-purple-50 px-5 py-3 text-sm font-black text-purple-700 hover:bg-purple-100">
+            <Edit3 className="h-4 w-4" />
+            Sửa khóa học
+          </Link>
+        </div>
       </div>
 
       {error && <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">{error}</div>}
 
-      <section className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
-        <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-black text-slate-950">{editingId ? "Sửa chương học" : "Thêm chương học"}</h2>
-          <div className="mt-5 space-y-4">
-            <div>
-              <label className="text-xs font-black uppercase tracking-widest text-slate-500">Tiêu đề chương</label>
-              <input
-                value={form.tieu_de}
-                onChange={(e) => setForm((prev) => ({ ...prev, tieu_de: e.target.value }))}
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none focus:border-purple-400 focus:bg-white"
-                placeholder=""
-              />
-            </div>
-            <div>
-              <label className="text-xs font-black uppercase tracking-widest text-slate-500">Thứ tự</label>
-              <input
-                type="number"
-                value={form.thu_tu}
-                onChange={(e) => setForm((prev) => ({ ...prev, thu_tu: Number(e.target.value || 0) }))}
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none focus:border-purple-400 focus:bg-white"
-              />
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <button onClick={saveSection} disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-purple-600 px-4 py-3 text-sm font-black text-white hover:bg-purple-700 disabled:opacity-60">
-                {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                {editingId ? "Cập nhật" : "Thêm chương"}
-              </button>
-              <button onClick={resetForm} className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-200">
-                Làm mới
-              </button>
-            </div>
-          </div>
-        </div>
+      <section className="flex flex-col gap-6">
 
         <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-6 py-5">
+          <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
             <h2 className="text-lg font-black text-slate-950">Cấu trúc chương học</h2>
+            <button
+              onClick={() => { resetForm(); setIsModalOpen(true); }}
+              className="inline-flex items-center gap-2 rounded-xl bg-purple-50 px-4 py-2 text-sm font-black text-purple-700 hover:bg-purple-100"
+            >
+              <Plus className="h-4 w-4" />
+              Thêm chương
+            </button>
           </div>
           {course?.chuong_hoc?.length ? (
             <div className="divide-y divide-slate-100">
@@ -176,11 +171,60 @@ export default function InstructorCourseSectionsPage() {
             <div className="p-12 text-center">
               <Layers className="mx-auto h-12 w-12 text-slate-300" />
               <h3 className="mt-4 text-xl font-black text-slate-950">Chưa có chương học</h3>
-              <p className="mt-2 text-sm font-medium text-slate-500">Thêm chương đầu tiên để bắt đầu xây dựng bài học.</p>
+              <p className="mt-2 text-sm font-medium text-slate-500 mb-6">Thêm chương đầu tiên để bắt đầu xây dựng bài học.</p>
+              <button
+                onClick={() => { resetForm(); setIsModalOpen(true); }}
+                className="inline-flex items-center gap-2 rounded-2xl bg-purple-600 px-6 py-3 text-sm font-black text-white hover:bg-purple-700 shadow-sm"
+              >
+                <Plus className="h-5 w-5" />
+                Thêm chương mới ngay
+              </button>
             </div>
           )}
         </div>
       </section>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[2rem] border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-xl font-black text-slate-950">{editingId ? "Sửa chương học" : "Thêm chương học"}</h2>
+              <button onClick={() => setIsModalOpen(false)} className="rounded-full bg-slate-50 p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-black uppercase tracking-widest text-slate-500">Tiêu đề chương</label>
+                <input
+                  value={form.tieu_de}
+                  onChange={(e) => setForm((prev) => ({ ...prev, tieu_de: e.target.value }))}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none focus:border-purple-400 focus:bg-white"
+                  placeholder="Nhập tiêu đề chương..."
+                />
+              </div>
+              <div>
+                <label className="text-xs font-black uppercase tracking-widest text-slate-500">Thứ tự</label>
+                <input
+                  type="number"
+                  value={form.thu_tu}
+                  onChange={(e) => setForm((prev) => ({ ...prev, thu_tu: Number(e.target.value || 0) }))}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none focus:border-purple-400 focus:bg-white"
+                />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 pt-2">
+                <button onClick={saveSection} disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-purple-600 px-4 py-3.5 text-sm font-black text-white shadow-sm hover:bg-purple-700 disabled:opacity-60">
+                  {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {editingId ? "Cập nhật" : "Thêm chương"}
+                </button>
+                <button onClick={() => setIsModalOpen(false)} className="rounded-2xl bg-slate-100 px-4 py-3.5 text-sm font-black text-slate-700 hover:bg-slate-200">
+                  Hủy thao tác
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

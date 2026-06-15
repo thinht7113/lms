@@ -10,7 +10,7 @@ export interface FormField {
     label: string;
     type: "text" | "number" | "email" | "password" | "textarea" | "boolean" | "select" | "image" | "date";
     required?: boolean;
-    options?: { value: string | number; label: string }[]; // For select type
+    options?: { value: string | number; label: string }[];
     placeholder?: string;
     disabled?: boolean;
     disableOnEdit?: boolean;
@@ -204,7 +204,7 @@ export default function DynamicForm({ title, fields, initialData, endpoint, onSu
             case "select":
                 return (
                     <select
-                        value={value !== undefined ? value : ""}
+                        value={value ?? ""}
                         onChange={(e) => handleChange(field.key, e.target.value)}
                         disabled={field.disabled || (isEditMode && field.disableOnEdit) || isLoading}
                         className="w-full bg-secondary border border-border/60 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
@@ -268,7 +268,7 @@ export default function DynamicForm({ title, fields, initialData, endpoint, onSu
                             {isEditMode ? "Cập nhật thông tin bản ghi hiện tại" : "Thêm một bản ghi mới vào cơ sở dữ liệu"}
                         </p>
                     </div>
-                    <button 
+                    <button
                         onClick={onClose}
                         className="p-2 bg-secondary hover:bg-rose-100 hover:text-rose-600 rounded-xl transition-colors"
                     >

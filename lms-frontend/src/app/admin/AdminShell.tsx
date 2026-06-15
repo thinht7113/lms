@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { tokenHelper, apiService } from "@/services/api";
 import SystemLogo from "@/components/SystemLogo";
+import Breadcrumbs from "@/components/ui/Breadcrumbs";
 
 const sidebarGroups = [
     {
@@ -100,7 +101,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     const handleLogout = () => {
         tokenHelper.removeToken();
         tokenHelper.removeCurrentUser();
-        router.push("/login");
+        router.push("/");
     };
 
     return (
@@ -197,6 +198,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                 </header>
 
                 <main className="min-h-0 flex-1 overflow-auto overscroll-contain p-4 sm:p-6 lg:p-8 bg-[#F8F9FA]">
+                    <Breadcrumbs />
                     {children}
                 </main>
             </div>

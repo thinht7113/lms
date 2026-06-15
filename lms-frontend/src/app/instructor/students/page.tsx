@@ -25,8 +25,8 @@ export default function InstructorStudentsPage() {
         fetchStudents();
     }, []);
 
-    const filteredStudents = students.filter(s => 
-        s.ho_ten.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const filteredStudents = students.filter(s =>
+        s.ho_ten.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.course_title.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -42,12 +42,8 @@ export default function InstructorStudentsPage() {
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">Học viên của tôi</h1>
-                    <p className="text-sm font-medium text-slate-500">Quản lý và theo dõi những người đang học khóa học của bạn.</p>
-                </div>
                 <div className="relative w-full sm:w-80">
-                    <input 
+                    <input
                         type="text"
                         placeholder="Tìm học viên hoặc khóa học..."
                         value={searchTerm}
@@ -76,9 +72,9 @@ export default function InstructorStudentsPage() {
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-full overflow-hidden bg-purple-100 border border-purple-200">
-                                                    <img 
-                                                        src={s.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${s.ho_ten}`} 
-                                                        alt={s.ho_ten} 
+                                                    <img
+                                                        src={s.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${s.ho_ten}`}
+                                                        alt={s.ho_ten}
                                                         className="w-full h-full object-cover"
                                                     />
                                                 </div>
@@ -101,8 +97,8 @@ export default function InstructorStudentsPage() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <a 
-                                                href={`mailto:${s.email}`} 
+                                            <a
+                                                href={`mailto:${s.email}`}
                                                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-purple-600 hover:text-white transition-all text-xs font-bold"
                                             >
                                                 <Mail className="w-3.5 h-3.5" />

@@ -290,11 +290,13 @@ export default function InstructorCourseQuizzesPage() {
 
                 {/* Existing Quizzes */}
                 {quizzes.map((quiz) => (
-                    <button
+                    <div
                         key={quiz.id}
-                        type="button"
+                        role="button"
+                        tabIndex={0}
                         onClick={() => setSelectedQuizId(quiz.id)}
-                        className={`rounded-2xl border-2 p-6 text-left transition-all relative overflow-hidden group ${
+                        onKeyDown={(e) => e.key === 'Enter' && setSelectedQuizId(quiz.id)}
+                        className={`rounded-2xl border-2 p-6 text-left transition-all relative overflow-hidden group cursor-pointer ${
                             selectedQuizId === quiz.id 
                             ? "border-purple-600 bg-purple-50 shadow-md" 
                             : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
@@ -328,7 +330,7 @@ export default function InstructorCourseQuizzesPage() {
                                 {quiz.thoi_gian_lam_bai ? `Làm trong ${quiz.thoi_gian_lam_bai} phút` : "Không giới hạn thời gian"}
                             </p>
                         </div>
-                    </button>
+                    </div>
                 ))}
             </div>
           </section>

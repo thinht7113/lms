@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, Lock, User, Phone, CheckCircle, Shield, X } from "lucide-react";
 import { apiService } from "@/services/api";
 import SystemLogo from "@/components/SystemLogo";
@@ -12,6 +13,8 @@ type AuthModalProps = {
 };
 
 export default function AuthModal({ isOpen, onClose, initialTab = "login" }: AuthModalProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<"login" | "register">(initialTab);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,6 +29,13 @@ export default function AuthModal({ isOpen, onClose, initialTab = "login" }: Aut
     if (isOpen) {
       document.body.style.overflow = "hidden";
       document.documentElement.style.overflow = "hidden";
+      setEmail("");
+      setPassword("");
+      setFullName("");
+      setPhone("");
+      setError(null);
+      setSuccess(null);
+      setActiveTab(initialTab);
     } else {
       document.body.style.overflow = "";
       document.documentElement.style.overflow = "";
@@ -34,7 +44,7 @@ export default function AuthModal({ isOpen, onClose, initialTab = "login" }: Aut
       document.body.style.overflow = "";
       document.documentElement.style.overflow = "";
     };
-  }, [isOpen]);
+  }, [isOpen, initialTab]);
 
   if (!isOpen) return null;
 
@@ -56,7 +66,11 @@ export default function AuthModal({ isOpen, onClose, initialTab = "login" }: Aut
         }
 
         setTimeout(() => {
-          onClose();
+          onClose(); // Đóng modal trước
+          const nextPath = searchParams.get("next");
+          if (nextPath) {
+            router.push(nextPath);
+          }
         }, 800);
       } else {
         await apiService.register(email, password, fullName, phone, role);

@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { tokenHelper } from "@/services/api";
 import SystemLogo from "@/components/SystemLogo";
+import Breadcrumbs from "@/components/ui/Breadcrumbs";
 
 const sidebarGroups = [
     {
@@ -36,7 +37,7 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
     const handleLogout = () => {
         tokenHelper.removeToken();
         tokenHelper.removeCurrentUser();
-        router.push("/login");
+        router.push("/");
     };
 
     return (
@@ -155,8 +156,11 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
                 </header>
 
                 {/* Main scrollable content */}
-                <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
-                    {children}
+                <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8 bg-slate-50/50">
+                    <div className="mx-auto max-w-7xl">
+                        <Breadcrumbs />
+                        {children}
+                    </div>
                 </main>
             </div>
             

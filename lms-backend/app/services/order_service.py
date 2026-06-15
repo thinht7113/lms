@@ -50,7 +50,11 @@ class OrderService:
     @staticmethod
     async def add_to_cart(db: AsyncSession, user_id: int, course_id: int) -> CartItem:
         # 1. Kiểm tra khóa học tồn tại
-        course_result = await db.execute(select(Course).where(Course.id == course_id))
+        course_result = await db.execute(
+            select(Course)
+            .options(selectinload(Course.giang_vien))
+            .where(Course.id == course_id)
+        )
         course = course_result.scalars().first()
         if not course:
             raise HTTPException(
@@ -303,7 +307,11 @@ class OrderService:
         # Load đầy đủ chi tiết đơn hàng để trả về
         result = await db.execute(
             select(Order)
-            .options(selectinload(Order.chi_tiet_don_hang).selectinload(OrderItem.khoa_hoc))
+            .options(
+                selectinload(Order.chi_tiet_don_hang)
+                .selectinload(OrderItem.khoa_hoc)
+                .selectinload(Course.giang_vien)
+            )
             .where(Order.id == db_order.id)
         )
         return result.scalars().one()
@@ -312,7 +320,11 @@ class OrderService:
     async def get_my_orders(db: AsyncSession, user_id: int) -> List[Order]:
         result = await db.execute(
             select(Order)
-            .options(selectinload(Order.chi_tiet_don_hang).selectinload(OrderItem.khoa_hoc))
+            .options(
+                selectinload(Order.chi_tiet_don_hang)
+                .selectinload(OrderItem.khoa_hoc)
+                .selectinload(Course.giang_vien)
+            )
             .where(Order.ma_nguoi_dung == user_id)
             .order_by(desc(Order.ngay_tao))
         )
@@ -395,6 +407,7 @@ class OrderService:
                 .options(
                     selectinload(Order.chi_tiet_don_hang)
                     .selectinload(OrderItem.khoa_hoc)
+                    .selectinload(Course.giang_vien)
                 )
                 .where(Order.id == order.id)
             )
@@ -497,7 +510,11 @@ class OrderService:
         # 1. Tìm đơn hàng kèm theo chi tiết và thông tin khóa học để tránh lazy-load khi serialize
         result = await db.execute(
             select(Order)
-            .options(selectinload(Order.chi_tiet_don_hang).selectinload(OrderItem.khoa_hoc))
+            .options(
+                selectinload(Order.chi_tiet_don_hang)
+                .selectinload(OrderItem.khoa_hoc)
+                .selectinload(Course.giang_vien)
+            )
             .where(Order.id == order_id)
         )
         order = result.scalars().first()
@@ -551,7 +568,11 @@ class OrderService:
         # 6. Tải lại đơn hàng cùng các quan hệ để tránh lỗi lazy-load khi serialize response
         refreshed_result = await db.execute(
             select(Order)
-            .options(selectinload(Order.chi_tiet_don_hang).selectinload(OrderItem.khoa_hoc))
+            .options(
+                selectinload(Order.chi_tiet_don_hang)
+                .selectinload(OrderItem.khoa_hoc)
+                .selectinload(Course.giang_vien)
+            )
             .where(Order.id == order_id)
         )
         return refreshed_result.scalars().one()
@@ -561,7 +582,11 @@ class OrderService:
         # 1. Tìm đơn hàng kèm theo chi tiết và thông tin khóa học
         result = await db.execute(
             select(Order)
-            .options(selectinload(Order.chi_tiet_don_hang).selectinload(OrderItem.khoa_hoc))
+            .options(
+                selectinload(Order.chi_tiet_don_hang)
+                .selectinload(OrderItem.khoa_hoc)
+                .selectinload(Course.giang_vien)
+            )
             .where(Order.id == order_id)
         )
         order = result.scalars().first()
@@ -622,7 +647,11 @@ class OrderService:
         # Tải lại đơn hàng cùng các quan hệ
         refreshed_result = await db.execute(
             select(Order)
-            .options(selectinload(Order.chi_tiet_don_hang).selectinload(OrderItem.khoa_hoc))
+            .options(
+                selectinload(Order.chi_tiet_don_hang)
+                .selectinload(OrderItem.khoa_hoc)
+                .selectinload(Course.giang_vien)
+            )
             .where(Order.id == order_id)
         )
         return refreshed_result.scalars().one()
@@ -632,7 +661,11 @@ class OrderService:
         # 1. Tìm đơn hàng
         result = await db.execute(
             select(Order)
-            .options(selectinload(Order.chi_tiet_don_hang).selectinload(OrderItem.khoa_hoc))
+            .options(
+                selectinload(Order.chi_tiet_don_hang)
+                .selectinload(OrderItem.khoa_hoc)
+                .selectinload(Course.giang_vien)
+            )
             .where(Order.id == order_id)
         )
         order = result.scalars().first()
@@ -670,7 +703,11 @@ class OrderService:
         # Tải lại đơn hàng cùng các quan hệ
         refreshed_result = await db.execute(
             select(Order)
-            .options(selectinload(Order.chi_tiet_don_hang).selectinload(OrderItem.khoa_hoc))
+            .options(
+                selectinload(Order.chi_tiet_don_hang)
+                .selectinload(OrderItem.khoa_hoc)
+                .selectinload(Course.giang_vien)
+            )
             .where(Order.id == order_id)
         )
         return refreshed_result.scalars().one()
@@ -680,7 +717,11 @@ class OrderService:
         # 1. Tìm đơn hàng
         result = await db.execute(
             select(Order)
-            .options(selectinload(Order.chi_tiet_don_hang).selectinload(OrderItem.khoa_hoc))
+            .options(
+                selectinload(Order.chi_tiet_don_hang)
+                .selectinload(OrderItem.khoa_hoc)
+                .selectinload(Course.giang_vien)
+            )
             .where(Order.id == order_id)
         )
         order = result.scalars().first()
@@ -713,7 +754,11 @@ class OrderService:
         # Tải lại đơn hàng cùng các quan hệ
         refreshed_result = await db.execute(
             select(Order)
-            .options(selectinload(Order.chi_tiet_don_hang).selectinload(OrderItem.khoa_hoc))
+            .options(
+                selectinload(Order.chi_tiet_don_hang)
+                .selectinload(OrderItem.khoa_hoc)
+                .selectinload(Course.giang_vien)
+            )
             .where(Order.id == order_id)
         )
         return refreshed_result.scalars().one()

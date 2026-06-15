@@ -11,7 +11,7 @@ from app.modules.catalog.schemas import BannerCreate, BannerUpdate, BannerRespon
 
 router = APIRouter()
 
-@router.get("/", response_model=List[BannerResponse], summary="Get public banner list")
+@router.get("", response_model=List[BannerResponse], summary="Get public banner list")
 async def get_active_banners(db: AsyncSession = Depends(get_db)):
     """Lấy danh sách banner có trạng thái hoạt động (Dành cho trang chủ)"""
     result = await db.execute(

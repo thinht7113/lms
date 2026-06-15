@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense, useRef } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import {
@@ -15,10 +15,12 @@ import {
   ShoppingCart,
   User,
   X,
+  BookOpen,
 } from "lucide-react";
 import { apiService, tokenHelper } from "@/services/api";
 import SystemLogo from "@/components/SystemLogo";
 import AuthModal from "@/components/AuthModal";
+import Breadcrumbs from "@/components/ui/Breadcrumbs";
 
 export default function Navbar() {
   const router = useRouter();
@@ -33,6 +35,20 @@ export default function Navbar() {
   const [showAuthModal, setShowAuthModal] = useState<"login" | "register" | null>(null);
   const isInstructor = currentUser?.vai_tro === "instructor";
   const isAdmin = currentUser?.vai_tro === "admin";
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target as Node)) {
+        setIsAccountMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -122,6 +138,20 @@ export default function Navbar() {
     };
   }, []);
 
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = "hidden";
+      document.documentElement.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+    };
+  }, [isMobileMenuOpen]);
+
   // Hàm helper để check active state
   const isActive = (href: string) => {
     const currentParams = new URLSearchParams(queryString);
@@ -139,11 +169,11 @@ export default function Navbar() {
     setCartCount(0);
     setIsAccountMenuOpen(false);
     setIsMobileMenuOpen(false);
-    router.push("/login");
+    router.push("/");
   };
 
   const accountMenuItems = [
-    { href: "/wishlist", label: "Danh sách yêu thích", icon: Heart },
+    { href: "/my-courses", label: "Khóa học của tôi", icon: BookOpen },
     { href: "/orders", label: "Đơn hàng", icon: ShoppingCart },
     { href: "/certificates", label: "Chứng chỉ", icon: ShieldCheck },
     { href: "/notifications", label: "Thông báo", icon: Bell },
@@ -196,15 +226,7 @@ export default function Navbar() {
               Giảng viên
               {isActive("/instructors") && <span className="absolute -bottom-2 left-0 w-full h-0.5 bg-primary rounded-full"></span>}
             </Link>
-            {currentUser && (
-              <Link
-                href="/my-courses"
-                className={`text-[13px] font-bold uppercase tracking-widest transition-colors relative group ${isActive("/my-courses") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
-              >
-                Khóa học của tôi
-                {isActive("/my-courses") && <span className="absolute -bottom-2 left-0 w-full h-0.5 bg-primary rounded-full"></span>}
-              </Link>
-            )}
+
             <Link
               href="/about"
               className={`text-[13px] font-bold uppercase tracking-widest transition-colors relative group ${isActive("/about") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
@@ -247,7 +269,7 @@ export default function Navbar() {
             <div className="h-6 w-px bg-border/60 mx-2" />
 
             {currentUser ? (
-              <div className="relative">
+              <div className="relative" ref={accountMenuRef}>
                 <button
                   type="button"
                   onClick={() => setIsAccountMenuOpen((open) => !open)}
@@ -325,9 +347,16 @@ export default function Navbar() {
         </div>
       </div>
 
+      </header>
+
+      <Breadcrumbs variant="public" isScrolled={isScrolled} />
+
       {/* Mobile Drawer */}
       {isMobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 top-[73px] bg-background z-40 p-6 animate-in slide-in-from-right duration-300">
+        <div 
+          className="md:hidden fixed inset-0 z-[49] pt-24 px-6 pb-24 animate-in slide-in-from-right duration-300 overflow-y-auto"
+          style={{ backgroundColor: "var(--color-background, #ffffff)" }}
+        >
            <div className="flex flex-col space-y-6">
               <div className="relative">
                 <Search className="absolute left-4 top-3.5 h-5 w-5 text-muted-foreground" />
@@ -338,17 +367,16 @@ export default function Navbar() {
                 />
               </div>
               <nav className="flex flex-col space-y-2">
-                <Link href="/" className="text-lg font-black py-4 border-b border-border/50">Trang chủ</Link>
-                <Link href="/courses" className="text-lg font-black py-4 border-b border-border/50">Khóa học</Link>
-                <Link href="/instructors" className="text-lg font-black py-4 border-b border-border/50">Giảng viên</Link>
-                {currentUser && (
-                  <Link href="/my-courses" className="text-lg font-black py-4 border-b border-border/50">Khóa học của tôi</Link>
-                )}
-                <Link href="/about" className="text-lg font-black py-4 border-b border-border/50">Giới thiệu</Link>
+                <Link href="/" className="text-lg font-black py-4 border-b border-border/50" onClick={() => setIsMobileMenuOpen(false)}>Trang chủ</Link>
+                <Link href="/courses" className="text-lg font-black py-4 border-b border-border/50" onClick={() => setIsMobileMenuOpen(false)}>Khóa học</Link>
+                <Link href="/instructors" className="text-lg font-black py-4 border-b border-border/50" onClick={() => setIsMobileMenuOpen(false)}>Giảng viên</Link>
+
+                <Link href="/about" className="text-lg font-black py-4 border-b border-border/50" onClick={() => setIsMobileMenuOpen(false)}>Giới thiệu</Link>
                 {currentUser && accountMenuItems.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
                     className="flex items-center gap-3 text-lg font-black py-4 border-b border-border/50"
                   >
                     <item.icon className="h-5 w-5 text-primary" />
@@ -360,7 +388,7 @@ export default function Navbar() {
                 {currentUser ? (
                   <button
                     type="button"
-                    onClick={handleLogout}
+                    onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }}
                     className="w-full bg-destructive/10 text-destructive py-4 rounded-2xl font-bold flex items-center justify-center space-x-2"
                   >
                     <LogOut className="h-5 w-5" />
@@ -368,7 +396,7 @@ export default function Navbar() {
                   </button>
                 ) : (
                   <button
-                    onClick={() => setShowAuthModal("login")}
+                    onClick={() => { setShowAuthModal("login"); setIsMobileMenuOpen(false); }}
                     className="block w-full bg-primary text-white text-center py-4 rounded-2xl font-bold shadow-xl shadow-primary/20"
                   >
                     Bắt đầu học ngay
@@ -378,8 +406,9 @@ export default function Navbar() {
            </div>
         </div>
       )}
-      </header>
-      <AuthModal isOpen={showAuthModal !== null} onClose={closeAuthModal} initialTab={showAuthModal || "login"} />
+      <Suspense fallback={null}>
+        <AuthModal isOpen={showAuthModal !== null} onClose={closeAuthModal} initialTab={showAuthModal || "login"} />
+      </Suspense>
     </>
   );
 }

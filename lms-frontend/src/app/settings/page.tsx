@@ -80,7 +80,7 @@ export default function SettingsPage() {
         try {
             const updatedUser = await apiService.updateProfile({
                 ho_ten: hoTen,
-                so_dien_thoai: soDienThoai
+                so_dien_thoai: soDienThoai ? soDienThoai : undefined
             });
 
             setUser(updatedUser);
@@ -88,7 +88,7 @@ export default function SettingsPage() {
             window.dispatchEvent(new Event("lumina-user-updated"));
 
         } catch (error: any) {
-            toast.error(error.message);
+            toast.error(typeof error.message === 'string' ? error.message : "Dữ liệu nhập vào không hợp lệ");
         } finally {
             setIsSaving(false);
         }

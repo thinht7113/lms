@@ -30,6 +30,7 @@ def set_auth_cookie(response: Response, access_token: str) -> None:
         secure=auth_cookie_secure(settings.APP_ENV),
         samesite="lax",
         path="/",
+        domain=settings.AUTH_COOKIE_DOMAIN,
     )
 
 
@@ -158,6 +159,7 @@ async def logout(
         secure=auth_cookie_secure(settings.APP_ENV),
         httponly=True,
         samesite="lax",
+        domain=settings.AUTH_COOKIE_DOMAIN,
     )
 
 

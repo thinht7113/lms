@@ -17,11 +17,13 @@ import {
   Sparkles,
   Star,
   Video,
+  X,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { apiService, Course, CourseDetail, Lesson, Review, Section, tokenHelper } from "@/services/api";
 import { useToast } from "@/contexts/ToastContext";
+import { setBreadcrumbLabel } from "@/utils/breadcrumbStore";
 
 type TabKey = "overview" | "curriculum" | "reviews";
 
@@ -48,6 +50,7 @@ export default function CourseDetailPage() {
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [expandedSections, setExpandedSections] = useState<number[]>([]);
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
+  const [previewLesson, setPreviewLesson] = useState<Lesson | null>(null);
 
   useEffect(() => {
     setCurrentUser(tokenHelper.getCurrentUser());
@@ -60,6 +63,9 @@ export default function CourseDetailPage() {
       try {
         const data = await apiService.getCourseDetail(courseId);
         setCourse(data);
+        if (data) {
+          setBreadcrumbLabel(data.id, data.tieu_de);
+        }
         if (data?.chuong_hoc?.length) {
           setExpandedSections([data.chuong_hoc[0].id]);
         }
@@ -252,7 +258,7 @@ export default function CourseDetailPage() {
                 {course.tieu_de}
               </h1>
 
-              <p className="mt-4 text-sm font-medium leading-7 text-slate-600">
+              <p className="mt-4 text-sm font-medium leading-7 text-slate-600 line-clamp-3">
                 {course.mo_ta || "Khóa học này cung cấp kiến thức nền tảng, bài học có cấu trúc rõ ràng và giúp học viên áp dụng vào thực tế sau từng chương."}
               </p>
 
@@ -380,6 +386,7 @@ export default function CourseDetailPage() {
                   sections={course.chuong_hoc || []}
                   expandedSections={expandedSections}
                   onToggleSection={toggleSection}
+                  onPreviewLesson={setPreviewLesson}
                 />
               )}
               {activeTab === "reviews" && (
@@ -422,6 +429,10 @@ export default function CourseDetailPage() {
       </main>
 
       <Footer />
+
+      {previewLesson && (
+        <PreviewModal lesson={previewLesson} onClose={() => setPreviewLesson(null)} />
+      )}
     </div>
   );
 }
@@ -493,10 +504,12 @@ function CurriculumTab({
   sections,
   expandedSections,
   onToggleSection,
+  onPreviewLesson,
 }: {
   sections: Section[];
   expandedSections: number[];
   onToggleSection: (sectionId: number) => void;
+  onPreviewLesson: (lesson: Lesson) => void;
 }) {
   if (!sections.length) {
     return (
@@ -534,7 +547,11 @@ function CurriculumTab({
                 {section.bai_hoc?.length ? (
                   <div className="divide-y divide-slate-200/80">
                     {section.bai_hoc.map((lesson: Lesson) => (
-                      <div key={lesson.id} className="flex items-center justify-between gap-4 px-6 py-4 sm:px-14">
+                      <div 
+                        key={lesson.id} 
+                        className={`flex items-center justify-between gap-4 px-6 py-4 sm:px-14 ${lesson.xem_truoc ? "cursor-pointer hover:bg-slate-100 transition" : ""}`}
+                        onClick={() => lesson.xem_truoc && onPreviewLesson(lesson)}
+                      >
                         <div className="flex min-w-0 items-center gap-3">
                           {lesson.xem_truoc ? (
                             <PlayCircle className="h-4 w-4 shrink-0 text-blue-600" />
@@ -707,3 +724,63 @@ function RelatedCourses({ courses, formatPrice }: { courses: Course[]; formatPri
     </section>
   );
 }
+
+function PreviewModal({ lesson, onClose }: { lesson: Lesson; onClose: () => void }) {
+  if (!lesson) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+      <div className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl animate-in zoom-in-95 duration-300">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <div>
+            <h3 className="text-lg font-black text-slate-950">{lesson.tieu_de}</h3>
+            <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-emerald-600">Bài học thử miễn phí</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+          {lesson.noi_dung && lesson.noi_dung.length > 0 ? (
+            <div className="space-y-8">
+              {/* @ts-ignore */}
+              {lesson.noi_dung.sort((a: any, b: any) => a.thu_tu - b.thu_tu).map((content: any) => {
+                const type = content.loai_noi_dung?.toLowerCase() || "";
+                return (
+                  <div key={content.id} className="w-full">
+                    {type === "video" && content.duong_dan_file && (
+                      <div className="overflow-hidden rounded-2xl shadow-sm border border-slate-200 bg-black">
+                        <video controls className="w-full h-auto max-h-[500px]" src={content.duong_dan_file} />
+                      </div>
+                    )}
+                    {type === "text" && content.noi_dung_text && (
+                      <div className="prose max-w-none prose-slate rounded-2xl bg-white p-6 shadow-sm border border-slate-200" dangerouslySetInnerHTML={{ __html: content.noi_dung_text }} />
+                    )}
+                    {type === "pdf" && content.duong_dan_file && (
+                      <div className="relative w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm">
+                        <iframe 
+                          src={`${content.duong_dan_file}#toolbar=0&navpanes=0&scrollbar=0`} 
+                          className="w-full h-[600px]" 
+                          style={{ border: 'none' }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+             <div className="flex h-64 items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-white text-slate-400 font-bold">
+               Nội dung bài học thử đang được cập nhật.
+             </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { CheckCircle2, XCircle, Search, RefreshCw, Eye, AlertCircle, FileText } from "lucide-react";
-import { Course, apiService, fetchWithAuth } from "@/services/api";
+import { Course, Category, apiService, fetchWithAuth } from "@/services/api";
 import { useToast } from "@/contexts/ToastContext";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
@@ -22,6 +22,7 @@ export default function ModerationPage() {
     const [selectedLesson, setSelectedLesson] = useState<any | null>(null);
     
     // Global States
+    const [categories, setCategories] = useState<Category[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
     const [rejectReason, setRejectReason] = useState("");
@@ -66,10 +67,12 @@ export default function ModerationPage() {
     const loadAllPending = async (forceSelectFirst = false) => {
         setIsLoading(true);
         try {
-            await Promise.all([
+            const [_, __, cats] = await Promise.all([
                 fetchPendingCourses(forceSelectFirst),
-                fetchPendingLessons(forceSelectFirst)
+                fetchPendingLessons(forceSelectFirst),
+                apiService.getCategories()
             ]);
+            setCategories(cats);
         } catch (err) {
             console.error("Error loading pending data", err);
         } finally {
@@ -300,6 +303,7 @@ export default function ModerationPage() {
                                     <Eye className="w-5 h-5 text-primary" />
                                     Chi tiết xét duyệt khóa học
                                 </h2>
+                                {/* Tạm ẩn nút xem trước theo yêu cầu
                                 <a 
                                     href={`/courses/${selectedCourse.id}`} 
                                     target="_blank" 
@@ -307,6 +311,7 @@ export default function ModerationPage() {
                                 >
                                     Xem trước trang <ExternalLinkIcon className="w-3 h-3" />
                                 </a>
+                                */}
                             </div>
 
                             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-10 space-y-8">
@@ -324,7 +329,7 @@ export default function ModerationPage() {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                     <div className="bg-secondary p-4 rounded-xl border border-border/60">
                                         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Giá bán</p>
                                         <p className="font-bold text-foreground">{Number(selectedCourse.gia_tien).toLocaleString()} đ</p>
@@ -334,13 +339,17 @@ export default function ModerationPage() {
                                         <p className="font-bold text-foreground capitalize">{selectedCourse.trinh_do}</p>
                                     </div>
                                     <div className="bg-secondary p-4 rounded-xl border border-border/60">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Danh mục ID</p>
-                                        <p className="font-bold text-foreground">{selectedCourse.ma_danh_muc}</p>
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Danh mục</p>
+                                        <p className="font-bold text-foreground line-clamp-1">
+                                            {categories.find(c => c.id === selectedCourse.ma_danh_muc)?.ten_danh_muc || (selectedCourse.ma_danh_muc ? `ID: ${selectedCourse.ma_danh_muc}` : "Chưa phân loại")}
+                                        </p>
                                     </div>
+                                    {/* Tạm ẩn cấu trúc
                                     <div className="bg-secondary p-4 rounded-xl border border-border/60">
                                         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Cấu trúc</p>
                                         <p className="font-bold text-foreground">Click "Xem trước" để xem</p>
                                     </div>
+                                    */}
                                 </div>
 
                                 {/* Action Form */}
@@ -409,6 +418,7 @@ export default function ModerationPage() {
                                     <Eye className="w-5 h-5 text-primary" />
                                     Chi tiết xét duyệt bài học
                                 </h2>
+                                {/* Tạm ẩn nút xem trước
                                 <a 
                                     href={`/learn/${selectedLesson.ma_khoa_hoc}?lesson=${selectedLesson.id}`} 
                                     target="_blank" 
@@ -416,6 +426,7 @@ export default function ModerationPage() {
                                 >
                                     Xem thử bài học <ExternalLinkIcon className="w-3 h-3" />
                                 </a>
+                                */}
                             </div>
 
                             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-10 space-y-8">

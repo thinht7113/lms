@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 1 ngày
     AUTH_COOKIE_NAME: str = "lms_session"
+    AUTH_COOKIE_DOMAIN: Optional[str] = None
     ENABLE_MOCK_AUTH: bool = False
     ENABLE_MOCK_PAYMENTS: bool = False
     PAYMENT_WEBHOOK_SECRET: Optional[str] = None

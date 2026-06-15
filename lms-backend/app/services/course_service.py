@@ -312,8 +312,16 @@ class CourseService:
 
         db.add(section)
         await db.commit()
-        await db.refresh(section)
-        return section
+        
+        final_res = await db.execute(
+            select(Section)
+            .options(
+                selectinload(Section.khoa_hoc),
+                selectinload(Section.bai_hoc).selectinload(Lesson.noi_dung)
+            )
+            .where(Section.id == section_id)
+        )
+        return final_res.scalars().one()
 
     @staticmethod
     async def delete_section(db: AsyncSession, section_id: int, instructor_id: int) -> bool:
@@ -423,8 +431,16 @@ class CourseService:
 
         db.add(lesson)
         await db.commit()
-        await db.refresh(lesson)
-        return lesson
+        
+        final_res = await db.execute(
+            select(Lesson)
+            .options(
+                selectinload(Lesson.chuong_hoc).selectinload(Section.khoa_hoc),
+                selectinload(Lesson.noi_dung)
+            )
+            .where(Lesson.id == lesson_id)
+        )
+        return final_res.scalars().one()
 
     @staticmethod
     async def delete_lesson(db: AsyncSession, lesson_id: int, instructor_id: int) -> bool:

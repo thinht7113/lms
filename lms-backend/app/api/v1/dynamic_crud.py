@@ -108,6 +108,11 @@ def create_crud_router(
         db.add(db_item)
         await db.commit()
         await db.refresh(db_item)
+        if options:
+            query = select(model).where(model.id == getattr(db_item, "id", None)).options(*options)
+            result = await db.execute(query)
+            db_item = result.scalars().first() or db_item
+            
         if model.__name__ == "Category":
             from app.core.redis import clear_categories_cache
             await clear_categories_cache()
@@ -121,6 +126,8 @@ def create_crud_router(
         current_admin: User = Depends(get_current_admin_user)
     ):
         query = select(model).where(model.id == item_id)
+        if options:
+            query = query.options(*options)
         result = await db.execute(query)
         db_item = result.scalars().first()
 

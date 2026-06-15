@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { ArrowLeft, Edit3, FileText, Plus, RefreshCw, Trash2, Video, Send } from "lucide-react";
 import { apiService, CourseDetail, Lesson } from "@/services/api";
 import { useToast } from "@/contexts/ToastContext";
+import { setBreadcrumbLabel } from "@/utils/breadcrumbStore";
 
 const getYouTubeEmbedUrl = (url: string) => {
   if (!url) return "";
@@ -30,7 +31,13 @@ export default function InstructorLessonsPage() {
     setLoading(true);
     setError(null);
     try {
-      setCourse(await apiService.getCourseDetailWithAuth(courseId));
+      const data = await apiService.getCourseDetailWithAuth(courseId);
+      setCourse(data);
+      setBreadcrumbLabel(data.id, data.tieu_de);
+      const sec = data.chuong_hoc?.find((item) => item.id === sectionId);
+      if (sec) {
+        setBreadcrumbLabel(sec.id, sec.tieu_de);
+      }
     } catch (err: any) {
       setError(err.message || "Không thể tải bài học");
     } finally {
