@@ -85,7 +85,8 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                     setPendingCount(pendingCoursesCount + pendingLessonsCount);
                 }
             } catch (err) {
-                console.error("Failed to fetch pending counts for sidebar:", err);
+                // Use console.warn instead of console.error to avoid Next.js dev overlay popups during background polling
+                console.warn("Failed to fetch pending counts for sidebar");
             }
         }
         fetchPendingCounts();

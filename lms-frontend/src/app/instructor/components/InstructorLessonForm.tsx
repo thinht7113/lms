@@ -20,6 +20,7 @@ type ContentBlock = LessonContentPayload & {
   localId: string;
   id?: number;
   isUploading?: boolean;
+  uploadProgress?: number;
 };
 
 const getYouTubeEmbedUrl = (url: string) => {
@@ -226,10 +227,14 @@ export default function InstructorLessonForm({ courseId, sectionId, lessonId }: 
     }
 
     updateBlock(localId, "isUploading", true);
+    updateBlock(localId, "uploadProgress", 0);
     setError(null);
     try {
-      const uploaded = await apiService.uploadFile(file, uploadAssetByType[block.loai_noi_dung]);
+      const uploaded = await apiService.uploadFile(file, uploadAssetByType[block.loai_noi_dung], (progress) => {
+        updateBlock(localId, "uploadProgress", progress);
+      });
       updateBlock(localId, "duong_dan_file", uploaded.url);
+      updateBlock(localId, "uploadProgress", 100);
     } catch (err: any) {
       setError(err.message || "Upload file thất bại");
     } finally {
@@ -379,19 +384,29 @@ export default function InstructorLessonForm({ courseId, sectionId, lessonId }: 
                   {isUploadableType(block.loai_noi_dung) && (
                     <div className="space-y-3">
                       <input value={block.duong_dan_file || ""} onChange={(e) => updateBlock(block.localId, "duong_dan_file", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium outline-none focus:border-purple-400" placeholder="URL file hoặc upload bên dưới" />
-                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black text-purple-700 shadow-sm hover:bg-purple-50">
-                        {block.isUploading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
-                        Upload file
-                        <input
-                          type="file"
-                          accept={fileAcceptByType[block.loai_noi_dung]}
-                          className="hidden"
-                          onChange={(e) => {
-                            uploadBlockFile(block.localId, e.target.files?.[0]);
-                            e.currentTarget.value = "";
-                          }}
-                        />
-                      </label>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                        <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black text-purple-700 shadow-sm hover:bg-purple-50 whitespace-nowrap">
+                          {block.isUploading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
+                          Upload file
+                          <input
+                            type="file"
+                            accept={fileAcceptByType[block.loai_noi_dung]}
+                            className="hidden"
+                            onChange={(e) => {
+                              uploadBlockFile(block.localId, e.target.files?.[0]);
+                              e.currentTarget.value = "";
+                            }}
+                          />
+                        </label>
+                        {block.isUploading && block.uploadProgress !== undefined && (
+                          <div className="flex-1 flex items-center gap-3 w-full">
+                            <div className="h-2.5 flex-1 rounded-full bg-slate-200 overflow-hidden">
+                              <div className="h-full bg-purple-600 transition-all duration-300" style={{ width: `${block.uploadProgress}%` }}></div>
+                            </div>
+                            <span className="text-xs font-bold text-slate-500 w-8">{block.uploadProgress}%</span>
+                          </div>
+                        )}
+                      </div>
                       {renderEmbeddedPreview(block)}
                     </div>
                   )}

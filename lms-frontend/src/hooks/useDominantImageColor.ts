@@ -32,7 +32,7 @@ export function useDominantImageColor(src?: string, fallbackRgb = "37, 99, 235")
 
   useEffect(() => {
     if (!src) {
-      setDominantColor(fallbackRgb);
+      queueMicrotask(() => setDominantColor(fallbackRgb));
       return;
     }
 

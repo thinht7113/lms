@@ -85,7 +85,7 @@ export default function VerifyCertificatePage() {
         )}
 
         {/* Success State */}
-        {result && result.is_valid && result.certificate && (
+        {result && result.valid && result.certificate && (
           <div className="bg-white border border-green-200 shadow-sm rounded-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4">
             <div className="bg-green-50 px-6 py-4 border-b border-green-100 flex items-center gap-3">
               <CheckCircle className="h-6 w-6 text-green-600" />

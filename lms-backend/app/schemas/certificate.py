@@ -25,6 +25,7 @@ class CourseProgressResponse(BaseModel):
     course_id: int
     total_lessons: int
     completed_lessons: int
+    completed_lesson_ids: list[int]
     progress_percentage: float
 
 # ==================== CERTIFICATE SCHEMAS ====================

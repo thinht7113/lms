@@ -211,11 +211,11 @@ class CertService:
         )
         total_lessons = total_lessons_res.scalar() or 0
 
-        # Đếm số bài đã hoàn thành (Chỉ tính các bài học đã xuất bản)
+        # Đếm số bài đã hoàn thành và lấy danh sách ID (Chỉ tính các bài học đã xuất bản)
         completed_lessons_res = await db.execute(
-            select(func.count(Progress.id))
+            select(Lesson.id)
+            .join(Progress, Progress.ma_bai_hoc == Lesson.id)
             .join(Enrollment, Progress.ma_dang_ky_hoc == Enrollment.id)
-            .join(Lesson, Progress.ma_bai_hoc == Lesson.id)
             .where(
                 and_(
                     Enrollment.ma_nguoi_dung == user_id,
@@ -225,7 +225,8 @@ class CertService:
                 )
             )
         )
-        completed_lessons = completed_lessons_res.scalar() or 0
+        completed_lesson_ids = list(completed_lessons_res.scalars().all())
+        completed_lessons = len(completed_lesson_ids)
 
 
         # Đếm tổng số bài kiểm tra (Quiz) của khóa học
@@ -259,6 +260,7 @@ class CertService:
             "course_id": course_id,
             "total_lessons": total_lessons,
             "completed_lessons": completed_lessons,
+            "completed_lesson_ids": completed_lesson_ids,
             "total_quizzes": total_quizzes,
             "passed_quizzes": passed_quizzes,
             "progress_percentage": progress_percentage
@@ -430,14 +432,27 @@ class CertService:
         )
         db.add(new_cert)
         await db.commit()
-        await db.refresh(new_cert)
-        return new_cert
+        
+        from app.models.course import Course
+        result = await db.execute(
+            select(Certificate)
+            .options(
+                selectinload(Certificate.khoa_hoc).selectinload(Course.giang_vien),
+                selectinload(Certificate.nguoi_dung)
+            )
+            .where(Certificate.id == new_cert.id)
+        )
+        return result.scalars().first()
 
     @staticmethod
     async def get_my_certificates(db: AsyncSession, user_id: int) -> List[Certificate]:
+        from app.models.course import Course
         result = await db.execute(
             select(Certificate)
-            .options(selectinload(Certificate.khoa_hoc))
+            .options(
+                selectinload(Certificate.khoa_hoc).selectinload(Course.giang_vien),
+                selectinload(Certificate.nguoi_dung)
+            )
             .where(Certificate.ma_nguoi_dung == user_id)
         )
         return list(result.scalars().all())

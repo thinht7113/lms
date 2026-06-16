@@ -37,7 +37,6 @@ class User(Base):
     lich_su_lam_bai = relationship("QuizAttempt", back_populates="nguoi_dung", cascade="all, delete-orphan")
     chung_chi = relationship("Certificate", back_populates="nguoi_dung", cascade="all, delete-orphan")
     danh_gia_khoa_hoc = relationship("CourseReview", back_populates="nguoi_dung", cascade="all, delete-orphan")
-    danh_sach_yeu_thich = relationship("Wishlist", back_populates="nguoi_dung", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User {self.email} ({self.vai_tro})>"

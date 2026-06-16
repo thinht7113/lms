@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_, and_, desc, asc, func
 from sqlalchemy.orm import selectinload, attributes
 from fastapi import HTTPException, status
-from app.models.course import Category, Course, Section, Lesson, LessonContent, Enrollment, CourseReview, Wishlist
+from app.models.course import Category, Course, Section, Lesson, LessonContent, Enrollment, CourseReview
 from app.models.user import User
 from app.schemas.course import (
     CategoryCreate, CourseCreate, CourseUpdate,
@@ -251,17 +251,9 @@ class CourseService:
         course = result.scalars().one()
 
         if "gia_tien" in update_data and old_price is not None and Decimal(update_data["gia_tien"]) != Decimal(old_price):
-            from app.models.notification import Notification
-            from app.models.course import Wishlist
-            wishlist_res = await db.execute(select(Wishlist).where(Wishlist.ma_khoa_hoc == course_id))
-            for w in wishlist_res.scalars().all():
-                db.add(Notification(
-                    ma_nguoi_dung=w.ma_nguoi_dung,
-                    tieu_de="Khóa học yêu thích thay đổi giá!",
-                    noi_dung=f"Khóa học '{course.tieu_de}' mà bạn lưu trong Wishlist vừa được cập nhật giá. Cơ hội tuyệt vời để bắt đầu học ngay!",
-                    loai="course"
-                ))
-            await db.commit()
+            pass
+
+
 
         return course
 
@@ -599,7 +591,10 @@ class CourseService:
     async def get_course_reviews(db: AsyncSession, course_id: int, skip: int = 0, limit: int = 20) -> List[CourseReview]:
         result = await db.execute(
             select(CourseReview)
-            .options(selectinload(CourseReview.nguoi_dung))
+            .options(
+                selectinload(CourseReview.nguoi_dung),
+                selectinload(CourseReview.khoa_hoc),
+            )
             .where(CourseReview.ma_khoa_hoc == course_id)
             .order_by(desc(CourseReview.ngay_tao))
             .offset(skip)
@@ -607,50 +602,3 @@ class CourseService:
         )
         return list(result.scalars().all())
 
-    # ==================== COURSE WISHLIST SERVICES ====================
-    @staticmethod
-    async def toggle_wishlist(db: AsyncSession, user_id: int, course_id: int) -> bool:
-        # 1. Kiểm tra khóa học có tồn tại không
-        course_result = await db.execute(select(Course).where(Course.id == course_id))
-        course = course_result.scalars().first()
-        if not course:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Khóa học không tồn tại."
-            )
-
-        # 2. Kiểm tra xem người dùng đã yêu thích khóa học này chưa
-        existing_wish = await db.execute(
-            select(Wishlist).where(
-                and_(
-                    Wishlist.ma_nguoi_dung == user_id,
-                    Wishlist.ma_khoa_hoc == course_id
-                )
-            )
-        )
-        db_wish = existing_wish.scalars().first()
-
-        if db_wish:
-            # Nếu đã thích, xóa bản ghi (bỏ yêu thích)
-            await db.delete(db_wish)
-            await db.commit()
-            return False
-        else:
-            # Nếu chưa thích, tạo bản ghi mới (yêu thích)
-            new_wish = Wishlist(
-                ma_nguoi_dung=user_id,
-                ma_khoa_hoc=course_id
-            )
-            db.add(new_wish)
-            await db.commit()
-            return True
-
-    @staticmethod
-    async def get_user_wishlist(db: AsyncSession, user_id: int) -> List[Wishlist]:
-        result = await db.execute(
-            select(Wishlist)
-            .options(selectinload(Wishlist.khoa_hoc))
-            .where(Wishlist.ma_nguoi_dung == user_id)
-            .order_by(desc(Wishlist.ngay_them))
-        )
-        return list(result.scalars().all())

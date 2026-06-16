@@ -1,18 +1,17 @@
-import os
 import io
-from typing import Iterable
-from reportlab.pdfgen import canvas
+import os
+
 from reportlab.lib.colors import Color, HexColor
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfgen import canvas
 
-# Determine font paths relative to this file
+
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 FONT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, "..", "assets", "fonts"))
 REGULAR_FONT_PATH = os.path.join(FONT_DIR, "Roboto-Regular.ttf")
 BOLD_FONT_PATH = os.path.join(FONT_DIR, "Roboto-Bold.ttf")
 
-# Register fonts if they exist
 fonts_loaded = False
 try:
     if os.path.exists(REGULAR_FONT_PATH) and os.path.exists(BOLD_FONT_PATH):
@@ -28,48 +27,49 @@ FONT_REGULAR = "Roboto" if fonts_loaded else "Helvetica"
 FONT_BOLD = "Roboto-Bold" if fonts_loaded else "Helvetica-Bold"
 
 
-def draw_centered_string(c: canvas.Canvas, text: str, y: float, font_name: str, font_size: float, color: Color):
+def draw_centered_string(
+    c: canvas.Canvas,
+    text: str,
+    y: float,
+    font_name: str,
+    font_size: float,
+    color: Color,
+) -> None:
     c.setFont(font_name, font_size)
     c.setFillColor(color)
     c.drawCentredString(396, y, text)
 
 
-def draw_gold_seal(c: canvas.Canvas, x: float, y: float):
-    # Draw seal ribbons
+def draw_gold_seal(c: canvas.Canvas, x: float, y: float) -> None:
     c.setFillColor(HexColor("#D97706"))
-    
-    # Left Ribbon
-    p1 = c.beginPath()
-    p1.moveTo(x - 8, y - 12)
-    p1.lineTo(x - 18, y - 38)
-    p1.lineTo(x - 8, y - 32)
-    p1.lineTo(x, y - 38)
-    p1.lineTo(x - 2, y - 12)
-    c.drawPath(p1, fill=True, stroke=False)
-    
-    # Right Ribbon
-    p2 = c.beginPath()
-    p2.moveTo(x + 2, y - 12)
-    p2.lineTo(x, y - 38)
-    p2.lineTo(x + 8, y - 32)
-    p2.lineTo(x + 18, y - 38)
-    p2.lineTo(x + 8, y - 12)
-    c.drawPath(p2, fill=True, stroke=False)
-    
-    # Draw circular seal outer jagged-look
-    c.setFillColor(HexColor("#F59E0B")) # Amber/gold color
+
+    left_ribbon = c.beginPath()
+    left_ribbon.moveTo(x - 8, y - 12)
+    left_ribbon.lineTo(x - 18, y - 38)
+    left_ribbon.lineTo(x - 8, y - 32)
+    left_ribbon.lineTo(x, y - 38)
+    left_ribbon.lineTo(x - 2, y - 12)
+    c.drawPath(left_ribbon, fill=True, stroke=False)
+
+    right_ribbon = c.beginPath()
+    right_ribbon.moveTo(x + 2, y - 12)
+    right_ribbon.lineTo(x, y - 38)
+    right_ribbon.lineTo(x + 8, y - 32)
+    right_ribbon.lineTo(x + 18, y - 38)
+    right_ribbon.lineTo(x + 8, y - 12)
+    c.drawPath(right_ribbon, fill=True, stroke=False)
+
+    c.setFillColor(HexColor("#F59E0B"))
     c.setStrokeColor(HexColor("#D97706"))
     c.setLineWidth(1)
     c.circle(x, y, 22, fill=True, stroke=True)
-    
+
     c.setFillColor(HexColor("#D97706"))
     c.circle(x, y, 18, fill=True, stroke=False)
-    
-    # Inner gold circle
+
     c.setFillColor(HexColor("#F59E0B"))
     c.circle(x, y, 15, fill=True, stroke=False)
-    
-    # Draw "VERIFIED" text
+
     c.setFont(FONT_BOLD, 5)
     c.setFillColor(HexColor("#FFFFFF"))
     c.drawCentredString(x, y - 2, "VERIFIED")
@@ -82,93 +82,74 @@ def build_certificate_pdf(
     issued_date: str,
 ) -> bytes:
     buffer = io.BytesIO()
-    
-    # Letter size landscape: 792 wide by 612 high
     c = canvas.Canvas(buffer, pagesize=(792, 612))
-    
-    # 1. Fill background
+
     c.setFillColor(HexColor("#FCFCF9"))
     c.rect(0, 0, 792, 612, fill=True, stroke=False)
-    
-    # 2. Outer dark border
+
     c.setStrokeColor(HexColor("#0F172A"))
     c.setLineWidth(4)
     c.rect(20, 20, 752, 572, fill=False, stroke=True)
-    
-    # 3. Inner gold border
+
     c.setStrokeColor(HexColor("#D97706"))
     c.setLineWidth(1.5)
     c.rect(28, 28, 736, 556, fill=False, stroke=True)
-    
-    # 4. Corner Decorations
+
     c.setFillColor(HexColor("#0F172A"))
-    # Top-Left Corner
     c.rect(28, 564, 20, 20, fill=True, stroke=False)
-    # Bottom-Left Corner
     c.rect(28, 28, 20, 20, fill=True, stroke=False)
-    # Top-Right Corner
     c.rect(744, 564, 20, 20, fill=True, stroke=False)
-    # Bottom-Right Corner
     c.rect(744, 28, 20, 20, fill=True, stroke=False)
-    
-    # 5. Header Branding
+
     draw_centered_string(c, "L U M I N A   L M S", 500, FONT_BOLD, 22, HexColor("#1E3A8A"))
-    
-    # Small line under brand
+
     c.setStrokeColor(HexColor("#D97706"))
     c.setLineWidth(1.5)
     c.line(346, 488, 446, 488)
-    
-    # 6. Title
+
     draw_centered_string(c, "CHỨNG NHẬN HOÀN THÀNH KHÓA HỌC", 445, FONT_BOLD, 13, HexColor("#475569"))
-    
-    # 7. Award Statement
     draw_centered_string(c, "Chứng chỉ này được trân trọng trao tặng cho", 395, FONT_REGULAR, 11, HexColor("#64748B"))
-    
-    # 8. Student Name
     draw_centered_string(c, student_name, 335, FONT_BOLD, 30, HexColor("#0F172A"))
-    
-    # Accent line beneath name
+
     c.setStrokeColor(HexColor("#E2E8F0"))
     c.setLineWidth(1)
     c.line(246, 315, 546, 315)
-    
-    # 9. Course Statement
-    draw_centered_string(c, "Vì đã hoàn thành xuất sắc chương trình đào tạo và đánh giá năng lực của khóa học:", 285, FONT_REGULAR, 11, HexColor("#64748B"))
-    
-    # 10. Course Title
+
+    draw_centered_string(
+        c,
+        "Vì đã hoàn thành xuất sắc chương trình đào tạo và đánh giá năng lực của khóa học:",
+        285,
+        FONT_REGULAR,
+        11,
+        HexColor("#64748B"),
+    )
     draw_centered_string(c, course_title.upper(), 235, FONT_BOLD, 22, HexColor("#2563EB"))
-    
-    # 11. Gold Verification Seal
+
     draw_gold_seal(c, 396, 175)
-    
-    # 12. Footer Sections
-    # Date (Left)
+
     c.setFont(FONT_BOLD, 8)
     c.setFillColor(HexColor("#94A3B8"))
     c.drawString(60, 130, "NGÀY CẤP")
     c.setFont(FONT_BOLD, 10)
     c.setFillColor(HexColor("#334155"))
     c.drawString(60, 112, issued_date)
-    
-    # Signature (Center)
+
     draw_centered_string(c, "Lumina Board", 125, FONT_BOLD, 14, HexColor("#1E3A8A"))
     c.setStrokeColor(HexColor("#94A3B8"))
     c.setLineWidth(0.5)
     c.line(326, 115, 466, 115)
     draw_centered_string(c, "HỘI ĐỒNG GIẢNG VIÊN", 100, FONT_BOLD, 8, HexColor("#94A3B8"))
-    
-    # Certificate UUID (Right)
+
     c.setFont(FONT_BOLD, 8)
     c.setFillColor(HexColor("#94A3B8"))
     c.drawRightString(732, 130, "MÃ ĐỊNH DANH CHỨNG CHỈ")
     c.setFont(FONT_REGULAR, 8)
     c.setFillColor(HexColor("#334155"))
     c.drawRightString(732, 112, certificate_uuid)
-    
+
     c.showPage()
     c.save()
-    
+
     pdf_bytes = buffer.getvalue()
     buffer.close()
     return pdf_bytes

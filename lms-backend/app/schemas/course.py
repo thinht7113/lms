@@ -222,16 +222,6 @@ class CourseDetailResponse(CourseResponse):
     chuong_hoc: List[SectionResponse] = []
     danh_gia_khoa_hoc: List[ReviewResponse] = []
 
-class WishlistResponse(BaseModel):
-    id: int
-    ma_nguoi_dung: int
-    ma_khoa_hoc: int
-    ngay_them: datetime
-    khoa_hoc: CourseResponse
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 # ==================== ENROLLMENT SCHEMAS ====================
 class EnrollmentCreate(BaseModel):
     ma_nguoi_dung: int = Field(..., description="ID Học viên")

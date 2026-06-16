@@ -68,9 +68,13 @@ async def download_certificate(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    from app.modules.catalog.models import Course
     result = await db.execute(
         select(Certificate)
-        .options(selectinload(Certificate.khoa_hoc))
+        .options(
+            selectinload(Certificate.khoa_hoc).selectinload(Course.giang_vien),
+            selectinload(Certificate.nguoi_dung)
+        )
         .where(
             and_(
                 Certificate.ma_nguoi_dung == current_user.id,

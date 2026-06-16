@@ -303,6 +303,7 @@ export interface CourseProgress {
   course_id: number;
   total_lessons: number;
   completed_lessons: number;
+  completed_lesson_ids?: number[];
   progress_percentage: number;
   total_quizzes?: number;
   passed_quizzes?: number;
@@ -606,20 +607,50 @@ export const apiService = {
     return user;
   },
 
-  async uploadFile(file: File, assetType?: UploadAssetType): Promise<UploadResponse> {
-    const formData = new FormData();
-    formData.append("file", file);
-    if (assetType) formData.append("asset_type", assetType);
+  async uploadFile(file: File, assetType?: UploadAssetType, onProgress?: (progress: number) => void): Promise<UploadResponse> {
+    return new Promise((resolve, reject) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      if (assetType) formData.append("asset_type", assetType);
 
-    const res = await fetchWithAuth(`${API_BASE_URL}/upload`, {
-      method: "POST",
-      body: formData,
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `${API_BASE_URL}/upload`);
+      xhr.withCredentials = true;
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable && onProgress) {
+          const progress = Math.round((event.loaded / event.total) * 100);
+          onProgress(progress);
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            resolve(data);
+          } catch (e) {
+            reject(new Error("Invalid response format"));
+          }
+        } else {
+          if (xhr.status === 401) {
+            tokenHelper.removeCurrentUser();
+            if (typeof window !== "undefined") {
+              window.location.href = "/login";
+            }
+          }
+          try {
+            const errData = JSON.parse(xhr.responseText);
+            reject(new Error(errData.detail || "Upload tệp thất bại"));
+          } catch (e) {
+            reject(new Error("Upload tệp thất bại"));
+          }
+        }
+      };
+
+      xhr.onerror = () => reject(new Error("Network error occurred during upload"));
+      xhr.send(formData);
     });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.detail || "Upload tệp thất bại");
-    }
-    return await res.json();
   },
 
   async forgotPassword(email: string): Promise<{ message: string }> {
@@ -1092,21 +1123,6 @@ export const apiService = {
       console.warn("API Error (Instructors):", err);
       return [];
     }
-  },
-
-  // 12. Wishlist API
-  async getWishlist(): Promise<any[]> {
-    const res = await fetchWithAuth(`${API_BASE_URL}/courses/wishlist/me`);
-    if (!res.ok) throw new Error("Failed to fetch wishlist");
-    return await res.json();
-  },
-
-  async toggleWishlist(courseId: number): Promise<{ added: boolean; message: string }> {
-    const res = await fetchWithAuth(`${API_BASE_URL}/courses/${courseId}/wishlist`, {
-      method: "POST"
-    });
-    if (!res.ok) throw new Error("Failed to toggle wishlist");
-    return await res.json();
   },
 
   // 13. Admin API

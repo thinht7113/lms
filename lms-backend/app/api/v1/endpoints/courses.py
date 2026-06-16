@@ -12,8 +12,7 @@ from app.modules.catalog.schemas import (
     SectionCreate, SectionUpdate, SectionResponse,
     LessonCreate, LessonUpdate, LessonResponse,
     LessonContentCreate, LessonContentUpdate, LessonContentResponse,
-    ReviewCreate, ReviewResponse,
-    WishlistResponse
+    ReviewCreate, ReviewResponse
 )
 from app.modules.catalog.services import CourseService
 from app.modules.learning.models import Enrollment
@@ -345,17 +344,6 @@ async def get_courses(
     )
 
 @router.get(
-    "/courses/wishlist/me",
-    response_model=List[WishlistResponse],
-    summary="Get personal favorite courses list"
-)
-async def get_my_wishlist(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    return await CourseService.get_user_wishlist(db, current_user.id)
-
-@router.get(
     "/courses/{course_id}",
     response_model=CourseDetailResponse,
     summary="View course syllabus details (Publicly accessible)"
@@ -416,16 +404,3 @@ async def get_course_reviews(
 ):
     return await CourseService.get_course_reviews(db, course_id, skip=skip, limit=limit)
 
-# ==================== COURSE WISHLIST ENDPOINTS ====================
-@router.post(
-    "/courses/{course_id}/wishlist",
-    summary="Favorite / Unfavorite course"
-)
-async def toggle_course_wishlist(
-    course_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    added = await CourseService.toggle_wishlist(db, current_user.id, course_id)
-    msg = "Đã thêm khóa học vào danh sách yêu thích thành công." if added else "Đã xóa khóa học khỏi danh sách yêu thích."
-    return {"added": added, "message": msg}

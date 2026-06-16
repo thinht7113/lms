@@ -35,14 +35,13 @@ class Course(Base):
     # Relationships
     giang_vien = relationship("User", back_populates="khoa_hoc")
     danh_muc = relationship("Category", back_populates="khoa_hoc")
-    chuong_hoc = relationship("Section", back_populates="khoa_hoc", cascade="all, delete-orphan")
+    chuong_hoc = relationship("Section", back_populates="khoa_hoc", cascade="all, delete-orphan", order_by="Section.thu_tu")
     dang_ky_hoc = relationship("Enrollment", back_populates="khoa_hoc", cascade="all, delete-orphan")
     chi_tiet_gio_hang = relationship("CartItem", back_populates="khoa_hoc", cascade="all, delete-orphan")
     chi_tiet_don_hang = relationship("OrderItem", back_populates="khoa_hoc")
     bai_kiem_tra = relationship("Quiz", back_populates="khoa_hoc", cascade="all, delete-orphan")
     chung_chi = relationship("Certificate", back_populates="khoa_hoc", cascade="all, delete-orphan")
     danh_gia_khoa_hoc = relationship("CourseReview", back_populates="khoa_hoc", cascade="all, delete-orphan")
-    danh_sach_yeu_thich = relationship("Wishlist", back_populates="khoa_hoc", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Course {self.tieu_de}>"
@@ -68,7 +67,7 @@ class Section(Base):
 
     # Relationships
     khoa_hoc = relationship("Course", back_populates="chuong_hoc")
-    bai_hoc = relationship("Lesson", back_populates="chuong_hoc", cascade="all, delete-orphan")
+    bai_hoc = relationship("Lesson", back_populates="chuong_hoc", cascade="all, delete-orphan", order_by="Lesson.thu_tu")
 
     def __repr__(self):
         return f"<Section {self.tieu_de}>"
@@ -189,21 +188,3 @@ class CourseReview(Base):
         return f"<CourseReview User:{self.ma_nguoi_dung} Course:{self.ma_khoa_hoc} Stars:{self.so_sao}>"
 
 
-class Wishlist(Base):
-    __tablename__ = "danh_sach_yeu_thich"
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    ma_nguoi_dung: Mapped[int] = mapped_column(ForeignKey("nguoi_dung.id", ondelete="CASCADE"), nullable=False, index=True)
-    ma_khoa_hoc: Mapped[int] = mapped_column(ForeignKey("khoa_hoc.id", ondelete="CASCADE"), nullable=False, index=True)
-    ngay_them: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False, index=True)
-
-    __table_args__ = (
-        UniqueConstraint("ma_nguoi_dung", "ma_khoa_hoc", name="uq_wishlist_user_course"),
-    )
-
-    # Relationships
-    nguoi_dung = relationship("User", back_populates="danh_sach_yeu_thich")
-    khoa_hoc = relationship("Course", back_populates="danh_sach_yeu_thich")
-
-    def __repr__(self):
-        return f"<Wishlist UserID:{self.ma_nguoi_dung} CourseID:{self.ma_khoa_hoc}>"

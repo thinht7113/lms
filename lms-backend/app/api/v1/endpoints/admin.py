@@ -556,18 +556,6 @@ async def approve_lesson(
     if not lesson:
         raise HTTPException(status_code=404, detail="Không tìm thấy bài học.")
     
-    # Kiểm tra xem khóa học của bài học này đã được duyệt chưa
-    if lesson.chuong_hoc:
-        course_res = await db.execute(
-            select(Course).where(Course.id == lesson.chuong_hoc.ma_khoa_hoc)
-        )
-        course = course_res.scalars().first()
-        if course and course.trang_thai_phe_duyet == "approved":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Khóa học của bài học này đã được duyệt. Không cần duyệt bài học riêng lẻ."
-            )
-    
     lesson.trang_thai_phe_duyet = "approved"
     lesson.da_xuat_ban = True
     db.add(lesson)
@@ -606,18 +594,6 @@ async def reject_lesson(
     if not lesson:
         raise HTTPException(status_code=404, detail="Không tìm thấy bài học.")
     
-    # Kiểm tra xem khóa học của bài học này đã được duyệt chưa
-    if lesson.chuong_hoc:
-        course_res = await db.execute(
-            select(Course).where(Course.id == lesson.chuong_hoc.ma_khoa_hoc)
-        )
-        course = course_res.scalars().first()
-        if course and course.trang_thai_phe_duyet == "approved":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Khóa học của bài học này đã được duyệt. Không thể từ chối bài học riêng lẻ."
-            )
-            
     lesson.trang_thai_phe_duyet = "rejected"
     lesson.da_xuat_ban = False
     db.add(lesson)
@@ -934,7 +910,9 @@ async def get_all_orders(
     current_admin: User = Depends(get_current_admin_user)
 ):
     query = select(Order).options(
-        selectinload(Order.chi_tiet_don_hang).selectinload(OrderItem.khoa_hoc)
+        selectinload(Order.chi_tiet_don_hang)
+        .selectinload(OrderItem.khoa_hoc)
+        .selectinload(Course.giang_vien)
     ).order_by(Order.id.desc()).offset(skip).limit(limit)
     
     result = await db.execute(query)

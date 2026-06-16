@@ -51,16 +51,15 @@ export default function SystemLogo({
     iconColorClass = "text-primary",
     iconBgClass = "bg-primary"
 }: SystemLogoProps) {
-    const [logoUrl, setLogoUrl] = useState<string | null>(null);
+    const [logoUrl, setLogoUrl] = useState<string | null>(() => {
+        if (typeof window === "undefined") return null;
+        const cached = localStorage.getItem("system_logo");
+        if (cached) cachedLogoUrl = cached;
+        return cached;
+    });
 
     useEffect(() => {
         let isMounted = true;
-        const cached = localStorage.getItem("system_logo");
-
-        if (cached) {
-            cachedLogoUrl = cached;
-            setLogoUrl(cached);
-        }
 
         loadLogoUrl().then(url => {
             if (url) {

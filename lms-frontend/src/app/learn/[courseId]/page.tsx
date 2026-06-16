@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { apiService, CourseDetail, CourseProgress, Lesson, LessonContent, Quiz } from "@/services/api";
+import { setBreadcrumbLabel } from "@/utils/breadcrumbStore";
 import dynamic from 'next/dynamic';
 
 const PdfViewer = dynamic(() => import('@/components/PdfViewer'), { ssr: false });
@@ -111,6 +112,13 @@ export default function LearnSpacePage() {
     try {
       const progress = await apiService.getCourseProgress(courseId);
       setCourseProgress(progress);
+      if (progress?.completed_lesson_ids) {
+        const completedMap: Record<number, boolean> = {};
+        progress.completed_lesson_ids.forEach(id => {
+          completedMap[id] = true;
+        });
+        setCompletedLessons(prev => ({ ...prev, ...completedMap }));
+      }
     } catch (err) {
       console.warn("Course progress load error:", err);
       setCourseProgress(null);
@@ -136,7 +144,17 @@ export default function LearnSpacePage() {
         }
 
         setCourse(detail);
+        if (detail?.tieu_de) {
+          setBreadcrumbLabel(courseId, detail.tieu_de);
+        }
         setCourseProgress(progress);
+        if (progress?.completed_lesson_ids) {
+          const completedMap: Record<number, boolean> = {};
+          progress.completed_lesson_ids.forEach(id => {
+            completedMap[id] = true;
+          });
+          setCompletedLessons(prev => ({ ...prev, ...completedMap }));
+        }
         setQuizzes(quizzesData);
 
         const sortedSections = [...(detail.chuong_hoc || [])].sort((a, b) => a.thu_tu - b.thu_tu);

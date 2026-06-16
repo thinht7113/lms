@@ -41,21 +41,23 @@ export default function DynamicForm({ title, fields, initialData, endpoint, onSu
 
     // Khởi tạo dữ liệu khi mở form
     useEffect(() => {
-        if (initialData) {
-            setFormData(initialData);
-        } else {
-            // Khởi tạo giá trị mặc định cho form tạo mới
-            const defaultData: any = { ...(baseData || {}) };
-            fields.forEach(field => {
-                if (defaultData[field.key] === undefined) {
-                    if (field.defaultValue !== undefined) defaultData[field.key] = field.defaultValue;
-                    else if (field.type === "boolean") defaultData[field.key] = false;
-                    else if (field.type === "number") defaultData[field.key] = 0;
-                    else defaultData[field.key] = "";
-                }
-            });
-            setFormData(defaultData);
-        }
+        queueMicrotask(() => {
+            if (initialData) {
+                setFormData(initialData);
+            } else {
+                // Khởi tạo giá trị mặc định cho form tạo mới
+                const defaultData: any = { ...(baseData || {}) };
+                fields.forEach(field => {
+                    if (defaultData[field.key] === undefined) {
+                        if (field.defaultValue !== undefined) defaultData[field.key] = field.defaultValue;
+                        else if (field.type === "boolean") defaultData[field.key] = false;
+                        else if (field.type === "number") defaultData[field.key] = 0;
+                        else defaultData[field.key] = "";
+                    }
+                });
+                setFormData(defaultData);
+            }
+        });
     }, [initialData, fields, baseData]);
 
     // Khóa cuộn trang khi form/modal được hiển thị

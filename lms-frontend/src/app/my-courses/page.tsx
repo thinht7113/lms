@@ -290,24 +290,26 @@ export default function MyCoursesPage() {
 
 
 
-                            {isCompleted ? (
-                              <button
-                                type="button"
-                                onClick={() => handleClaimCertificate(course.id)}
-                                disabled={claimingCertificateId === course.id}
-                                className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-slate-100 text-sm font-black text-slate-700 transition hover:bg-slate-200 disabled:opacity-50"
-                              >
-                                {claimingCertificateId === course.id ? "Đang xử lý..." : "Nhận chứng chỉ"}
-                              </button>
-                            ) : (
+                            <div className="mt-6 flex gap-3">
                               <Link
                                 href={`/learn/${course.id}`}
-                                className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-blue-600 text-sm font-black text-blue-600 transition hover:bg-blue-600 hover:text-white"
+                                className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl border border-blue-600 text-sm font-black text-blue-600 transition hover:bg-blue-600 hover:text-white"
                               >
-                                Vào lớp học
+                                {isCompleted ? "Ôn tập lại" : "Vào lớp học"}
                                 <Play className="h-4 w-4 fill-current" />
                               </Link>
-                            )}
+
+                              {isCompleted && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleClaimCertificate(course.id)}
+                                  disabled={claimingCertificateId === course.id}
+                                  className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-50 text-sm font-black text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
+                                >
+                                  {claimingCertificateId === course.id ? "Đang xử lý..." : "Chứng chỉ"}
+                                </button>
+                              )}
+                            </div>
                           </article>
                         );
                       })}

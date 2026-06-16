@@ -23,7 +23,6 @@ from app.schemas.course import (
     SectionCreate,
     SectionResponse,
     SectionUpdate,
-    WishlistResponse,
 )
 
 __all__ = [
@@ -53,5 +52,4 @@ __all__ = [
     "SectionCreate",
     "SectionResponse",
     "SectionUpdate",
-    "WishlistResponse",
 ]

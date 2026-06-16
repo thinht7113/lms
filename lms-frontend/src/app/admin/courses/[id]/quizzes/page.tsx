@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useToast } from "@/contexts/ToastContext";
 import { apiService, Quiz, QuizPayload, QuestionPayload } from "@/services/api";
@@ -79,15 +79,7 @@ export default function AdminQuizzesPage() {
     ],
   });
 
-  // Load quizzes on mount
-  useEffect(() => {
-    if (courseId) {
-      fetchQuizzes();
-      fetchCourseDetail();
-    }
-  }, [courseId]);
-
-  const fetchCourseDetail = async () => {
+  const fetchCourseDetail = useCallback(async () => {
     try {
       const course = await apiService.getCourseDetail(courseId);
       if (course) {
@@ -96,7 +88,7 @@ export default function AdminQuizzesPage() {
     } catch (err: any) {
       console.error("Không thể tải thông tin khóa học", err);
     }
-  };
+  }, [courseId]);
 
   useEffect(() => {
     if (isCreateQuizOpen || isAddQuestionOpen) {
@@ -112,7 +104,7 @@ export default function AdminQuizzesPage() {
     };
   }, [isCreateQuizOpen, isAddQuestionOpen]);
 
-  const fetchQuizzes = async () => {
+  const fetchQuizzes = useCallback(async () => {
     setIsLoadingQuizzes(true);
     try {
       const data = await apiService.getCourseQuizzes(courseId);
@@ -123,7 +115,16 @@ export default function AdminQuizzesPage() {
     } finally {
       setIsLoadingQuizzes(false);
     }
-  };
+  }, [courseId, toast]);
+
+  // Load quizzes on mount
+  useEffect(() => {
+    if (!courseId) return;
+    queueMicrotask(() => {
+      void fetchQuizzes();
+      void fetchCourseDetail();
+    });
+  }, [courseId, fetchCourseDetail, fetchQuizzes]);
 
   const fetchQuizDetail = async (quizId: number) => {
     setIsLoadingDetail(true);
@@ -164,7 +165,7 @@ export default function AdminQuizzesPage() {
         thoi_gian_lam_bai: 30,
         so_luot_lam_toi_da: 3,
       });
-      fetchQuizzes();
+      void fetchQuizzes();
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Không thể tạo bài kiểm tra");
@@ -183,7 +184,7 @@ export default function AdminQuizzesPage() {
       if (selectedQuiz && selectedQuiz.id === quizId) {
         setSelectedQuiz(null);
       }
-      fetchQuizzes();
+      void fetchQuizzes();
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Không thể xóa bài kiểm tra");

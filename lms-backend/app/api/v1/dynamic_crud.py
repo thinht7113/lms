@@ -1,7 +1,8 @@
+from enum import Enum
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
-from typing import Type, Any, Optional, List, Dict
+from sqlalchemy import select, func, or_, String
+from typing import Type, Any, Optional, List, Dict, Sequence
 from pydantic import BaseModel
 from app.api.deps import get_db, get_current_admin_user
 from app.models.user import User
@@ -12,11 +13,11 @@ def create_crud_router(
     create_schema: Type[BaseModel],
     update_schema: Type[BaseModel],
     prefix: str,
-    tags: List[str],
-    search_columns: List[str] = None,
-    options: List[Any] = None
+    tags: Sequence[str | Enum] | None = None,
+    search_columns: Optional[List[str]] = None,
+    options: Optional[List[Any]] = None
 ) -> APIRouter:
-    router = APIRouter(prefix=prefix, tags=tags)
+    router = APIRouter(prefix=prefix, tags=list(tags) if tags is not None else None)
 
     @router.get("", response_model=Dict[str, Any])
     async def get_all(
@@ -44,9 +45,7 @@ def create_crud_router(
             conditions = []
             for col_name in search_columns:
                 col = getattr(model, col_name)
-                if isinstance(col.type, str.__class__): # Simple string check
-                    conditions.append(col.ilike(f"%{search}%"))
-                elif hasattr(col.type, 'python_type') and col.type.python_type == str:
+                if isinstance(col.type, String):
                     conditions.append(col.ilike(f"%{search}%"))
             if conditions:
                 query = query.where(or_(*conditions))
@@ -91,7 +90,7 @@ def create_crud_router(
 
     @router.post("", response_model=response_schema, status_code=status.HTTP_201_CREATED)
     async def create_item(
-        item_in: create_schema,
+        item_in: create_schema,  # pyright: ignore[reportInvalidTypeForm]
         db: AsyncSession = Depends(get_db),
         current_admin: User = Depends(get_current_admin_user)
     ):
@@ -121,7 +120,7 @@ def create_crud_router(
     @router.put("/{item_id}", response_model=response_schema)
     async def update_item(
         item_id: int,
-        item_in: update_schema,
+        item_in: update_schema,  # pyright: ignore[reportInvalidTypeForm]
         db: AsyncSession = Depends(get_db),
         current_admin: User = Depends(get_current_admin_user)
     ):
