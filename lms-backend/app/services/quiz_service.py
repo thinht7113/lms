@@ -123,7 +123,8 @@ class QuizService:
         q_attempts = list(attempts_res.scalars().all())
         quiz.attempts_count = len(q_attempts)
         if q_attempts:
-            quiz.highest_score = max(att.diem_dat_duoc for att in q_attempts)
+            scores = [att.diem_dat_duoc for att in q_attempts if att.diem_dat_duoc is not None]
+            quiz.highest_score = max(scores) if scores else None
             quiz.passed = any(att.da_qua_mon for att in q_attempts)
         else:
             quiz.highest_score = None
@@ -136,7 +137,6 @@ class QuizService:
     async def get_quiz_by_course(db: AsyncSession, course_id: int, user_id: int) -> List[Quiz]:
         # Kiểm tra ghi danh
         can_manage = await QuizService._can_manage_course(db, user_id, course_id)
-        enrolled = None
         if not can_manage:
             enrolled = await db.execute(
                 select(Enrollment).where(
@@ -146,12 +146,11 @@ class QuizService:
                     )
                 )
             )
-
-        if not can_manage and not enrolled.scalars().first():
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Bạn phải đăng ký khóa học này mới được xem bài kiểm tra."
-            )
+            if not enrolled.scalars().first():
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Bạn phải đăng ký khóa học này mới được xem bài kiểm tra."
+                )
 
         result = await db.execute(
             select(Quiz)
@@ -185,7 +184,8 @@ class QuizService:
             q_attempts = attempts_by_quiz[quiz.id]
             quiz.attempts_count = len(q_attempts)
             if q_attempts:
-                quiz.highest_score = max(att.diem_dat_duoc for att in q_attempts)
+                scores = [att.diem_dat_duoc for att in q_attempts if att.diem_dat_duoc is not None]
+                quiz.highest_score = max(scores) if scores else None
                 quiz.passed = any(att.da_qua_mon for att in q_attempts)
             else:
                 quiz.highest_score = None

@@ -132,7 +132,7 @@ class OrderService:
     @staticmethod
     async def create_coupon(db: AsyncSession, coupon_in: CouponCreate) -> Coupon:
         # Kiểm tra mã trùng lặp
-        result = await db.execute(select(Coupon).where(Coupon.ma_code == coupon_in.code))
+        result = await db.execute(select(Coupon).where(Coupon.ma_code == coupon_in.ma_code))
         if result.scalars().first():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -140,14 +140,14 @@ class OrderService:
             )
 
         # Hỗ trợ tương thích ngược với discount_value (phan_tram_giam) và gia_tri_giam mới
-        val = coupon_in.gia_tri_giam if coupon_in.gia_tri_giam is not None else coupon_in.discount_value
+        val = coupon_in.gia_tri_giam if coupon_in.gia_tri_giam is not None else coupon_in.phan_tram_giam
         db_coupon = Coupon(
-            ma_code=coupon_in.code,
+            ma_code=coupon_in.ma_code,
             loai_giam_gia=coupon_in.loai_giam_gia or "PERCENTAGE",
             gia_tri_giam=val or Decimal("0.00"),
             gia_tri_don_toi_thieu=coupon_in.gia_tri_don_toi_thieu or Decimal("0.00"),
             so_luot_dung_toi_da=coupon_in.so_luot_dung_toi_da,
-            ngay_het_han=coupon_in.end_date
+            ngay_het_han=coupon_in.ngay_het_han
         )
         db.add(db_coupon)
         await db.commit()

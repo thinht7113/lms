@@ -1,19 +1,16 @@
 from fastapi import APIRouter
 from sqlalchemy.orm import selectinload
 from app.api.v1.dynamic_crud import create_crud_router
-from app.modules.identity.models import User
-from app.modules.identity.schemas import UserResponse, UserRegister as UserCreate, UserUpdate, AdminUserUpdate
-from app.modules.catalog.models import Category, Course, Section, Lesson, LessonContent, Banner
-from app.modules.catalog.schemas import (
-    BannerCreate,
-    BannerResponse,
-    BannerUpdate,
+from app.models.user import User
+from app.schemas.user import UserResponse, UserRegister as UserCreate, UserUpdate, AdminUserUpdate
+from app.models.course import Category, Course, Section, Lesson, LessonContent
+from app.models.banner import Banner
+from app.schemas.banner import BannerCreate, BannerResponse, BannerUpdate
+from app.schemas.course import (
     CategoryCreate,
     CategoryResponse,
     CategoryUpdate,
-    CourseCertificateResponse as CertificateResponse,
-    CourseCertificateResponse as CertificateCreate,
-    CourseCertificateResponse as CertificateUpdate,
+    CertificateResponse as CourseCertificateResponse,
     CourseCreate,
     CourseResponse,
     CourseUpdate,
@@ -29,8 +26,11 @@ from app.modules.catalog.schemas import (
     SectionResponse,
     SectionUpdate,
 )
-from app.modules.commerce.models import Order, Coupon
-from app.modules.commerce.schemas import (
+CertificateResponse = CourseCertificateResponse
+CertificateCreate = CourseCertificateResponse
+CertificateUpdate = CourseCertificateResponse
+from app.models.order import Order, Coupon
+from app.schemas.order import (
     CheckoutRequest as OrderCreate,
     CheckoutRequest as OrderUpdate,
     CouponCreate,
@@ -39,10 +39,13 @@ from app.modules.commerce.schemas import (
     OrderAdminResponse,
     OrderResponse,
 )
-from app.modules.learning.models import Quiz, Question, Certificate
-from app.modules.learning.schemas import QuizCreate, QuizResponse, QuizUpdate, QuestionCreate, QuestionResponse, QuestionUpdate
-from app.modules.administration.models import Setting, AdminLog
-from app.modules.administration.schemas import SettingResponse, SettingCreate, SettingUpdate, AdminLogResponse
+from app.models.quiz import Quiz, Question
+from app.models.certificate import Certificate
+from app.schemas.quiz import QuizCreate, QuizResponse, QuizUpdate, QuestionCreate, QuestionResponse, QuestionUpdate
+from app.models.setting import Setting
+from app.models.log import AdminLog
+from app.schemas.setting import SettingResponse, SettingCreate, SettingUpdate
+from app.schemas.log import AdminLogResponse
 
 # Create a simplified Order schema for Admin CRUD just to satisfy the router generator
 from pydantic import BaseModel

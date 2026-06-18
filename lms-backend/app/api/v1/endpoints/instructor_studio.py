@@ -2,19 +2,19 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from sqlalchemy.orm import selectinload
-from typing import List, Optional
+from typing import List, Optional, cast
 from pydantic import BaseModel
 from datetime import datetime
 from decimal import Decimal
 
 from app.api.deps import get_db, get_current_user
-from app.modules.identity.models import User
-from app.modules.identity.schemas import UserResponse
-from app.modules.catalog.models import Course, CourseReview
-from app.modules.catalog.schemas import CourseResponse, ReviewResponse
-from app.modules.commerce.models import Order, OrderItem
-from app.modules.learning.models import Enrollment
-from app.modules.instructor.models import PayoutRequest
+from app.models.user import User
+from app.schemas.user import UserResponse
+from app.models.course import Course, CourseReview
+from app.schemas.course import CourseResponse, ReviewResponse
+from app.models.order import Order, OrderItem
+from app.models.course import Enrollment
+from app.models.payout import PayoutRequest
 
 router = APIRouter()
 
@@ -58,6 +58,19 @@ class PayoutResponse(BaseModel):
     status: str
     reason: Optional[str]
     date: datetime
+
+
+def to_payout_response(payout: PayoutRequest) -> PayoutResponse:
+    return PayoutResponse(
+        id=f"WD-{cast(int, payout.id)}",
+        amount=cast(float, payout.so_tien),
+        bank=cast(str, payout.ngan_hang),
+        account_number=cast(str, payout.so_tai_khoan),
+        account_name=cast(str, payout.ten_chu_tai_khoan),
+        status=cast(str, payout.trang_thai),
+        reason=cast(Optional[str], payout.ly_do_tu_choi),
+        date=cast(datetime, payout.ngay_yeu_cau)
+    )
 
 # --- Dependencies ---
 def require_instructor(current_user: User = Depends(get_current_user)) -> User:
@@ -268,16 +281,7 @@ async def create_payout_request(
     await db.commit()
     await db.refresh(new_payout)
     
-    return PayoutResponse(
-        id=f"WD-{new_payout.id}",
-        amount=new_payout.so_tien,
-        bank=new_payout.ngan_hang,
-        account_number=new_payout.so_tai_khoan,
-        account_name=new_payout.ten_chu_tai_khoan,
-        status=new_payout.trang_thai,
-        reason=new_payout.ly_do_tu_choi,
-        date=new_payout.ngay_yeu_cau
-    )
+    return to_payout_response(new_payout)
 
 @router.get("/payouts", response_model=List[PayoutResponse])
 async def get_my_payouts(
@@ -291,15 +295,4 @@ async def get_my_payouts(
     )
     payouts = result.scalars().all()
     
-    return [
-        PayoutResponse(
-            id=f"WD-{p.id}",
-            amount=p.so_tien,
-            bank=p.ngan_hang,
-            account_number=p.so_tai_khoan,
-            account_name=p.ten_chu_tai_khoan,
-            status=p.trang_thai,
-            reason=p.ly_do_tu_choi,
-            date=p.ngay_yeu_cau
-        ) for p in payouts
-    ]
+    return [to_payout_response(p) for p in payouts]

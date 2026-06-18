@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_db, get_current_user
-from app.modules.identity.models import User
-from app.modules.learning.schemas import (
+from app.models.user import User
+from app.schemas.quiz import (
     QuizCreate, QuizResponse, QuizDetailResponse,
     QuestionCreate, QuestionResponse,
     QuizSubmitRequest, QuizSubmitResponse, QuizAttemptResponse,
     QuizAttemptReviewResponse
 )
-from app.modules.learning.services import QuizService
+from app.services.quiz_service import QuizService
 import copy
 from typing import List
 

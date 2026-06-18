@@ -9,7 +9,7 @@ engine = create_async_engine(
     echo=False,
     future=True,
     pool_pre_ping=True,  # Tự kiểm tra kết nối sống trước khi truy vấn
-    pool_size=20,         # Tăng pool kết nối (mặc định chỉ 5)
+    pool_size=20,         # Tăng pool kết nối
     max_overflow=10,      # Cho phép thêm 10 kết nối khi tải cao
     pool_recycle=1800,    # Tái tạo kết nối cũ sau 30 phút
 )

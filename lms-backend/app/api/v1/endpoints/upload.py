@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from fastapi.concurrency import run_in_threadpool
 
 from app.api.deps import get_current_user
-from app.modules.identity.models import User
-from app.modules.storage.services import StorageService
+from app.models.user import User
+from app.services.storage_service import StorageService
 
 router = APIRouter()
 

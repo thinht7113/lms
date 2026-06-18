@@ -8,6 +8,7 @@ from app.models.base import Base
 
 class Quiz(Base):
     __tablename__ = "bai_kiem_tra"
+    __allow_unmapped__ = True
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     ma_khoa_hoc: Mapped[int] = mapped_column(ForeignKey("khoa_hoc.id", ondelete="CASCADE"), nullable=False)
@@ -21,6 +22,11 @@ class Quiz(Base):
     khoa_hoc = relationship("Course", back_populates="bai_kiem_tra")
     cau_hoi = relationship("Question", back_populates="bai_kiem_tra", cascade="all, delete-orphan")
     lich_su_lam_bai = relationship("QuizAttempt", back_populates="bai_kiem_tra", cascade="all, delete-orphan")
+
+    # Runtime-only fields used by quiz response schemas.
+    attempts_count: int = 0
+    highest_score: Optional[Decimal] = None
+    passed: bool = False
 
     def __repr__(self):
         return f"<Quiz {self.tieu_de}>"
@@ -123,4 +129,3 @@ class QuizAttemptAnswer(Base):
 
     def __repr__(self):
         return f"<QuizAttemptAnswer Attempt:{self.ma_luot_lam} Question:{self.ma_cau_hoi} Option:{self.ma_lua_chon}>"
-

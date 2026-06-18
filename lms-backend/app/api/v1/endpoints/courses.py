@@ -3,10 +3,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_db, get_current_user, get_current_user_optional
 from sqlalchemy.orm import attributes
 
-from app.modules.identity.models import User
-from app.modules.identity.schemas import UserResponse
-from app.modules.catalog.models import Course
-from app.modules.catalog.schemas import (
+from app.models.user import User
+from app.schemas.user import UserResponse
+from app.models.course import Course
+from app.schemas.course import (
     CategoryCreate, CategoryResponse,
     CourseCreate, CourseUpdate, CourseResponse, CourseDetailResponse,
     SectionCreate, SectionUpdate, SectionResponse,
@@ -14,8 +14,8 @@ from app.modules.catalog.schemas import (
     LessonContentCreate, LessonContentUpdate, LessonContentResponse,
     ReviewCreate, ReviewResponse
 )
-from app.modules.catalog.services import CourseService
-from app.modules.learning.models import Enrollment
+from app.services.course_service import CourseService
+from app.models.course import Enrollment
 from typing import List, Optional
 from decimal import Decimal
 

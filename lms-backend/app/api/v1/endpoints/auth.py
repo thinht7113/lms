@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_db, get_current_user
-from app.modules.identity.schemas import (
+from app.schemas.user import (
     SocialLoginRequest,
     TokenResponse,
     UserLogin,
@@ -12,11 +12,11 @@ from app.modules.identity.schemas import (
     ForgotPasswordRequest,
     ResetPasswordRequest
 )
-from app.modules.identity.services import AuthService
+from app.services.auth_service import AuthService
 from app.core.security import create_access_token
 from app.core.config import settings
 from app.core.security_guards import auth_cookie_secure, mock_feature_enabled
-from app.modules.identity.models import User
+from app.models.user import User
 
 router = APIRouter()
 

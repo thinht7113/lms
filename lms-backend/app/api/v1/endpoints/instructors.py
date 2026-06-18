@@ -5,10 +5,10 @@ from sqlalchemy.orm import selectinload
 from typing import List
 
 from app.core.database import get_db
-from app.modules.identity.models import User
-from app.modules.identity.schemas import InstructorResponse, InstructorDetailResponse
-from app.modules.catalog.models import Course
-from app.modules.catalog.schemas import CourseResponse
+from app.models.user import User
+from app.schemas.user import InstructorResponse, InstructorDetailResponse
+from app.models.course import Course
+from app.schemas.course import CourseResponse
 
 router = APIRouter()
 
