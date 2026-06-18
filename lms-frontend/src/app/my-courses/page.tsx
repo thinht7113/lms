@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   BookOpenText,
+  CalendarClock,
   CheckCircle2,
   Clock3,
   Compass,
@@ -18,8 +19,7 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { apiService, Course, CourseProgress, Quiz, tokenHelper } from "@/services/api";
-import { useToast } from "@/contexts/ToastContext";
+import { apiService, Course, CourseProgress, tokenHelper } from "@/services/api";
 
 type CourseFilter = "all" | "learning" | "completed";
 
@@ -36,14 +36,11 @@ function formatPrice(value: number) {
 
 export default function MyCoursesPage() {
   const router = useRouter();
-  const toast = useToast();
   const [courses, setCourses] = useState<Course[]>([]);
   const [progressMap, setProgressMap] = useState<Record<number, CourseProgress>>({});
-  const [quizzesMap, setQuizzesMap] = useState<Record<number, Quiz[]>>({});
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<CourseFilter>("all");
-  const [claimingCertificateId, setClaimingCertificateId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!tokenHelper.getToken()) {
@@ -54,12 +51,26 @@ export default function MyCoursesPage() {
     async function loadData() {
       setLoading(true);
       try {
-        const dashboard = await apiService.getMyDashboard();
-        setCourses(dashboard.courses || []);
-        setProgressMap(dashboard.progress_map || {});
-        setQuizzesMap(dashboard.quizzes_map || {});
-      } catch (err) {
-        console.error("Failed to load dashboard data:", err);
+        const enrolledCourses = await apiService.getMyEnrolledCourses();
+        setCourses(enrolledCourses);
+
+        const progressList = await Promise.all(
+          enrolledCourses.map(async (course) => {
+            try {
+              const progress = await apiService.getCourseProgress(course.id);
+              return { courseId: course.id, progress };
+            } catch {
+              return { courseId: course.id, progress: emptyProgress(course.id) };
+            }
+          })
+        );
+
+        setProgressMap(
+          progressList.reduce<Record<number, CourseProgress>>((acc, item) => {
+            acc[item.courseId] = item.progress;
+            return acc;
+          }, {})
+        );
       } finally {
         setLoading(false);
       }
@@ -111,23 +122,6 @@ export default function MyCoursesPage() {
     { id: "learning", label: "Đang học" },
     { id: "completed", label: "Đã hoàn thành" },
   ];
-
-  const handleClaimCertificate = async (courseId: number) => {
-    setClaimingCertificateId(courseId);
-    try {
-      const certificate = await apiService.issueOrGetCertificate(courseId);
-      toast.success("Đã cấp chứng chỉ cho khóa học");
-      if (certificate.uuid) {
-        router.push(`/certificates/${certificate.uuid}`);
-      } else {
-        router.push("/certificates");
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Bạn chưa đủ điều kiện nhận chứng chỉ");
-    } finally {
-      setClaimingCertificateId(null);
-    }
-  };
 
   return (
     <>
@@ -288,28 +282,17 @@ export default function MyCoursesPage() {
                               </div>
                             </div>
 
-
-
-                            <div className="mt-6 flex gap-3">
-                              <Link
-                                href={`/learn/${course.id}`}
-                                className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl border border-blue-600 text-sm font-black text-blue-600 transition hover:bg-blue-600 hover:text-white"
-                              >
-                                {isCompleted ? "Ôn tập lại" : "Vào lớp học"}
-                                <Play className="h-4 w-4 fill-current" />
-                              </Link>
-
-                              {isCompleted && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleClaimCertificate(course.id)}
-                                  disabled={claimingCertificateId === course.id}
-                                  className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-50 text-sm font-black text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
-                                >
-                                  {claimingCertificateId === course.id ? "Đang xử lý..." : "Chứng chỉ"}
-                                </button>
-                              )}
-                            </div>
+                            <Link
+                              href={isCompleted ? "/certificates" : `/learn/${course.id}`}
+                              className={`mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-sm font-black transition ${
+                                isCompleted
+                                  ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                                  : "border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white"
+                              }`}
+                            >
+                              {isCompleted ? "Xem chứng chỉ" : "Vào lớp học"}
+                              {!isCompleted && <Play className="h-4 w-4 fill-current" />}
+                            </Link>
                           </article>
                         );
                       })}
@@ -319,6 +302,18 @@ export default function MyCoursesPage() {
               </div>
 
               <aside className="space-y-6">
+                <section className="rounded-[1.5rem] border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <CalendarClock className="h-7 w-7 text-amber-500" />
+                    <h2 className="text-2xl font-black tracking-tight">Hạn chót sắp tới</h2>
+                  </div>
+                  <div className="mt-6 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center">
+                    <Clock3 className="mx-auto h-9 w-9 text-slate-300" />
+                    <p className="mt-3 text-sm font-bold text-slate-500">Chưa có hạn chót nào.</p>
+                    <p className="mt-1 text-xs font-medium text-slate-400">Khi hệ thống có bài tập hoặc quiz có hạn nộp, chúng sẽ hiển thị tại đây.</p>
+                  </div>
+                </section>
+
                 <section className="rounded-[1.5rem] bg-[#eef2ff] p-6">
                   <h2 className="text-2xl font-black tracking-tight">Khám phá thêm</h2>
                   <p className="mt-4 text-sm font-medium leading-relaxed text-slate-600">
