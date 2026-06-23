@@ -37,7 +37,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=${DOCKER_DATABASE_URL}
+      - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${DOCKER_REDIS_URL:-redis://redis:6379/0}
       - APP_NAME=LMS Backend (Docker Environment)
       - APP_ENV=${APP_ENV:-development}
