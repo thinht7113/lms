@@ -18,7 +18,7 @@ LMS/
 └── BAO_CAO_CAU_TRUC_DU_AN.md
 ```
 
-Thư mục `lms-backend` chứa mã nguồn backend, migration cơ sở dữ liệu, cấu hình Docker, cấu hình Alembic và các script hỗ trợ. Thư mục `lms-frontend` chứa mã nguồn giao diện, route Next.js, component, hook, context, service gọi API và cấu hình TypeScript. File `README.md` ở cấp gốc dùng để hướng dẫn chạy toàn bộ dự án. File `BAO_CAO_CAU_TRUC_DU_AN.md` dùng để trình bày chi tiết cấu trúc phục vụ báo cáo.
+Thư mục `lms-backend` chứa mã nguồn backend, migration cơ sở dữ liệu, cấu hình Docker, cấu hình Alembic và các script hỗ trợ. Thư mục `lms-frontend` chứa mã nguồn giao diện, route Next.js, component, hook, context, service gọi API và cấu hình TypeScript. File `README.md` ở cấp gốc dùng để hướng dẫn chạy backend bằng Docker và chạy frontend bằng các lệnh `npm run`.
 
 ## 3. Kiến trúc hệ thống
 
@@ -59,6 +59,7 @@ PostgreSQL là cơ sở dữ liệu quan hệ chính, lưu dữ liệu nghiệp 
 | Rich text editor | CKEditor 5 |
 | Biểu đồ | Recharts |
 | Kéo thả | @hello-pangea/dnd |
+| Đóng gói và chạy dịch vụ | Docker, Docker Compose |
 
 ## 5. Chức năng chính
 
@@ -124,13 +125,12 @@ Thư mục `src/app` tổ chức route theo Next.js App Router. Thư mục `src/
 
 ## 8. Yêu cầu môi trường
 
-| Công cụ | Phiên bản khuyến nghị |
+| Công cụ | Mục đích |
 | --- | --- |
-| Python | 3.11 trở lên |
-| Node.js | 20 trở lên |
-| npm | Đi kèm Node.js |
-| PostgreSQL | 14 trở lên |
-| Docker Desktop | Dùng để chạy Redis và MinIO |
+| Docker Desktop | Build và chạy các container của hệ thống |
+| Docker Compose | Điều phối backend, Redis và MinIO |
+| PostgreSQL | Cơ sở dữ liệu chính, có thể chạy ngoài Docker hoặc được cấu hình riêng |
+| Node.js và npm | Cài dependency, chạy development server và build frontend Next.js |
 
 Các cổng mặc định của dự án là `3000` cho frontend, `8000` cho backend, `6379` cho Redis, `9000` cho MinIO API và `9001` cho MinIO Console.
 
@@ -150,13 +150,14 @@ cd lms-backend
 cp .env.example .env
 ```
 
-Nội dung quan trọng trong file `.env` khi chạy local nên có dạng sau.
+Nội dung quan trọng trong file `.env` khi chạy bằng Docker nên có dạng sau.
 
 ```env
-APP_ENV=development
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/lms_db
-REDIS_URL=redis://localhost:6379/0
+APP_ENV=production
 SECRET_KEY=CHANGE_ME_TO_A_LONG_RANDOM_SECRET_KEY
+DOCKER_DATABASE_URL=postgresql+asyncpg://postgres:postgres@host.docker.internal:5432/lms_db
+DOCKER_REDIS_URL=redis://redis:6379/0
+REDIS_URL=redis://localhost:6379/0
 CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 MINIO_ENDPOINT_URL=http://localhost:9000
 MINIO_PUBLIC_URL=http://localhost:9000
@@ -165,7 +166,7 @@ MINIO_SECRET_KEY=minioadminpassword
 MINIO_BUCKET_NAME=lms-storage
 ```
 
-File `.env` chứa thông tin nhạy cảm, vì vậy không nên đưa file này lên Git hoặc gửi công khai khi bàn giao source code.
+File `.env` chứa thông tin nhạy cảm, vì vậy không nên đưa file này lên Git hoặc gửi công khai. Nếu PostgreSQL chạy ở vị trí khác, cần thay đổi `DOCKER_DATABASE_URL` cho phù hợp với môi trường thực tế.
 
 ## 10. Cấu hình frontend
 
@@ -177,56 +178,26 @@ NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 
 Nếu backend được triển khai trên domain thật, giá trị này cần đổi thành URL API thật. Sau khi thay đổi `.env`, cần khởi động lại frontend để Next.js nạp lại biến môi trường.
 
-## 11. Chạy Redis và MinIO
+## 11. Chạy hệ thống bằng Docker và npm run
 
-File `lms-backend/docker-compose.yml` hiện cấu hình Redis, MinIO và backend container. Khi phát triển local, có thể chỉ chạy Redis và MinIO bằng lệnh sau.
-
-```powershell
-cd lms-backend
-docker compose up -d redis minio
-```
-
-MinIO Console chạy tại địa chỉ `http://localhost:9001`. Tài khoản mặc định là `minioadmin` và mật khẩu mặc định là `minioadminpassword`, trùng với cấu hình trong Docker Compose và `.env.example`.
-
-## 12. Chuẩn bị PostgreSQL
-
-Dự án cần một database PostgreSQL tương ứng với `DATABASE_URL`. Nếu sử dụng cấu hình mặc định, cần tạo database tên `lms_db`.
-
-```sql
-CREATE DATABASE lms_db;
-```
-
-Nếu tên database, user, password, host hoặc port khác cấu hình mặc định, cần cập nhật lại biến `DATABASE_URL` trong file `lms-backend/.env`.
-
-## 13. Chạy backend local
-
-Trên Windows PowerShell, chạy các lệnh sau.
+Phần triển khai của dự án sử dụng Docker Compose. File `lms-backend/docker-compose.yml` dùng để build và chạy ba container chính là backend FastAPI, Redis và MinIO. Trước khi chạy lệnh Docker, cần đảm bảo file `lms-backend/.env` đã có `DOCKER_DATABASE_URL`, `DOCKER_REDIS_URL`, `SECRET_KEY`, `CORS_ORIGINS` và cấu hình MinIO.
 
 ```powershell
 cd lms-backend
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-alembic upgrade head
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+docker compose build
+docker compose up -d
 ```
 
-Trên macOS hoặc Linux, chạy các lệnh sau.
+Có thể thay hai lệnh trên bằng một lệnh duy nhất.
 
-```bash
+```powershell
 cd lms-backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-alembic upgrade head
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+docker compose up -d --build
 ```
 
-Khi backend chạy thành công trong môi trường development, tài liệu API có thể truy cập tại `http://localhost:8000/docs`.
+Sau khi chạy thành công, Docker Compose sẽ khởi động container backend, container Redis và container MinIO. Backend sẽ chạy Alembic migration trước khi khởi động API. Redis chạy ở cổng `6379`. MinIO chạy API ở cổng `9000` và giao diện quản trị ở cổng `9001`. Backend chạy ở cổng `8000`.
 
-## 14. Chạy frontend local
-
-Sau khi backend đã chạy, mở terminal khác và chạy frontend.
+Frontend được chạy từ thư mục `lms-frontend` bằng npm. Trước khi chạy frontend, cần đảm bảo file `lms-frontend/.env` đã có `NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1` để giao diện gọi đúng backend.
 
 ```powershell
 cd lms-frontend
@@ -234,97 +205,98 @@ npm install
 npm run dev
 ```
 
-Ứng dụng frontend mặc định chạy tại `http://localhost:3000`.
-
-## 15. Chạy backend bằng Docker
-
-Nếu muốn chạy backend bằng Docker, cần bổ sung các biến dành cho container vào file `lms-backend/.env`.
-
-```env
-DOCKER_DATABASE_URL=postgresql+asyncpg://postgres:postgres@host.docker.internal:5432/lms_db
-DOCKER_REDIS_URL=redis://redis:6379/0
-APP_ENV=production
-SECRET_KEY=CHANGE_ME_TO_A_LONG_RANDOM_SECRET_KEY
-CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-MINIO_PUBLIC_URL=http://localhost:9000
-```
-
-Sau đó chạy lệnh sau trong thư mục `lms-backend`.
-
-```powershell
-docker compose up -d --build
-```
-
-Dockerfile sẽ tự chạy migration bằng `alembic upgrade head` trước khi khởi động Uvicorn. Nếu PostgreSQL không chạy trong Docker Compose, biến `DOCKER_DATABASE_URL` phải trỏ tới PostgreSQL mà container có thể truy cập được.
-
-## 16. Alembic và quản lý cơ sở dữ liệu
-
-Alembic được dùng để quản lý lịch sử thay đổi cấu trúc cơ sở dữ liệu. Khi thay đổi SQLAlchemy model, cần tạo migration mới và áp dụng migration vào database.
-
-```powershell
-cd lms-backend
-alembic revision --autogenerate -m "noi dung thay doi"
-alembic upgrade head
-```
-
-Lệnh `alembic revision --autogenerate` so sánh `Base.metadata` với schema hiện tại trong database và sinh file migration trong `alembic/versions`. Lệnh `alembic upgrade head` áp dụng các migration chưa chạy vào database.
-
-## 17. Tài liệu API
-
-Trong môi trường development, FastAPI cung cấp Swagger UI tại `http://localhost:8000/docs` và ReDoc tại `http://localhost:8000/redoc`. Trong môi trường production, hai đường dẫn này được tắt để hạn chế lộ tài liệu API công khai.
-
-## 18. Bảo mật
-
-Hệ thống sử dụng JWT access token, HttpOnly cookie, bcrypt để băm mật khẩu, phân quyền theo vai trò, Redis blacklist token sau khi đăng xuất, kiểm tra quyền upload file theo vai trò và HMAC signature cho webhook thanh toán. Khi chạy production, hệ thống kiểm tra secret mặc định và không cho phép sử dụng các giá trị không an toàn.
-
-## 19. Lưu trữ file
-
-MinIO được dùng để lưu ảnh khóa học, ảnh banner, ảnh đại diện, PDF, video và tài liệu bài học. Backend giao tiếp với MinIO thông qua service lưu trữ. Khi đổi domain MinIO, cần cập nhật cấu hình backend và cấu hình ảnh trong frontend nếu có sử dụng Next Image.
-
-## 20. Kiểm tra dự án
-
-Có thể kiểm tra backend bằng cách biên dịch toàn bộ mã nguồn Python và kiểm tra OpenAPI.
-
-```powershell
-cd lms-backend
-python -m compileall app
-python -c "from app.main import app; print(len(app.openapi()['paths']))"
-```
-
-Có thể kiểm tra frontend bằng cách chạy build production.
+Sau khi chạy lệnh trên, frontend sẽ hoạt động tại `http://localhost:3000`. Nếu cần chạy frontend theo chế độ production, cần build trước rồi khởi động bằng `npm run start`.
 
 ```powershell
 cd lms-frontend
 npm run build
+npm run start
 ```
 
-## 21. Lỗi thường gặp
+## 12. Alembic và quản lý cơ sở dữ liệu
 
-Nếu backend không kết nối được PostgreSQL, cần kiểm tra PostgreSQL đã chạy chưa, database đã được tạo chưa và biến `DATABASE_URL` có đúng không. Nếu Redis báo connection refused, cần chạy Redis bằng Docker Compose. Nếu upload file lỗi, cần kiểm tra MinIO, bucket, access key, secret key và endpoint. Nếu frontend gọi sai API, cần kiểm tra `NEXT_PUBLIC_API_URL` và khởi động lại frontend. Nếu Swagger không hiển thị, cần kiểm tra `APP_ENV`, vì production sẽ tắt tài liệu API theo thiết kế.
+Alembic được dùng để quản lý lịch sử thay đổi cấu trúc cơ sở dữ liệu. Khi backend chạy bằng Dockerfile, lệnh `alembic upgrade head` được thực thi trước khi Uvicorn khởi động. Điều này giúp các migration mới nhất được áp dụng vào cơ sở dữ liệu trước khi API nhận request.
 
-## 22. Bàn giao source code
+Khi thay đổi SQLAlchemy model trong quá trình phát triển, cần tạo migration mới bằng lệnh `alembic revision --autogenerate`. Sau đó migration sẽ được áp dụng khi chạy `alembic upgrade head` hoặc khi container backend khởi động theo Dockerfile.
 
-Khi bàn giao dự án, nên gửi mã nguồn backend, mã nguồn frontend, migration Alembic, file cấu hình mẫu, Dockerfile, Docker Compose, package.json, package-lock.json, requirements.txt và tài liệu báo cáo. Không nên gửi `.env`, `.venv`, `node_modules`, `.next`, `__pycache__` hoặc các file cache tự sinh.
+## 13. Tài liệu API
 
-## 23. Tóm tắt lệnh chạy nhanh
+Trong môi trường development, FastAPI cung cấp Swagger UI tại `http://localhost:8000/docs` và ReDoc tại `http://localhost:8000/redoc`. Trong môi trường production, hai đường dẫn này được tắt để hạn chế lộ tài liệu API công khai. Nếu muốn xem tài liệu API khi kiểm thử local, có thể đặt `APP_ENV=development` trong file `.env` rồi khởi động lại container backend.
 
-Terminal đầu tiên dùng để chạy Redis và MinIO.
+## 14. Bảo mật
+
+Hệ thống sử dụng JWT access token, HttpOnly cookie, bcrypt để băm mật khẩu, phân quyền theo vai trò, Redis blacklist token sau khi đăng xuất, kiểm tra quyền upload file theo vai trò và HMAC signature cho webhook thanh toán. Khi chạy production, hệ thống kiểm tra secret mặc định và không cho phép sử dụng các giá trị không an toàn.
+
+## 15. Lưu trữ file
+
+MinIO được dùng để lưu ảnh khóa học, ảnh banner, ảnh đại diện, PDF, video và tài liệu bài học. Backend giao tiếp với MinIO thông qua service lưu trữ. Khi đổi domain MinIO, cần cập nhật cấu hình backend và cấu hình ảnh trong frontend nếu có sử dụng Next Image.
+
+## 16. Kiểm tra trạng thái container
+
+Sau khi chạy Docker Compose, có thể kiểm tra trạng thái container bằng lệnh sau.
 
 ```powershell
 cd lms-backend
-docker compose up -d redis minio
+docker compose ps
 ```
 
-Terminal thứ hai dùng để chạy backend.
+Có thể xem log backend bằng lệnh sau.
 
 ```powershell
 cd lms-backend
-.\.venv\Scripts\Activate.ps1
-alembic upgrade head
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+docker compose logs -f web
 ```
 
-Terminal thứ ba dùng để chạy frontend.
+Có thể dừng toàn bộ container bằng lệnh sau.
+
+```powershell
+cd lms-backend
+docker compose down
+```
+
+## 17. Lỗi thường gặp
+
+Nếu backend không kết nối được PostgreSQL, cần kiểm tra PostgreSQL đã chạy chưa, database đã được tạo chưa và biến `DOCKER_DATABASE_URL` có đúng với môi trường Docker không. Nếu Redis báo connection refused, cần kiểm tra container Redis bằng `docker compose ps`. Nếu upload file lỗi, cần kiểm tra container MinIO, bucket, access key, secret key và endpoint. Nếu frontend gọi sai API, cần kiểm tra `NEXT_PUBLIC_API_URL` và khởi động lại frontend. Nếu Swagger không hiển thị, cần kiểm tra `APP_ENV`, vì production sẽ tắt tài liệu API theo thiết kế.
+
+## 18. Tóm tắt lệnh chạy dự án
+
+Lệnh build image và chạy toàn bộ container trong Docker Compose là:
+
+```powershell
+cd lms-backend
+docker compose build
+docker compose up -d
+```
+
+Lệnh build và chạy gộp trong một bước là:
+
+```powershell
+cd lms-backend
+docker compose up -d --build
+```
+
+Lệnh xem container đang chạy là:
+
+```powershell
+cd lms-backend
+docker compose ps
+```
+
+Lệnh xem log backend là:
+
+```powershell
+cd lms-backend
+docker compose logs -f web
+```
+
+Lệnh dừng hệ thống backend là:
+
+```powershell
+cd lms-backend
+docker compose down
+```
+
+Lệnh cài dependency và chạy frontend ở chế độ phát triển là:
 
 ```powershell
 cd lms-frontend
@@ -332,4 +304,10 @@ npm install
 npm run dev
 ```
 
-Sau khi cả ba phần đã chạy, có thể truy cập frontend tại `http://localhost:3000`, backend tại `http://localhost:8000` và Swagger tại `http://localhost:8000/docs`.
+Lệnh build và chạy frontend ở chế độ production là:
+
+```powershell
+cd lms-frontend
+npm run build
+npm run start
+```
