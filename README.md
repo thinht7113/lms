@@ -1,156 +1,471 @@
-# Hệ Thống Đăng Ký Khóa Học Trực Tuyến (Lumina LMS)
+# LuminaLMS - He thong dang ky khoa hoc truc tuyen
 
-![Lumina LMS Banner](https://via.placeholder.com/1200x300.png?text=Lumina+LMS+-+Online+Learning+Platform)
+LuminaLMS la nen tang quan ly va dang ky khoa hoc truc tuyen, duoc xay dung theo mo hinh Client-Server. He thong cho phep hoc vien tim kiem, mua va hoc khoa hoc; giang vien tao va quan ly noi dung dao tao; quan tri vien kiem duyet, quan ly nguoi dung, don hang, ma giam gia, banner va cau hinh he thong.
 
-## 📖 Giới thiệu Dự án
-**Lumina LMS** là một nền tảng Quản lý Học tập (Learning Management System) toàn diện, được xây dựng dựa trên kiến trúc Client-Server hiện đại. Hệ thống đóng vai trò như một cầu nối thương mại điện tử giáo dục, cho phép các chuyên gia (Giảng viên) đóng gói kiến thức thành các khóa học đa phương tiện và bán cho người có nhu cầu học tập (Học viên).
+Du an gom hai ung dung chinh:
 
-Dự án chú trọng vào trải nghiệm học tập xuyên suốt: từ lúc khám phá tìm kiếm khóa học, thanh toán, tham gia không gian học tập trực tuyến, cho đến việc làm bài đánh giá và tự động cấp chứng chỉ số.
-
----
-
-## ✨ Tính năng Nổi bật (Core Features)
-
-Hệ thống phân chia quyền hạn rõ ràng với 3 vai trò chính:
-
-### 🎓 Dành cho Học viên (Learners)
-- **Khám phá & Tìm kiếm:** Lọc khóa học theo danh mục, giá tiền (miễn phí/trả phí), trình độ (cơ bản/nâng cao), đánh giá sao, và sắp xếp linh hoạt.
-- **Mua sắm & Thanh toán:** Quản lý giỏ hàng (Cart), áp dụng mã giảm giá (Coupons) linh hoạt theo % hoặc số tiền cố định, tích hợp thanh toán an toàn.
-- **Không gian học tập (Learn Space):** 
-  - Giao diện học tập tập trung, không phân tâm.
-  - Hỗ trợ đa dạng nội dung: **Video (MP4), Tài liệu (PDF), Văn bản phong phú, Code snippets**.
-  - Tự động lưu tiến độ học tập (ghi nhớ số giây đang xem dở trên video).
-- **Trắc nghiệm & Đánh giá (Quizzes):** Làm bài kiểm tra tính thời gian, tự động chấm điểm dựa trên ngân hàng câu trả lời.
-- **Chứng nhận Tốt nghiệp:** Tự động sinh file PDF **Chứng chỉ (Certificate)** khi hoàn thành 100% tiến độ và đạt bài kiểm tra. Có link/mã UUID để nhà tuyển dụng xác thực online.
-- **Tương tác:** Chấm điểm, đánh giá (Review) khóa học và lưu trữ khóa học vào Danh sách yêu thích (Wishlist).
-
-### 👨‍🏫 Dành cho Giảng viên (Instructors)
-- **Instructor Studio:** Bảng điều khiển riêng biệt dành cho người dạy.
-- **Xây dựng Giáo trình Đa phương tiện:**
-  - Tạo cấu trúc Khóa học -> Chương học -> Bài học.
-  - Tải lên (Upload) video, PDF an toàn (lưu trữ thông qua MinIO Private Storage).
-  - Cấu hình cho phép "Học thử" (Preview) một số bài giảng để thu hút học viên.
-- **Quản lý Học viên:** Xem danh sách học viên đang theo học các khóa của mình.
-- **Tài chính & Rút tiền:** Theo dõi doanh thu từ các lượt mua, tạo **Yêu cầu rút tiền (Payout Request)** chuyển về tài khoản ngân hàng.
-
-### 🛡️ Dành cho Quản trị viên (Admin)
-- **Kiểm duyệt nội dung:** Bật/Tắt trạng thái xuất bản của các khóa học, bài học để đảm bảo chất lượng nền tảng.
-- **Quản lý Tài khoản:** Quản lý học viên, giảng viên.
-- **Quản lý Khuyến mãi:** Sinh mã Coupon, giới hạn số lượt sử dụng, đặt ngày hết hạn.
-- **Quản lý Giao diện:** Thiết lập hệ thống (Settings), quản lý Banner băng chuyền trang chủ.
-- **Báo cáo & Nhật ký:** Xem biểu đồ tổng quan, kiểm tra lịch sử thao tác của hệ thống (Admin Logs).
-
----
-
-## 🛠️ Công nghệ Sử dụng (Tech Stack)
-
-Dự án áp dụng các công nghệ mới nhất trong hệ sinh thái Python và JavaScript/TypeScript.
-
-### Tầng Backend (RESTful API)
-- **Framework:** [FastAPI](https://fastapi.tiangolo.com/) (Python) - Nhanh, hiện đại, hỗ trợ Auto-docs (Swagger UI).
-- **Cơ sở dữ liệu:** PostgreSQL kết hợp thư viện bất đồng bộ `asyncpg`.
-- **ORM & Migration:** SQLAlchemy 2.0 & Alembic.
-- **Caching & Queue:** Redis (Lưu trữ session, bộ nhớ đệm).
-- **Lưu trữ Object Storage:** MinIO (S3-Compatible) - Quản lý an toàn file PDF, Video bài giảng.
-- **Bảo mật:** JWT (JSON Web Tokens), mã hóa mật khẩu Passlib, Role-Based Access Control (RBAC).
-
-### Tầng Frontend (Client UI)
-- **Framework:** [Next.js 16](https://nextjs.org/) (Sử dụng App Router hiện đại).
-- **Core Library:** React 19, TypeScript.
-- **Giao diện & Styling:** Tailwind CSS v4, Lucide React (Icons).
-- **Rich Text Editor:** CKEditor 5 (Cho phép Giảng viên soạn thảo mô tả khóa học đẹp mắt).
-- **Tính năng Kéo-Thả:** `@hello-pangea/dnd` (Dùng để sắp xếp thứ tự Chương/Bài học).
-
-### DevOps & Triển khai
-- Docker & Docker Compose (Container hóa toàn bộ Postgres, Redis, MinIO, FastAPI).
-
----
-
-## 🏗️ Kiến trúc Hệ thống (Architecture)
-
-### 1. Kiến trúc Backend Phân lớp (Layered Architecture)
-Mã nguồn Backend (`lms-backend/app/`) được tổ chức thành các tầng rõ ràng nhằm đảm bảo tính tái sử dụng và dễ bảo trì:
-- `api/v1/`: Tầng **Routing** (Tiếp nhận HTTP Request, Validate sơ bộ).
-- `services/`: Tầng **Logic Nghiệp vụ** (Business Logic) cốt lõi (vd: Tính toán giá tiền, Cấp chứng chỉ).
-- `schemas/`: Tầng **DTO** (Sử dụng Pydantic) kiểm tra tính hợp lệ của dữ liệu đầu vào và định hình dữ liệu đầu ra.
-- `models/`: Tầng **Dữ liệu** (SQLAlchemy Entities) ánh xạ trực tiếp xuống PostgreSQL.
-
-### 2. Sơ đồ Thực thể Liên kết (ERD) Tổng quát
-*(Xem hình dưới đây trên các trình đọc Markdown hỗ trợ Mermaid)*
-
-```mermaid
-erDiagram
-    NGUOI_DUNG ||--o{ KHOA_HOC : "Giảng dạy"
-    NGUOI_DUNG ||--o{ DON_HANG : "Thanh toán"
-    NGUOI_DUNG ||--o{ DANG_KY_HOC : "Tham gia"
-    
-    KHOA_HOC ||--o{ CHUONG_HOC : "Bao gồm"
-    CHUONG_HOC ||--o{ BAI_HOC : "Bao gồm"
-    BAI_HOC ||--o{ NOI_DUNG_BAI_HOC : "Các block Video/PDF"
-    
-    KHOA_HOC ||--o{ BAI_KIEM_TRA : "Kiểm tra cuối khóa"
-    BAI_KIEM_TRA ||--o{ CAU_HOI : "Nội dung thi"
-    
-    DON_HANG ||--|{ CHI_TIET_DON_HANG : "Chứa"
-    MA_GIAM_GIA ||--o{ DON_HANG : "Áp dụng"
-    
-    DANG_KY_HOC ||--o{ TIEN_DO_HOC_TAP : "Theo dõi từng bài"
-    NGUOI_DUNG ||--o{ CHUNG_CHI : "Cấp phát khi 100%"
+```text
+LMS/
+├── lms-backend   # FastAPI, PostgreSQL, Redis, MinIO, Alembic
+└── lms-frontend  # Next.js, React, TypeScript, Tailwind CSS
 ```
 
----
+## 1. Tong quan chuc nang
 
-## 🚀 Hướng dẫn Cài đặt Môi trường Cục bộ (Local Setup)
+### 1.1. Hoc vien
 
-### Bước 1: Khởi động các dịch vụ phụ trợ (Postgres, Redis, MinIO)
-Đảm bảo bạn đã cài đặt Docker.
-```bash
-# Mở terminal tại thư mục gốc của dự án
-docker-compose up -d postgres redis minio
+- Dang ky, dang nhap, dang xuat.
+- Xem danh sach khoa hoc, tim kiem, loc va sap xep khoa hoc.
+- Xem chi tiet khoa hoc, noi dung chuong hoc va bai hoc xem truoc.
+- Them khoa hoc vao gio hang.
+- Ap dung ma giam gia.
+- Thanh toan don hang.
+- Xem danh sach khoa hoc da mua.
+- Hoc bai theo tung khoa hoc.
+- Theo doi tien do hoc tap.
+- Lam bai kiem tra.
+- Nhan chung chi khi hoan thanh dieu kien.
+- Xem thong bao, don hang, ho so va chung chi.
+
+### 1.2. Giang vien
+
+- Dang ky tro thanh giang vien.
+- Truy cap khu vuc quan ly giang vien.
+- Tao khoa hoc, chuong hoc va bai hoc.
+- Upload noi dung bai hoc gom van ban, PDF, video, hinh anh va tai lieu dinh kem.
+- Quan ly trang thai khoa hoc dang cho duyet.
+- Xem hoc vien cua khoa hoc.
+- Xem doanh thu va gui yeu cau rut tien.
+
+### 1.3. Quan tri vien
+
+- Xem dashboard tong quan.
+- Quan ly nguoi dung, danh muc, khoa hoc, dang ky hoc, don hang, ma giam gia, banner va cau hinh.
+- Kiem duyet khoa hoc va bai hoc.
+- Quan ly nhat ky he thong.
+- Xu ly cac nghiep vu quan tri nhu khoa tai khoan, cap lai mat khau, duyet noi dung.
+
+## 2. Cong nghe su dung
+
+### 2.1. Backend
+
+- Python 3.11.
+- FastAPI.
+- SQLAlchemy 2.0 async.
+- Asyncpg.
+- PostgreSQL.
+- Alembic.
+- Pydantic v2.
+- Pydantic Settings.
+- PyJWT.
+- Bcrypt.
+- Redis.
+- MinIO.
+- ReportLab.
+- Uvicorn.
+- Docker.
+
+### 2.2. Frontend
+
+- Next.js 16.
+- React 19.
+- TypeScript.
+- Tailwind CSS 4.
+- Lucide React.
+- CKEditor 5.
+- Recharts.
+- @hello-pangea/dnd.
+
+### 2.3. Ha tang phu tro
+
+- PostgreSQL: co so du lieu quan he chinh.
+- Redis: cache danh muc va blacklist token sau khi dang xuat.
+- MinIO: luu file upload nhu anh, PDF, video, tai lieu va anh banner.
+- Alembic: quan ly phien ban cau truc co so du lieu.
+
+## 3. Kien truc tong the
+
+He thong su dung kien truc Client-Server.
+
+```text
+Trinh duyet nguoi dung
+        ↓
+Frontend Next.js
+        ↓ HTTP/REST API
+Backend FastAPI
+        ↓
+PostgreSQL / Redis / MinIO
 ```
 
-### Bước 2: Khởi chạy Backend (FastAPI)
+Frontend chiu trach nhiem hien thi giao dien, dieu huong trang, quan ly state phia client va goi API.
+
+Backend chiu trach nhiem xac thuc, phan quyen, xu ly nghiep vu, truy van co so du lieu, quan ly file va tra du lieu JSON.
+
+## 4. Cau truc thu muc
+
+### 4.1. Thu muc goc
+
+```text
+LMS/
+├── lms-backend
+├── lms-frontend
+├── README.md
+└── BAO_CAO_CAU_TRUC_DU_AN.md
+```
+
+### 4.2. Backend
+
+```text
+lms-backend/
+├── alembic
+│   ├── env.py
+│   └── versions
+├── app
+│   ├── api
+│   ├── assets
+│   ├── core
+│   ├── models
+│   ├── schemas
+│   ├── services
+│   └── main.py
+├── scripts
+├── Dockerfile
+├── docker-compose.yml
+├── alembic.ini
+├── requirements.txt
+├── .env.example
+└── README.md
+```
+
+Y nghia cac thanh phan:
+
+- `app/api`: dinh nghia endpoint API.
+- `app/api/deps.py`: dependency dung chung nhu database session, current user, current admin.
+- `app/api/v1/router.py`: gom tat ca router v1.
+- `app/api/v1/dynamic_crud.py`: tao CRUD router dung chung cho admin.
+- `app/api/v1/endpoints`: chua cac endpoint theo tung nghiep vu.
+- `app/core`: cau hinh nen tang nhu database, Redis, JWT, bao mat, bien moi truong.
+- `app/models`: SQLAlchemy model anh xa bang co so du lieu.
+- `app/schemas`: Pydantic schema cho request va response.
+- `app/services`: logic nghiep vu.
+- `app/assets/fonts`: font Roboto dung khi tao chung chi PDF.
+- `alembic`: migration co so du lieu.
+- `scripts`: script ho tro kiem thu, tai font, kiem tra cau truc.
+
+### 4.3. Frontend
+
+```text
+lms-frontend/
+├── public
+├── src
+│   ├── app
+│   ├── components
+│   ├── contexts
+│   ├── hooks
+│   ├── services
+│   └── utils
+├── middleware.ts
+├── next.config.ts
+├── package.json
+├── tsconfig.json
+└── eslint.config.mjs
+```
+
+Y nghia cac thanh phan:
+
+- `src/app`: cau truc route theo Next.js App Router.
+- `src/components`: component giao dien tai su dung.
+- `src/components/admin`: component rieng cho trang quan tri.
+- `src/contexts`: React Context dung cho state toan cuc.
+- `src/hooks`: custom hook tai su dung.
+- `src/services/api.ts`: lop goi API backend.
+- `src/utils`: ham tien ich.
+- `middleware.ts`: kiem tra quyen truy cap mot so route truoc khi render.
+- `next.config.ts`: cau hinh Next.js.
+
+## 5. Yeu cau moi truong
+
+Can cai dat:
+
+- Python 3.11 tro len.
+- Node.js 20 tro len.
+- npm.
+- Docker Desktop neu muon chay Redis, MinIO hoac backend bang container.
+- PostgreSQL neu chay database tren may local.
+
+Cong mac dinh:
+
+```text
+Frontend: http://localhost:3000
+Backend:  http://localhost:8000
+Swagger:  http://localhost:8000/docs
+Redis:    localhost:6379
+MinIO:    http://localhost:9000
+MinIO UI: http://localhost:9001
+```
+
+## 6. Cau hinh bien moi truong
+
+### 6.1. Backend
+
+Tao file `.env` tu file mau:
+
+```powershell
+cd lms-backend
+Copy-Item .env.example .env
+```
+
+Tren macOS/Linux:
+
 ```bash
 cd lms-backend
+cp .env.example .env
+```
 
-# Tạo và kích hoạt môi trường ảo (Virtual Env)
+Nhung bien quan trong:
+
+```env
+APP_ENV=development
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/lms_db
+REDIS_URL=redis://localhost:6379/0
+SECRET_KEY=CHANGE_ME_TO_A_LONG_RANDOM_SECRET_KEY
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+MINIO_ENDPOINT_URL=http://localhost:9000
+MINIO_PUBLIC_URL=http://localhost:9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadminpassword
+MINIO_BUCKET_NAME=lms-storage
+```
+
+Khong nen dua file `.env` that len Git.
+
+### 6.2. Frontend
+
+Trong `lms-frontend/.env`, cau hinh API backend:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+```
+
+Neu backend trien khai tren domain that, thay gia tri nay bang URL API that.
+
+## 7. Chay du an tren may local
+
+### 7.1. Khoi dong Redis va MinIO bang Docker
+
+File `lms-backend/docker-compose.yml` hien co Redis, MinIO va service backend. Neu chi muon chay Redis va MinIO:
+
+```powershell
+cd lms-backend
+docker compose up -d redis minio
+```
+
+Luu y: file compose hien tai khong khai bao service PostgreSQL. Can co PostgreSQL chay rieng tren may local hoac cau hinh `DATABASE_URL` tro den database dang co.
+
+### 7.2. Tao database PostgreSQL
+
+Tao database phu hop voi `DATABASE_URL`, vi du:
+
+```sql
+CREATE DATABASE lms_db;
+```
+
+Neu dung user/password khac, cap nhat lai `DATABASE_URL` trong `lms-backend/.env`.
+
+### 7.3. Cai dat va chay backend
+
+Tren Windows PowerShell:
+
+```powershell
+cd lms-backend
 python -m venv .venv
-source .venv/Scripts/activate  # (Windows)
-# source .venv/bin/activate    # (Mac/Linux)
-
-# Cài đặt thư viện
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-
-# Tạo file .env từ template (và cấu hình Database URL, Secret Key)
-# Chạy Migration tạo bảng Database
 alembic upgrade head
-
-# Chạy Server Backend (Mặc định ở http://localhost:8000)
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
-*Ghi chú: Tài liệu API tương tác tự động có sẵn tại: `http://localhost:8000/docs`*
 
-### Bước 3: Khởi chạy Frontend (Next.js)
+Tren macOS/Linux:
+
 ```bash
+cd lms-backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Sau khi backend chay, mo:
+
+```text
+http://localhost:8000/docs
+```
+
+### 7.4. Cai dat va chay frontend
+
+```powershell
 cd lms-frontend
-
-# Cài đặt thư viện
 npm install
-
-# Khởi chạy chế độ Development (Mặc định ở http://localhost:3000)
 npm run dev
 ```
 
----
+Mo trinh duyet:
 
-## 🔒 Tài khoản Mặc định (Mock Data)
-Để dễ dàng kiểm thử, bạn có thể tạo tài khoản Admin trực tiếp thông qua Swagger UI hoặc Database:
-- **Trang chủ:** `http://localhost:3000`
-- **CMS Quản trị:** `http://localhost:3000/admin`
-- **Dashboard Giảng viên:** `http://localhost:3000/instructor/dashboard`
+```text
+http://localhost:3000
+```
 
----
+## 8. Chay backend bang Docker
 
-## 📄 Giấy phép (License)
-Dự án được xây dựng phục vụ cho mục đích Đồ án/Giáo dục. 
-Tác giả: **Hoàng Đức Thịnh**
+Trong `lms-backend/.env`, can co cac bien cho container:
+
+```env
+DOCKER_DATABASE_URL=postgresql+asyncpg://postgres:postgres@host.docker.internal:5432/lms_db
+DOCKER_REDIS_URL=redis://redis:6379/0
+APP_ENV=production
+SECRET_KEY=CHANGE_ME_TO_A_LONG_RANDOM_SECRET_KEY
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+MINIO_PUBLIC_URL=http://localhost:9000
+```
+
+Sau do chay:
+
+```powershell
+cd lms-backend
+docker compose up -d --build
+```
+
+Dockerfile se tu chay:
+
+```bash
+alembic upgrade head
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+```
+
+Neu PostgreSQL khong chay trong Docker, `DOCKER_DATABASE_URL` phai tro den PostgreSQL that ma container truy cap duoc.
+
+## 9. Migration co so du lieu voi Alembic
+
+Alembic quan ly lich su thay doi cau truc co so du lieu.
+
+Khi thay doi model SQLAlchemy:
+
+```powershell
+cd lms-backend
+alembic revision --autogenerate -m "noi dung thay doi"
+alembic upgrade head
+```
+
+Giai thich:
+
+- `alembic revision --autogenerate`: so sanh `Base.metadata` voi database va sinh file migration trong `alembic/versions`.
+- `alembic upgrade head`: ap dung migration moi nhat vao database.
+- `alembic downgrade -1`: lui lai mot migration gan nhat neu migration co `downgrade()` hop le.
+
+## 10. Tai lieu API
+
+Khi `APP_ENV=development`, FastAPI bat tai lieu API:
+
+```text
+Swagger UI: http://localhost:8000/docs
+ReDoc:      http://localhost:8000/redoc
+```
+
+Khi `APP_ENV=production` hoac `prod`, `main.py` tat `/docs` va `/redoc` de han che lo tai lieu API tren moi truong that.
+
+## 11. Bao mat va luu tru
+
+He thong dang su dung JWT, HttpOnly cookie, bcrypt, RBAC, Redis blacklist token, HMAC webhook signature va kiem tra file upload theo role. MinIO duoc dung de luu anh khoa hoc, banner, PDF, video va tai lieu dinh kem. Redis duoc dung de cache danh muc khoa hoc va blacklist token sau logout.
+
+## 12. Build va kiem tra
+
+Backend:
+
+```powershell
+cd lms-backend
+python -m compileall app
+python -c "from app.main import app; print(len(app.openapi()['paths']))"
+```
+
+Frontend:
+
+```powershell
+cd lms-frontend
+npm run build
+```
+
+## 13. Cac loi thuong gap
+
+- Backend khong ket noi duoc PostgreSQL: kiem tra PostgreSQL da chay, database da tao va `DATABASE_URL` dung.
+- Redis connection refused: chay `docker compose up -d redis` trong `lms-backend`.
+- Upload file loi: kiem tra MinIO, bucket `lms-storage`, access key, secret key va `MINIO_ENDPOINT_URL`.
+- Frontend goi sai API: kiem tra `NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1` va khoi dong lai frontend.
+- Swagger khong hien: neu `APP_ENV=production`, day la hanh vi co chu y.
+
+## 14. Huong dan ban giao source code
+
+Nen gui:
+
+```text
+lms-backend/app
+lms-backend/alembic
+lms-backend/scripts
+lms-backend/requirements.txt
+lms-backend/Dockerfile
+lms-backend/docker-compose.yml
+lms-backend/.env.example
+lms-frontend/src
+lms-frontend/public
+lms-frontend/package.json
+lms-frontend/package-lock.json
+lms-frontend/next.config.ts
+lms-frontend/tsconfig.json
+README.md
+BAO_CAO_CAU_TRUC_DU_AN.md
+```
+
+Khong nen gui:
+
+```text
+.env
+.venv
+node_modules
+.next
+__pycache__
+*.pyc
+```
+
+## 15. Tom tat lenh chay nhanh
+
+Terminal 1:
+
+```powershell
+cd lms-backend
+docker compose up -d redis minio
+```
+
+Terminal 2:
+
+```powershell
+cd lms-backend
+.\.venv\Scripts\Activate.ps1
+alembic upgrade head
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Terminal 3:
+
+```powershell
+cd lms-frontend
+npm install
+npm run dev
+```
+
+Truy cap:
+
+```text
+Frontend: http://localhost:3000
+Backend:  http://localhost:8000
+Swagger:  http://localhost:8000/docs
+```
