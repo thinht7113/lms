@@ -1,109 +1,14 @@
-# LuminaLMS - He thong dang ky khoa hoc truc tuyen
+# LuminaLMS - Hệ thống đăng ký khóa học trực tuyến
 
-LuminaLMS la nen tang quan ly va dang ky khoa hoc truc tuyen, duoc xay dung theo mo hinh Client-Server. He thong cho phep hoc vien tim kiem, mua va hoc khoa hoc; giang vien tao va quan ly noi dung dao tao; quan tri vien kiem duyet, quan ly nguoi dung, don hang, ma giam gia, banner va cau hinh he thong.
+LuminaLMS là hệ thống đăng ký khóa học trực tuyến được xây dựng theo mô hình Client-Server. Hệ thống hỗ trợ học viên tìm kiếm, mua và học khóa học; giảng viên xây dựng nội dung đào tạo; quản trị viên kiểm duyệt nội dung, quản lý người dùng, đơn hàng, mã giảm giá, banner và cấu hình hệ thống.
 
-Du an gom hai ung dung chinh:
+Dự án gồm hai phần chính. Phần backend nằm trong thư mục `lms-backend`, được xây dựng bằng FastAPI, PostgreSQL, Redis, MinIO và Alembic. Phần frontend nằm trong thư mục `lms-frontend`, được xây dựng bằng Next.js, React, TypeScript và Tailwind CSS.
 
-```text
-LMS/
-├── lms-backend   # FastAPI, PostgreSQL, Redis, MinIO, Alembic
-└── lms-frontend  # Next.js, React, TypeScript, Tailwind CSS
-```
+## 1. Mục tiêu của hệ thống
 
-## 1. Tong quan chuc nang
+LuminaLMS được xây dựng nhằm mô phỏng một nền tảng học trực tuyến có đầy đủ các nghiệp vụ cơ bản của hệ thống LMS thương mại. Người học có thể khám phá khóa học, thêm vào giỏ hàng, thanh toán, học bài, làm bài kiểm tra và nhận chứng chỉ. Giảng viên có thể tạo khóa học, thêm chương học, thêm bài học, upload nội dung đa phương tiện và theo dõi doanh thu. Quản trị viên có thể quản lý toàn bộ hệ thống, kiểm duyệt nội dung, xử lý đơn hàng và cấu hình dữ liệu vận hành.
 
-### 1.1. Hoc vien
-
-- Dang ky, dang nhap, dang xuat.
-- Xem danh sach khoa hoc, tim kiem, loc va sap xep khoa hoc.
-- Xem chi tiet khoa hoc, noi dung chuong hoc va bai hoc xem truoc.
-- Them khoa hoc vao gio hang.
-- Ap dung ma giam gia.
-- Thanh toan don hang.
-- Xem danh sach khoa hoc da mua.
-- Hoc bai theo tung khoa hoc.
-- Theo doi tien do hoc tap.
-- Lam bai kiem tra.
-- Nhan chung chi khi hoan thanh dieu kien.
-- Xem thong bao, don hang, ho so va chung chi.
-
-### 1.2. Giang vien
-
-- Dang ky tro thanh giang vien.
-- Truy cap khu vuc quan ly giang vien.
-- Tao khoa hoc, chuong hoc va bai hoc.
-- Upload noi dung bai hoc gom van ban, PDF, video, hinh anh va tai lieu dinh kem.
-- Quan ly trang thai khoa hoc dang cho duyet.
-- Xem hoc vien cua khoa hoc.
-- Xem doanh thu va gui yeu cau rut tien.
-
-### 1.3. Quan tri vien
-
-- Xem dashboard tong quan.
-- Quan ly nguoi dung, danh muc, khoa hoc, dang ky hoc, don hang, ma giam gia, banner va cau hinh.
-- Kiem duyet khoa hoc va bai hoc.
-- Quan ly nhat ky he thong.
-- Xu ly cac nghiep vu quan tri nhu khoa tai khoan, cap lai mat khau, duyet noi dung.
-
-## 2. Cong nghe su dung
-
-### 2.1. Backend
-
-- Python 3.11.
-- FastAPI.
-- SQLAlchemy 2.0 async.
-- Asyncpg.
-- PostgreSQL.
-- Alembic.
-- Pydantic v2.
-- Pydantic Settings.
-- PyJWT.
-- Bcrypt.
-- Redis.
-- MinIO.
-- ReportLab.
-- Uvicorn.
-- Docker.
-
-### 2.2. Frontend
-
-- Next.js 16.
-- React 19.
-- TypeScript.
-- Tailwind CSS 4.
-- Lucide React.
-- CKEditor 5.
-- Recharts.
-- @hello-pangea/dnd.
-
-### 2.3. Ha tang phu tro
-
-- PostgreSQL: co so du lieu quan he chinh.
-- Redis: cache danh muc va blacklist token sau khi dang xuat.
-- MinIO: luu file upload nhu anh, PDF, video, tai lieu va anh banner.
-- Alembic: quan ly phien ban cau truc co so du lieu.
-
-## 3. Kien truc tong the
-
-He thong su dung kien truc Client-Server.
-
-```text
-Trinh duyet nguoi dung
-        ↓
-Frontend Next.js
-        ↓ HTTP/REST API
-Backend FastAPI
-        ↓
-PostgreSQL / Redis / MinIO
-```
-
-Frontend chiu trach nhiem hien thi giao dien, dieu huong trang, quan ly state phia client va goi API.
-
-Backend chiu trach nhiem xac thuc, phan quyen, xu ly nghiep vu, truy van co so du lieu, quan ly file va tra du lieu JSON.
-
-## 4. Cau truc thu muc
-
-### 4.1. Thu muc goc
+## 2. Cấu trúc tổng thể
 
 ```text
 LMS/
@@ -113,7 +18,57 @@ LMS/
 └── BAO_CAO_CAU_TRUC_DU_AN.md
 ```
 
-### 4.2. Backend
+Thư mục `lms-backend` chứa mã nguồn backend, migration cơ sở dữ liệu, cấu hình Docker, cấu hình Alembic và các script hỗ trợ. Thư mục `lms-frontend` chứa mã nguồn giao diện, route Next.js, component, hook, context, service gọi API và cấu hình TypeScript. File `README.md` ở cấp gốc dùng để hướng dẫn chạy toàn bộ dự án. File `BAO_CAO_CAU_TRUC_DU_AN.md` dùng để trình bày chi tiết cấu trúc phục vụ báo cáo.
+
+## 3. Kiến trúc hệ thống
+
+Hệ thống sử dụng kiến trúc Client-Server. Frontend hoạt động như client chạy trên trình duyệt, chịu trách nhiệm hiển thị giao diện và gửi request. Backend hoạt động như server, chịu trách nhiệm xác thực, phân quyền, xử lý nghiệp vụ, truy vấn cơ sở dữ liệu và trả dữ liệu về frontend thông qua REST API.
+
+```text
+Trình duyệt người dùng
+        ↓
+Frontend Next.js
+        ↓ HTTP/REST API
+Backend FastAPI
+        ↓
+PostgreSQL / Redis / MinIO
+```
+
+PostgreSQL là cơ sở dữ liệu quan hệ chính, lưu dữ liệu nghiệp vụ như người dùng, khóa học, bài học, đơn hàng, tiến độ, quiz và chứng chỉ. Redis là hệ thống lưu trữ key-value dùng cho cache danh mục và blacklist token sau khi đăng xuất. MinIO là object storage dùng để lưu file upload như ảnh, PDF, video và tài liệu bài học.
+
+## 4. Công nghệ sử dụng
+
+| Thành phần | Công nghệ |
+| --- | --- |
+| Backend framework | FastAPI |
+| Ngôn ngữ backend | Python 3.11 |
+| ORM | SQLAlchemy 2.0 async |
+| Driver PostgreSQL | asyncpg |
+| Migration | Alembic |
+| Validation backend | Pydantic v2 |
+| Cơ sở dữ liệu chính | PostgreSQL |
+| Cache và token blacklist | Redis |
+| Lưu trữ file | MinIO |
+| Sinh chứng chỉ PDF | ReportLab |
+| Xác thực | JWT, HttpOnly cookie, bcrypt |
+| Frontend framework | Next.js 16 |
+| Thư viện giao diện | React 19 |
+| Ngôn ngữ frontend | TypeScript |
+| Styling | Tailwind CSS 4 |
+| Biểu tượng | Lucide React |
+| Rich text editor | CKEditor 5 |
+| Biểu đồ | Recharts |
+| Kéo thả | @hello-pangea/dnd |
+
+## 5. Chức năng chính
+
+Đối với học viên, hệ thống cung cấp các chức năng đăng ký, đăng nhập, xem danh sách khóa học, tìm kiếm khóa học, xem chi tiết khóa học, thêm khóa học vào giỏ hàng, áp dụng mã giảm giá, thanh toán, xem khóa học đã mua, học bài, theo dõi tiến độ, làm bài kiểm tra, xem chứng chỉ, xem thông báo và quản lý hồ sơ cá nhân.
+
+Đối với giảng viên, hệ thống cung cấp khu vực quản lý riêng để tạo khóa học, chỉnh sửa khóa học, tạo chương học, tạo bài học, upload nội dung bài học, xem trạng thái phê duyệt, xem danh sách học viên, xem doanh thu và gửi yêu cầu rút tiền.
+
+Đối với quản trị viên, hệ thống cung cấp trang quản trị để xem dashboard, quản lý người dùng, danh mục, banner, khóa học, đăng ký học, đơn hàng, mã giảm giá, cấu hình hệ thống, nhật ký hệ thống và kiểm duyệt nội dung đào tạo.
+
+## 6. Cấu trúc backend
 
 ```text
 lms-backend/
@@ -122,7 +77,13 @@ lms-backend/
 │   └── versions
 ├── app
 │   ├── api
+│   │   ├── deps.py
+│   │   └── v1
+│   │       ├── router.py
+│   │       ├── dynamic_crud.py
+│   │       └── endpoints
 │   ├── assets
+│   │   └── fonts
 │   ├── core
 │   ├── models
 │   ├── schemas
@@ -137,22 +98,9 @@ lms-backend/
 └── README.md
 ```
 
-Y nghia cac thanh phan:
+Thư mục `app/api` là tầng tiếp nhận HTTP request và định nghĩa endpoint. File `app/api/deps.py` chứa các dependency dùng chung như session cơ sở dữ liệu, người dùng hiện tại và kiểm tra quyền admin. File `app/api/v1/router.py` gom các endpoint của phiên bản API v1. File `app/api/v1/dynamic_crud.py` tạo các router CRUD động cho trang quản trị. Thư mục `app/core` chứa cấu hình lõi như biến môi trường, database engine, Redis client, JWT và kiểm tra bảo mật. Thư mục `app/models` chứa SQLAlchemy model ánh xạ bảng cơ sở dữ liệu. Thư mục `app/schemas` chứa Pydantic schema cho request và response. Thư mục `app/services` chứa logic nghiệp vụ. Thư mục `app/assets/fonts` chứa font Roboto dùng khi tạo chứng chỉ PDF. Thư mục `alembic` chứa migration quản lý phiên bản cấu trúc cơ sở dữ liệu.
 
-- `app/api`: dinh nghia endpoint API.
-- `app/api/deps.py`: dependency dung chung nhu database session, current user, current admin.
-- `app/api/v1/router.py`: gom tat ca router v1.
-- `app/api/v1/dynamic_crud.py`: tao CRUD router dung chung cho admin.
-- `app/api/v1/endpoints`: chua cac endpoint theo tung nghiep vu.
-- `app/core`: cau hinh nen tang nhu database, Redis, JWT, bao mat, bien moi truong.
-- `app/models`: SQLAlchemy model anh xa bang co so du lieu.
-- `app/schemas`: Pydantic schema cho request va response.
-- `app/services`: logic nghiep vu.
-- `app/assets/fonts`: font Roboto dung khi tao chung chi PDF.
-- `alembic`: migration co so du lieu.
-- `scripts`: script ho tro kiem thu, tai font, kiem tra cau truc.
-
-### 4.3. Frontend
+## 7. Cấu trúc frontend
 
 ```text
 lms-frontend/
@@ -167,62 +115,42 @@ lms-frontend/
 ├── middleware.ts
 ├── next.config.ts
 ├── package.json
+├── package-lock.json
 ├── tsconfig.json
 └── eslint.config.mjs
 ```
 
-Y nghia cac thanh phan:
+Thư mục `src/app` tổ chức route theo Next.js App Router. Thư mục `src/components` chứa component giao diện tái sử dụng. Thư mục `src/contexts` chứa React Context để chia sẻ trạng thái toàn cục. Thư mục `src/hooks` chứa custom hook. Thư mục `src/services` chứa logic gọi API backend, trong đó `api.ts` là file quan trọng nhất. Thư mục `src/utils` chứa các hàm tiện ích. File `middleware.ts` hỗ trợ kiểm tra quyền truy cập trước khi render một số route. File `next.config.ts` chứa cấu hình Next.js.
 
-- `src/app`: cau truc route theo Next.js App Router.
-- `src/components`: component giao dien tai su dung.
-- `src/components/admin`: component rieng cho trang quan tri.
-- `src/contexts`: React Context dung cho state toan cuc.
-- `src/hooks`: custom hook tai su dung.
-- `src/services/api.ts`: lop goi API backend.
-- `src/utils`: ham tien ich.
-- `middleware.ts`: kiem tra quyen truy cap mot so route truoc khi render.
-- `next.config.ts`: cau hinh Next.js.
+## 8. Yêu cầu môi trường
 
-## 5. Yeu cau moi truong
+| Công cụ | Phiên bản khuyến nghị |
+| --- | --- |
+| Python | 3.11 trở lên |
+| Node.js | 20 trở lên |
+| npm | Đi kèm Node.js |
+| PostgreSQL | 14 trở lên |
+| Docker Desktop | Dùng để chạy Redis và MinIO |
 
-Can cai dat:
+Các cổng mặc định của dự án là `3000` cho frontend, `8000` cho backend, `6379` cho Redis, `9000` cho MinIO API và `9001` cho MinIO Console.
 
-- Python 3.11 tro len.
-- Node.js 20 tro len.
-- npm.
-- Docker Desktop neu muon chay Redis, MinIO hoac backend bang container.
-- PostgreSQL neu chay database tren may local.
+## 9. Cấu hình backend
 
-Cong mac dinh:
-
-```text
-Frontend: http://localhost:3000
-Backend:  http://localhost:8000
-Swagger:  http://localhost:8000/docs
-Redis:    localhost:6379
-MinIO:    http://localhost:9000
-MinIO UI: http://localhost:9001
-```
-
-## 6. Cau hinh bien moi truong
-
-### 6.1. Backend
-
-Tao file `.env` tu file mau:
+Tạo file môi trường cho backend bằng cách sao chép file mẫu.
 
 ```powershell
 cd lms-backend
 Copy-Item .env.example .env
 ```
 
-Tren macOS/Linux:
+Trên macOS hoặc Linux, sử dụng lệnh sau.
 
 ```bash
 cd lms-backend
 cp .env.example .env
 ```
 
-Nhung bien quan trong:
+Nội dung quan trọng trong file `.env` khi chạy local nên có dạng sau.
 
 ```env
 APP_ENV=development
@@ -237,44 +165,42 @@ MINIO_SECRET_KEY=minioadminpassword
 MINIO_BUCKET_NAME=lms-storage
 ```
 
-Khong nen dua file `.env` that len Git.
+File `.env` chứa thông tin nhạy cảm, vì vậy không nên đưa file này lên Git hoặc gửi công khai khi bàn giao source code.
 
-### 6.2. Frontend
+## 10. Cấu hình frontend
 
-Trong `lms-frontend/.env`, cau hinh API backend:
+Frontend cần biết địa chỉ backend thông qua biến `NEXT_PUBLIC_API_URL`. Khi chạy local, file `lms-frontend/.env` nên có nội dung như sau.
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 ```
 
-Neu backend trien khai tren domain that, thay gia tri nay bang URL API that.
+Nếu backend được triển khai trên domain thật, giá trị này cần đổi thành URL API thật. Sau khi thay đổi `.env`, cần khởi động lại frontend để Next.js nạp lại biến môi trường.
 
-## 7. Chay du an tren may local
+## 11. Chạy Redis và MinIO
 
-### 7.1. Khoi dong Redis va MinIO bang Docker
-
-File `lms-backend/docker-compose.yml` hien co Redis, MinIO va service backend. Neu chi muon chay Redis va MinIO:
+File `lms-backend/docker-compose.yml` hiện cấu hình Redis, MinIO và backend container. Khi phát triển local, có thể chỉ chạy Redis và MinIO bằng lệnh sau.
 
 ```powershell
 cd lms-backend
 docker compose up -d redis minio
 ```
 
-Luu y: file compose hien tai khong khai bao service PostgreSQL. Can co PostgreSQL chay rieng tren may local hoac cau hinh `DATABASE_URL` tro den database dang co.
+MinIO Console chạy tại địa chỉ `http://localhost:9001`. Tài khoản mặc định là `minioadmin` và mật khẩu mặc định là `minioadminpassword`, trùng với cấu hình trong Docker Compose và `.env.example`.
 
-### 7.2. Tao database PostgreSQL
+## 12. Chuẩn bị PostgreSQL
 
-Tao database phu hop voi `DATABASE_URL`, vi du:
+Dự án cần một database PostgreSQL tương ứng với `DATABASE_URL`. Nếu sử dụng cấu hình mặc định, cần tạo database tên `lms_db`.
 
 ```sql
 CREATE DATABASE lms_db;
 ```
 
-Neu dung user/password khac, cap nhat lai `DATABASE_URL` trong `lms-backend/.env`.
+Nếu tên database, user, password, host hoặc port khác cấu hình mặc định, cần cập nhật lại biến `DATABASE_URL` trong file `lms-backend/.env`.
 
-### 7.3. Cai dat va chay backend
+## 13. Chạy backend local
 
-Tren Windows PowerShell:
+Trên Windows PowerShell, chạy các lệnh sau.
 
 ```powershell
 cd lms-backend
@@ -285,7 +211,7 @@ alembic upgrade head
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Tren macOS/Linux:
+Trên macOS hoặc Linux, chạy các lệnh sau.
 
 ```bash
 cd lms-backend
@@ -296,13 +222,11 @@ alembic upgrade head
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Sau khi backend chay, mo:
+Khi backend chạy thành công trong môi trường development, tài liệu API có thể truy cập tại `http://localhost:8000/docs`.
 
-```text
-http://localhost:8000/docs
-```
+## 14. Chạy frontend local
 
-### 7.4. Cai dat va chay frontend
+Sau khi backend đã chạy, mở terminal khác và chạy frontend.
 
 ```powershell
 cd lms-frontend
@@ -310,15 +234,11 @@ npm install
 npm run dev
 ```
 
-Mo trinh duyet:
+Ứng dụng frontend mặc định chạy tại `http://localhost:3000`.
 
-```text
-http://localhost:3000
-```
+## 15. Chạy backend bằng Docker
 
-## 8. Chay backend bang Docker
-
-Trong `lms-backend/.env`, can co cac bien cho container:
+Nếu muốn chạy backend bằng Docker, cần bổ sung các biến dành cho container vào file `lms-backend/.env`.
 
 ```env
 DOCKER_DATABASE_URL=postgresql+asyncpg://postgres:postgres@host.docker.internal:5432/lms_db
@@ -329,27 +249,17 @@ CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 MINIO_PUBLIC_URL=http://localhost:9000
 ```
 
-Sau do chay:
+Sau đó chạy lệnh sau trong thư mục `lms-backend`.
 
 ```powershell
-cd lms-backend
 docker compose up -d --build
 ```
 
-Dockerfile se tu chay:
+Dockerfile sẽ tự chạy migration bằng `alembic upgrade head` trước khi khởi động Uvicorn. Nếu PostgreSQL không chạy trong Docker Compose, biến `DOCKER_DATABASE_URL` phải trỏ tới PostgreSQL mà container có thể truy cập được.
 
-```bash
-alembic upgrade head
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
-```
+## 16. Alembic và quản lý cơ sở dữ liệu
 
-Neu PostgreSQL khong chay trong Docker, `DOCKER_DATABASE_URL` phai tro den PostgreSQL that ma container truy cap duoc.
-
-## 9. Migration co so du lieu voi Alembic
-
-Alembic quan ly lich su thay doi cau truc co so du lieu.
-
-Khi thay doi model SQLAlchemy:
+Alembic được dùng để quản lý lịch sử thay đổi cấu trúc cơ sở dữ liệu. Khi thay đổi SQLAlchemy model, cần tạo migration mới và áp dụng migration vào database.
 
 ```powershell
 cd lms-backend
@@ -357,30 +267,23 @@ alembic revision --autogenerate -m "noi dung thay doi"
 alembic upgrade head
 ```
 
-Giai thich:
+Lệnh `alembic revision --autogenerate` so sánh `Base.metadata` với schema hiện tại trong database và sinh file migration trong `alembic/versions`. Lệnh `alembic upgrade head` áp dụng các migration chưa chạy vào database.
 
-- `alembic revision --autogenerate`: so sanh `Base.metadata` voi database va sinh file migration trong `alembic/versions`.
-- `alembic upgrade head`: ap dung migration moi nhat vao database.
-- `alembic downgrade -1`: lui lai mot migration gan nhat neu migration co `downgrade()` hop le.
+## 17. Tài liệu API
 
-## 10. Tai lieu API
+Trong môi trường development, FastAPI cung cấp Swagger UI tại `http://localhost:8000/docs` và ReDoc tại `http://localhost:8000/redoc`. Trong môi trường production, hai đường dẫn này được tắt để hạn chế lộ tài liệu API công khai.
 
-Khi `APP_ENV=development`, FastAPI bat tai lieu API:
+## 18. Bảo mật
 
-```text
-Swagger UI: http://localhost:8000/docs
-ReDoc:      http://localhost:8000/redoc
-```
+Hệ thống sử dụng JWT access token, HttpOnly cookie, bcrypt để băm mật khẩu, phân quyền theo vai trò, Redis blacklist token sau khi đăng xuất, kiểm tra quyền upload file theo vai trò và HMAC signature cho webhook thanh toán. Khi chạy production, hệ thống kiểm tra secret mặc định và không cho phép sử dụng các giá trị không an toàn.
 
-Khi `APP_ENV=production` hoac `prod`, `main.py` tat `/docs` va `/redoc` de han che lo tai lieu API tren moi truong that.
+## 19. Lưu trữ file
 
-## 11. Bao mat va luu tru
+MinIO được dùng để lưu ảnh khóa học, ảnh banner, ảnh đại diện, PDF, video và tài liệu bài học. Backend giao tiếp với MinIO thông qua service lưu trữ. Khi đổi domain MinIO, cần cập nhật cấu hình backend và cấu hình ảnh trong frontend nếu có sử dụng Next Image.
 
-He thong dang su dung JWT, HttpOnly cookie, bcrypt, RBAC, Redis blacklist token, HMAC webhook signature va kiem tra file upload theo role. MinIO duoc dung de luu anh khoa hoc, banner, PDF, video va tai lieu dinh kem. Redis duoc dung de cache danh muc khoa hoc va blacklist token sau logout.
+## 20. Kiểm tra dự án
 
-## 12. Build va kiem tra
-
-Backend:
+Có thể kiểm tra backend bằng cách biên dịch toàn bộ mã nguồn Python và kiểm tra OpenAPI.
 
 ```powershell
 cd lms-backend
@@ -388,64 +291,31 @@ python -m compileall app
 python -c "from app.main import app; print(len(app.openapi()['paths']))"
 ```
 
-Frontend:
+Có thể kiểm tra frontend bằng cách chạy build production.
 
 ```powershell
 cd lms-frontend
 npm run build
 ```
 
-## 13. Cac loi thuong gap
+## 21. Lỗi thường gặp
 
-- Backend khong ket noi duoc PostgreSQL: kiem tra PostgreSQL da chay, database da tao va `DATABASE_URL` dung.
-- Redis connection refused: chay `docker compose up -d redis` trong `lms-backend`.
-- Upload file loi: kiem tra MinIO, bucket `lms-storage`, access key, secret key va `MINIO_ENDPOINT_URL`.
-- Frontend goi sai API: kiem tra `NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1` va khoi dong lai frontend.
-- Swagger khong hien: neu `APP_ENV=production`, day la hanh vi co chu y.
+Nếu backend không kết nối được PostgreSQL, cần kiểm tra PostgreSQL đã chạy chưa, database đã được tạo chưa và biến `DATABASE_URL` có đúng không. Nếu Redis báo connection refused, cần chạy Redis bằng Docker Compose. Nếu upload file lỗi, cần kiểm tra MinIO, bucket, access key, secret key và endpoint. Nếu frontend gọi sai API, cần kiểm tra `NEXT_PUBLIC_API_URL` và khởi động lại frontend. Nếu Swagger không hiển thị, cần kiểm tra `APP_ENV`, vì production sẽ tắt tài liệu API theo thiết kế.
 
-## 14. Huong dan ban giao source code
+## 22. Bàn giao source code
 
-Nen gui:
+Khi bàn giao dự án, nên gửi mã nguồn backend, mã nguồn frontend, migration Alembic, file cấu hình mẫu, Dockerfile, Docker Compose, package.json, package-lock.json, requirements.txt và tài liệu báo cáo. Không nên gửi `.env`, `.venv`, `node_modules`, `.next`, `__pycache__` hoặc các file cache tự sinh.
 
-```text
-lms-backend/app
-lms-backend/alembic
-lms-backend/scripts
-lms-backend/requirements.txt
-lms-backend/Dockerfile
-lms-backend/docker-compose.yml
-lms-backend/.env.example
-lms-frontend/src
-lms-frontend/public
-lms-frontend/package.json
-lms-frontend/package-lock.json
-lms-frontend/next.config.ts
-lms-frontend/tsconfig.json
-README.md
-BAO_CAO_CAU_TRUC_DU_AN.md
-```
+## 23. Tóm tắt lệnh chạy nhanh
 
-Khong nen gui:
-
-```text
-.env
-.venv
-node_modules
-.next
-__pycache__
-*.pyc
-```
-
-## 15. Tom tat lenh chay nhanh
-
-Terminal 1:
+Terminal đầu tiên dùng để chạy Redis và MinIO.
 
 ```powershell
 cd lms-backend
 docker compose up -d redis minio
 ```
 
-Terminal 2:
+Terminal thứ hai dùng để chạy backend.
 
 ```powershell
 cd lms-backend
@@ -454,7 +324,7 @@ alembic upgrade head
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Terminal 3:
+Terminal thứ ba dùng để chạy frontend.
 
 ```powershell
 cd lms-frontend
@@ -462,10 +332,4 @@ npm install
 npm run dev
 ```
 
-Truy cap:
-
-```text
-Frontend: http://localhost:3000
-Backend:  http://localhost:8000
-Swagger:  http://localhost:8000/docs
-```
+Sau khi cả ba phần đã chạy, có thể truy cập frontend tại `http://localhost:3000`, backend tại `http://localhost:8000` và Swagger tại `http://localhost:8000/docs`.
