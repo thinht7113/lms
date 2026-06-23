@@ -129,7 +129,7 @@ Thư mục `src/app` tổ chức route theo Next.js App Router. Thư mục `src/
 | --- | --- |
 | Docker Desktop | Build và chạy các container của hệ thống |
 | Docker Compose | Điều phối backend, Redis và MinIO |
-| PostgreSQL | Cơ sở dữ liệu chính, có thể chạy ngoài Docker hoặc được cấu hình riêng |
+| PostgreSQL hosting | Cơ sở dữ liệu chính, chạy bên ngoài Docker và được backend kết nối qua `DOCKER_DATABASE_URL` |
 | Node.js và npm | Cài dependency, chạy development server và build frontend Next.js |
 
 Các cổng mặc định của dự án là `3000` cho frontend, `8000` cho backend, `6379` cho Redis, `9000` cho MinIO API và `9001` cho MinIO Console.
@@ -150,12 +150,12 @@ cd lms-backend
 cp .env.example .env
 ```
 
-Nội dung quan trọng trong file `.env` khi chạy bằng Docker nên có dạng sau.
+Nội dung quan trọng trong file `.env` khi chạy Docker local nên có dạng sau.
 
 ```env
-APP_ENV=production
+APP_ENV=development
 SECRET_KEY=CHANGE_ME_TO_A_LONG_RANDOM_SECRET_KEY
-DOCKER_DATABASE_URL=postgresql+asyncpg://postgres:postgres@host.docker.internal:5432/lms_db
+DOCKER_DATABASE_URL=postgresql+asyncpg://your_user:your_password@your_postgresql_host:5432/your_database
 DOCKER_REDIS_URL=redis://redis:6379/0
 REDIS_URL=redis://localhost:6379/0
 CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
@@ -166,7 +166,7 @@ MINIO_SECRET_KEY=minioadminpassword
 MINIO_BUCKET_NAME=lms-storage
 ```
 
-File `.env` chứa thông tin nhạy cảm, vì vậy không nên đưa file này lên Git hoặc gửi công khai. Nếu PostgreSQL chạy ở vị trí khác, cần thay đổi `DOCKER_DATABASE_URL` cho phù hợp với môi trường thực tế.
+File `.env` chứa thông tin nhạy cảm, vì vậy không nên đưa file này lên Git hoặc gửi công khai. Vì dự án dùng PostgreSQL hosting, `DOCKER_DATABASE_URL` phải trỏ tới địa chỉ PostgreSQL thật mà hosting cung cấp. Nếu hosting yêu cầu SSL, cần bổ sung tham số kết nối phù hợp theo nhà cung cấp.
 
 ## 10. Cấu hình frontend
 
@@ -180,7 +180,7 @@ Nếu backend được triển khai trên domain thật, giá trị này cần �
 
 ## 11. Chạy hệ thống bằng Docker và npm run
 
-Phần triển khai của dự án sử dụng Docker Compose. File `lms-backend/docker-compose.yml` dùng để build và chạy ba container chính là backend FastAPI, Redis và MinIO. Trước khi chạy lệnh Docker, cần đảm bảo file `lms-backend/.env` đã có `DOCKER_DATABASE_URL`, `DOCKER_REDIS_URL`, `SECRET_KEY`, `CORS_ORIGINS` và cấu hình MinIO.
+Phần triển khai backend của dự án sử dụng Docker Compose. File `lms-backend/docker-compose.yml` dùng để build và chạy ba container chính là backend FastAPI, Redis và MinIO. PostgreSQL không chạy trong Docker Compose vì hệ thống sử dụng PostgreSQL hosting. Trước khi chạy lệnh Docker, cần đảm bảo file `lms-backend/.env` đã được tạo từ `.env.example` và có `DOCKER_DATABASE_URL` trỏ tới PostgreSQL hosting, `DOCKER_REDIS_URL`, `SECRET_KEY`, `CORS_ORIGINS` cùng cấu hình MinIO.
 
 ```powershell
 cd lms-backend
@@ -195,7 +195,7 @@ cd lms-backend
 docker compose up -d --build
 ```
 
-Sau khi chạy thành công, Docker Compose sẽ khởi động container backend, container Redis và container MinIO. Backend sẽ chạy Alembic migration trước khi khởi động API. Redis chạy ở cổng `6379`. MinIO chạy API ở cổng `9000` và giao diện quản trị ở cổng `9001`. Backend chạy ở cổng `8000`.
+Sau khi chạy thành công, Docker Compose sẽ khởi động container backend, container Redis và container MinIO. Backend sẽ kết nối tới PostgreSQL hosting bằng `DOCKER_DATABASE_URL`, chạy Alembic migration rồi mới khởi động API. Redis chạy ở cổng `6379`, MinIO chạy API ở cổng `9000`, MinIO Console chạy ở cổng `9001` và backend chạy ở cổng `8000`.
 
 Frontend được chạy từ thư mục `lms-frontend` bằng npm. Trước khi chạy frontend, cần đảm bảo file `lms-frontend/.env` đã có `NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1` để giao diện gọi đúng backend.
 
@@ -256,7 +256,7 @@ docker compose down
 
 ## 17. Lỗi thường gặp
 
-Nếu backend không kết nối được PostgreSQL, cần kiểm tra PostgreSQL đã chạy chưa, database đã được tạo chưa và biến `DOCKER_DATABASE_URL` có đúng với môi trường Docker không. Nếu Redis báo connection refused, cần kiểm tra container Redis bằng `docker compose ps`. Nếu upload file lỗi, cần kiểm tra container MinIO, bucket, access key, secret key và endpoint. Nếu frontend gọi sai API, cần kiểm tra `NEXT_PUBLIC_API_URL` và khởi động lại frontend. Nếu Swagger không hiển thị, cần kiểm tra `APP_ENV`, vì production sẽ tắt tài liệu API theo thiết kế.
+Nếu backend không kết nối được PostgreSQL, cần kiểm tra `DOCKER_DATABASE_URL` có đúng thông tin PostgreSQL hosting không, hosting có cho phép IP/mạng hiện tại truy cập không và chuỗi kết nối có yêu cầu SSL hay không. Nếu Redis báo connection refused, cần kiểm tra container Redis bằng `docker compose ps`. Nếu upload file lỗi, cần kiểm tra container MinIO, bucket, access key, secret key và endpoint. Nếu frontend gọi sai API, cần kiểm tra `NEXT_PUBLIC_API_URL` và khởi động lại frontend. Nếu Swagger không hiển thị, cần kiểm tra `APP_ENV`, vì production sẽ tắt tài liệu API theo thiết kế.
 
 ## 18. Tóm tắt lệnh chạy dự án
 

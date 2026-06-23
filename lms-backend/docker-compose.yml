@@ -19,8 +19,8 @@ services:
       - "9000:9000"
       - "9001:9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadminpassword
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadminpassword}
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
@@ -31,7 +31,7 @@ services:
     build: .
     container_name: lms_fastapi_app
     restart: always
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
     volumes:
       - .:/app
     ports:
@@ -40,7 +40,7 @@ services:
       - DATABASE_URL=${DOCKER_DATABASE_URL}
       - REDIS_URL=${DOCKER_REDIS_URL:-redis://redis:6379/0}
       - APP_NAME=LMS Backend (Docker Environment)
-      - APP_ENV=${APP_ENV:-production}
+      - APP_ENV=${APP_ENV:-development}
       - SECRET_KEY=${SECRET_KEY}
       - ENABLE_MOCK_PAYMENTS=${ENABLE_MOCK_PAYMENTS:-false}
       - PAYMENT_WEBHOOK_SECRET=${PAYMENT_WEBHOOK_SECRET}
@@ -50,8 +50,10 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
-      - redis
-      - minio
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
     networks:
       - lms_network
 
