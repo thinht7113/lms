@@ -4,6 +4,7 @@ from sqlalchemy.orm import selectinload, attributes
 from fastapi import HTTPException, status
 from app.models.course import Category, Course, Section, Lesson, LessonContent, Enrollment, CourseReview
 from app.models.user import User
+from app.repositories.course_repository import CourseRepository, EnrollmentRepository
 from app.schemas.course import (
     CategoryCreate, CourseCreate, CourseUpdate,
     SectionCreate, SectionUpdate,
@@ -16,6 +17,46 @@ from decimal import Decimal
 
 class CourseService:
     # ==================== CATEGORY SERVICES ====================
+    @staticmethod
+    async def get_course_students(db: AsyncSession, course_id: int, instructor_id: int) -> list[User]:
+        course_repo = CourseRepository(db)
+        enrollment_repo = EnrollmentRepository(db)
+        course = await course_repo.get_owned_by_instructor(course_id, instructor_id)
+        if not course:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Khoa hoc khong ton tai hoac ban khong co quyen.",
+            )
+
+        enrollments = await enrollment_repo.list_by_course_with_user(course_id)
+        return [enrollment.nguoi_dung for enrollment in enrollments]
+
+    @staticmethod
+    async def get_course_detail_for_viewer(
+        db: AsyncSession,
+        course_id: int,
+        current_user: Optional[User],
+    ) -> Course:
+        course = await CourseService.get_course(db, course_id)
+        is_owner_or_admin = False
+        if current_user:
+            is_owner_or_admin = current_user.vai_tro == "admin" or course.ma_giang_vien == current_user.id
+
+        if not is_owner_or_admin and (
+            not course.da_xuat_ban or course.trang_thai_phe_duyet != "approved"
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Khong tim thay khoa hoc.",
+            )
+
+        if not is_owner_or_admin:
+            for section in course.chuong_hoc:
+                filtered_lessons = [lesson for lesson in section.bai_hoc if lesson.da_xuat_ban]
+                attributes.set_committed_value(section, "bai_hoc", filtered_lessons)
+
+        return course
+
     @staticmethod
     async def create_category(db: AsyncSession, category_in: CategoryCreate) -> Category:
         db_category = Category(
@@ -601,4 +642,3 @@ class CourseService:
             .limit(limit)
         )
         return list(result.scalars().all())
-

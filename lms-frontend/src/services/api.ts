@@ -440,6 +440,76 @@ export interface Notification {
   ngay_tao: string;
 }
 
+export interface CourseImportCreatePayload {
+  source_url: string;
+  limit: number;
+  checkout_free: boolean;
+  headless: boolean;
+}
+
+export interface CourseImportImportPayload {
+  confirmed_preview: boolean;
+  publish: boolean;
+  approve: boolean;
+  category_id?: number | null;
+  instructor_id?: number | null;
+}
+
+export interface CourseImportDraft {
+  source?: string;
+  source_url?: string;
+  title?: string;
+  description?: string;
+  thumbnail_url?: string;
+  price?: number;
+  level?: string;
+  sections?: { title?: string; lessons?: unknown[] }[];
+  raw?: {
+    mp4_count?: number;
+    youtube_count?: number;
+    pdf_count?: number;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+export interface CourseImportErrorDetail {
+  code?: string;
+  stage?: string;
+  message?: string;
+  url?: string;
+  details?: Record<string, unknown>;
+  source_url?: string;
+  asset_type?: string;
+  context?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface CourseImportJob {
+  id: number;
+  source: string;
+  source_url: string;
+  status: string;
+  draft_data?: {
+    courses?: CourseImportDraft[];
+    errors?: CourseImportErrorDetail[];
+    summary?: {
+      requested_limit?: number;
+      success_count?: number;
+      error_count?: number;
+      checkout_free?: boolean;
+    };
+    imported_course_ids?: number[];
+    asset_mirror_errors?: CourseImportErrorDetail[];
+    [key: string]: unknown;
+  } | null;
+  error_message?: string | null;
+  imported_course_id?: number | null;
+  created_by?: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export const apiService = {
   // 1. Banners API
   async getBanners(): Promise<Banner[]> {
@@ -1256,6 +1326,49 @@ export const apiService = {
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
       throw new Error(errData.detail || "Không thể yêu cầu rút tiền");
+    }
+    return await res.json();
+  },
+
+  // 15. Admin Course Import API
+  async createHoctapgiareImportJob(payload: CourseImportCreatePayload): Promise<CourseImportJob> {
+    const res = await fetchWithAuth(`${API_BASE_URL}/admin/course-imports/hoctapgiare`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || "Không thể chạy crawler khóa học");
+    }
+    return await res.json();
+  },
+
+  async getCourseImportJobs(limit = 50): Promise<CourseImportJob[]> {
+    const res = await fetchWithAuth(`${API_BASE_URL}/admin/course-imports/?limit=${limit}`);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || "Không thể tải danh sách job import");
+    }
+    return await res.json();
+  },
+
+  async getCourseImportJob(jobId: number): Promise<CourseImportJob> {
+    const res = await fetchWithAuth(`${API_BASE_URL}/admin/course-imports/${jobId}`);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || "Không thể tải chi tiết job import");
+    }
+    return await res.json();
+  },
+
+  async importCourseImportJob(jobId: number, payload: CourseImportImportPayload): Promise<CourseImportJob> {
+    const res = await fetchWithAuth(`${API_BASE_URL}/admin/course-imports/${jobId}/import`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || "Không thể import khóa học vào LMS");
     }
     return await res.json();
   }

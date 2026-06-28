@@ -5,6 +5,7 @@ from fastapi import HTTPException, status
 from app.models.course import Course, Section, Lesson, Enrollment, Progress
 from app.models.quiz import Quiz, QuizAttempt
 from app.models.certificate import Certificate
+from app.repositories.certificate_repository import CertificateRepository
 from app.schemas.certificate import ProgressUpdate
 from app.core.config import settings
 import uuid
@@ -13,6 +14,26 @@ from datetime import datetime
 
 class CertService:
     # ==================== PROGRESS SERVICES ====================
+    @staticmethod
+    async def get_or_issue_certificate(db: AsyncSession, user_id: int, course_id: int) -> Certificate:
+        certificate_repo = CertificateRepository(db)
+        certificate = await certificate_repo.get_by_user_and_course_with_relations(user_id, course_id)
+        if certificate:
+            return certificate
+
+        issued_certificate = await CertService.check_and_issue_certificate(db, user_id, course_id)
+        if not issued_certificate:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "Ban chua du dieu kien nhan chung chi cho khoa hoc nay "
+                    "(phai hoan thanh 100% bai hoc va thi do bai kiem tra)."
+                ),
+            )
+
+        refreshed_certificate = await certificate_repo.get_by_user_and_course_with_relations(user_id, course_id)
+        return refreshed_certificate or issued_certificate
+
     @staticmethod
     async def update_lesson_progress(db: AsyncSession, user_id: int, lesson_id: int, progress_in: ProgressUpdate) -> Progress:
         # 1. Tìm bài học kèm chương học

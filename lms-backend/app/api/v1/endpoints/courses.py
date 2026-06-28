@@ -1,11 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+﻿from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_db, get_current_user, get_current_user_optional
-from sqlalchemy.orm import attributes
 
 from app.models.user import User
 from app.schemas.user import UserResponse
-from app.models.course import Course
 from app.schemas.course import (
     CategoryCreate, CategoryResponse,
     CourseCreate, CourseUpdate, CourseResponse, CourseDetailResponse,
@@ -15,27 +13,26 @@ from app.schemas.course import (
     ReviewCreate, ReviewResponse
 )
 from app.services.course_service import CourseService
-from app.models.course import Enrollment
 from typing import List, Optional
 from decimal import Decimal
 
 router = APIRouter()
 
-# Helper Dependency để xác thực quyền Giảng viên
+# Helper Dependency Ä‘á»ƒ xÃ¡c thá»±c quyá»n Giáº£ng viÃªn
 def require_instructor(current_user: User = Depends(get_current_user)) -> User:
     if current_user.vai_tro not in ["instructor", "admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Yêu cầu quyền giảng viên hoặc admin."
+            detail="YÃªu cáº§u quyá»n giáº£ng viÃªn hoáº·c admin."
         )
     return current_user
 
-# Helper Dependency để xác thực quyền Admin
+# Helper Dependency Ä‘á»ƒ xÃ¡c thá»±c quyá»n Admin
 def require_admin(current_user: User = Depends(get_current_user)) -> User:
     if current_user.vai_tro != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Yêu cầu quyền admin."
+            detail="YÃªu cáº§u quyá»n admin."
         )
     return current_user
 
@@ -150,25 +147,7 @@ async def get_course_students(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_instructor)
 ):
-    from sqlalchemy import select
-    from sqlalchemy.orm import selectinload
-    
-    # Kiểm tra khóa học thuộc về giảng viên
-    result = await db.execute(select(Course).where(Course.id == course_id, Course.ma_giang_vien == current_user.id))
-    course = result.scalars().first()
-    if not course:
-        raise HTTPException(status_code=404, detail="Khóa học không tồn tại hoặc bạn không có quyền.")
-        
-    # Lấy danh sách đăng ký học của khóa học này
-    enroll_result = await db.execute(
-        select(Enrollment)
-        .options(selectinload(Enrollment.nguoi_dung))
-        .where(Enrollment.ma_khoa_hoc == course_id)
-        .order_by(Enrollment.id.desc())
-    )
-    enrollments = enroll_result.scalars().all()
-    
-    return [enrollment.nguoi_dung for enrollment in enrollments]
+    return await CourseService.get_course_students(db, course_id, current_user.id)
 
 @router.put(
     "/courses/{course_id}",
@@ -185,7 +164,7 @@ async def update_course(
         if course_in.da_xuat_ban is True or course_in.trang_thai_phe_duyet == "approved":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Chỉ quản trị viên mới có quyền phê duyệt/xuất bản khóa học."
+                detail="Chá»‰ quáº£n trá»‹ viÃªn má»›i cÃ³ quyá»n phÃª duyá»‡t/xuáº¥t báº£n khÃ³a há»c."
             )
     return await CourseService.update_course(db, course_id, course_in, current_user.id)
 
@@ -228,7 +207,7 @@ async def delete_section(
     current_user: User = Depends(require_instructor)
 ):
     await CourseService.delete_section(db, section_id, current_user.id)
-    return {"status": "success", "message": "Đã xóa chương học thành công."}
+    return {"status": "success", "message": "ÄÃ£ xÃ³a chÆ°Æ¡ng há»c thÃ nh cÃ´ng."}
 
 
 # ==================== LESSON ENDPOINTS ====================
@@ -261,7 +240,7 @@ async def update_lesson(
         if lesson_in.da_xuat_ban is True or lesson_in.trang_thai_phe_duyet == "approved":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Chỉ quản trị viên mới có quyền phê duyệt/xuất bản bài học."
+                detail="Chá»‰ quáº£n trá»‹ viÃªn má»›i cÃ³ quyá»n phÃª duyá»‡t/xuáº¥t báº£n bÃ i há»c."
             )
     return await CourseService.update_lesson(db, lesson_id, lesson_in, current_user.id)
 
@@ -275,7 +254,7 @@ async def delete_lesson(
     current_user: User = Depends(require_instructor)
 ):
     success = await CourseService.delete_lesson(db, lesson_id, current_user.id)
-    return {"status": "success", "message": "Đã xóa bài học thành công."}
+    return {"status": "success", "message": "ÄÃ£ xÃ³a bÃ i há»c thÃ nh cÃ´ng."}
 
 # ==================== LESSON CONTENT ENDPOINTS ====================
 @router.post(
@@ -315,7 +294,7 @@ async def delete_lesson_content(
     current_user: User = Depends(require_instructor)
 ):
     await CourseService.delete_lesson_content(db, content_id, current_user.id)
-    return {"status": "success", "message": "Đã xóa nội dung bài học thành công."}
+    return {"status": "success", "message": "ÄÃ£ xÃ³a ná»™i dung bÃ i há»c thÃ nh cÃ´ng."}
 
 
 # ==================== PUBLIC SEARCH & FILTER ENDPOINTS ====================
@@ -325,14 +304,14 @@ async def delete_lesson_content(
     summary="Search, filter, and sort courses for students and guests"
 )
 async def get_courses(
-    q: Optional[str] = Query(None, description="Từ khóa tìm kiếm trong tiêu đề và mô tả"),
-    category_id: Optional[int] = Query(None, alias="ma_danh_muc", description="ID Danh mục"),
-    level: Optional[str] = Query(None, alias="trinh_do", description="Trình độ: beginner, intermediate, advanced"),
-    min_price: Optional[Decimal] = Query(None, alias="gia_min", description="Giá tối thiểu"),
-    max_price: Optional[Decimal] = Query(None, alias="gia_max", description="Giá tối đa"),
-    instructor_id: Optional[int] = Query(None, alias="ma_giang_vien", description="ID Giảng viên"),
-    sort_by: Optional[str] = Query("ngay_tao", description="Trường sắp xếp: ngay_tao, gia_tien, danh_gia_trung_binh"),
-    order: Optional[str] = Query("desc", description="Hướng sắp xếp: asc hoặc desc"),
+    q: Optional[str] = Query(None, description="Tá»« khÃ³a tÃ¬m kiáº¿m trong tiÃªu Ä‘á» vÃ  mÃ´ táº£"),
+    category_id: Optional[int] = Query(None, alias="ma_danh_muc", description="ID Danh má»¥c"),
+    level: Optional[str] = Query(None, alias="trinh_do", description="TrÃ¬nh Ä‘á»™: beginner, intermediate, advanced"),
+    min_price: Optional[Decimal] = Query(None, alias="gia_min", description="GiÃ¡ tá»‘i thiá»ƒu"),
+    max_price: Optional[Decimal] = Query(None, alias="gia_max", description="GiÃ¡ tá»‘i Ä‘a"),
+    instructor_id: Optional[int] = Query(None, alias="ma_giang_vien", description="ID Giáº£ng viÃªn"),
+    sort_by: Optional[str] = Query("ngay_tao", description="TrÆ°á»ng sáº¯p xáº¿p: ngay_tao, gia_tien, danh_gia_trung_binh"),
+    order: Optional[str] = Query("desc", description="HÆ°á»›ng sáº¯p xáº¿p: asc hoáº·c desc"),
     skip: int = 0,
     limit: int = 20,
     db: AsyncSession = Depends(get_db)
@@ -353,27 +332,7 @@ async def get_course_detail(
     db: AsyncSession = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user_optional)
 ):
-    course = await CourseService.get_course(db, course_id)
-    
-    # Kiểm tra xem người dùng hiện tại có phải giảng viên sở hữu hoặc admin không
-    is_owner_or_admin = False
-    if current_user:
-        if current_user.vai_tro == "admin" or course.ma_giang_vien == current_user.id:
-            is_owner_or_admin = True
-
-    if not is_owner_or_admin and (not course.da_xuat_ban or course.trang_thai_phe_duyet != "approved"):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Không tìm thấy khóa học."
-        )
-            
-    # Nếu không phải chủ sở hữu hoặc admin, ẩn các bài học chưa xuất bản (da_xuat_ban = False)
-    if not is_owner_or_admin:
-        for section in course.chuong_hoc:
-            filtered_lessons = [l for l in section.bai_hoc if l.da_xuat_ban]
-            attributes.set_committed_value(section, "bai_hoc", filtered_lessons)
-            
-    return course
+    return await CourseService.get_course_detail_for_viewer(db, course_id, current_user)
 
 
 # ==================== COURSE REVIEW ENDPOINTS ====================
@@ -403,4 +362,3 @@ async def get_course_reviews(
     db: AsyncSession = Depends(get_db)
 ):
     return await CourseService.get_course_reviews(db, course_id, skip=skip, limit=limit)
-

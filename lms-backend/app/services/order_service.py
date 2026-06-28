@@ -1,15 +1,18 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import and_, delete, desc, select
-from sqlalchemy.orm import selectinload, attributes
+from sqlalchemy.orm import attributes
 from fastapi import HTTPException, status
 from app.models.cart import CartItem
 from app.models.course import Course, Enrollment
 from app.models.order import Coupon, Order, OrderItem
 from app.models.notification import Notification
+from app.repositories.cart_repository import CartRepository
+from app.repositories.course_repository import CourseRepository, EnrollmentRepository
+from app.repositories.notification_repository import NotificationRepository
+from app.repositories.order_repository import CouponRepository, OrderItemRepository, OrderRepository
 from app.schemas.order import CouponCreate, CheckoutRequest, PaymentMockRequest
-from typing import List, Optional
+from typing import List
 from decimal import Decimal
-from datetime import datetime, timezone
+from datetime import datetime
 
 class OrderService:
     # ==================== CART SERVICES ====================
@@ -29,12 +32,8 @@ class OrderService:
 
     @staticmethod
     async def get_cart(db: AsyncSession, user_id: int):
-        result = await db.execute(
-            select(CartItem)
-            .options(selectinload(CartItem.khoa_hoc).selectinload(Course.giang_vien))
-            .where(CartItem.ma_nguoi_dung == user_id)
-        )
-        cart_items = list(result.scalars().all())
+        cart_repo = CartRepository(db)
+        cart_items = await cart_repo.get_by_user_with_course_and_instructor(user_id)
         
         # Tính tổng tiền tạm tính
         tong_tien = Decimal("0.00")
@@ -49,13 +48,12 @@ class OrderService:
 
     @staticmethod
     async def add_to_cart(db: AsyncSession, user_id: int, course_id: int) -> CartItem:
+        cart_repo = CartRepository(db)
+        course_repo = CourseRepository(db)
+        enrollment_repo = EnrollmentRepository(db)
+
         # 1. Kiểm tra khóa học tồn tại
-        course_result = await db.execute(
-            select(Course)
-            .options(selectinload(Course.giang_vien))
-            .where(Course.id == course_id)
-        )
-        course = course_result.scalars().first()
+        course = await course_repo.get_by_id_with_instructor(course_id)
         if not course:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -65,30 +63,14 @@ class OrderService:
         OrderService._ensure_course_purchasable(course, user_id)
 
         # 2. Kiểm tra người dùng đã đăng ký học khóa học này chưa (Đã mua thành công)
-        enrolled_result = await db.execute(
-            select(Enrollment).where(
-                and_(
-                    Enrollment.ma_nguoi_dung == user_id,
-                    Enrollment.ma_khoa_hoc == course_id
-                )
-            )
-        )
-        if enrolled_result.scalars().first():
+        if await enrollment_repo.get_by_user_and_course(user_id, course_id):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Bạn đã mua và ghi danh khóa học này rồi."
             )
 
         # 3. Kiểm tra khóa học đã có sẵn trong giỏ chưa
-        existing_item = await db.execute(
-            select(CartItem).where(
-                and_(
-                    CartItem.ma_nguoi_dung == user_id,
-                    CartItem.ma_khoa_hoc == course_id
-                )
-            )
-        )
-        if existing_item.scalars().first():
+        if await cart_repo.get_by_user_and_course(user_id, course_id):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Khóa học đã có sẵn trong giỏ hàng."
@@ -99,24 +81,17 @@ class OrderService:
             ma_nguoi_dung=user_id,
             ma_khoa_hoc=course_id
         )
-        db.add(cart_item)
+        await cart_repo.add(cart_item)
         await db.commit()
-        await db.refresh(cart_item)
+        await cart_repo.refresh(cart_item)
         # Gán trước thực thể khoa_hoc để tránh kích hoạt lazy-loading khi serialize
         attributes.set_committed_value(cart_item, "khoa_hoc", course)
         return cart_item
 
     @staticmethod
     async def remove_from_cart(db: AsyncSession, user_id: int, course_id: int) -> bool:
-        result = await db.execute(
-            select(CartItem).where(
-                and_(
-                    CartItem.ma_nguoi_dung == user_id,
-                    CartItem.ma_khoa_hoc == course_id
-                )
-            )
-        )
-        item_to_delete = result.scalars().first()
+        cart_repo = CartRepository(db)
+        item_to_delete = await cart_repo.get_by_user_and_course(user_id, course_id)
                 
         if not item_to_delete:
             raise HTTPException(
@@ -124,16 +99,17 @@ class OrderService:
                 detail="Khóa học không nằm trong giỏ hàng."
             )
             
-        await db.delete(item_to_delete)
+        await cart_repo.delete(item_to_delete)
         await db.commit()
         return True
 
     # ==================== COUPON SERVICES ====================
     @staticmethod
     async def create_coupon(db: AsyncSession, coupon_in: CouponCreate) -> Coupon:
+        coupon_repo = CouponRepository(db)
+
         # Kiểm tra mã trùng lặp
-        result = await db.execute(select(Coupon).where(Coupon.ma_code == coupon_in.ma_code))
-        if result.scalars().first():
+        if await coupon_repo.get_by_code(coupon_in.ma_code):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Mã giảm giá này đã tồn tại."
@@ -149,15 +125,17 @@ class OrderService:
             so_luot_dung_toi_da=coupon_in.so_luot_dung_toi_da,
             ngay_het_han=coupon_in.ngay_het_han
         )
-        db.add(db_coupon)
+        await coupon_repo.add(db_coupon)
         await db.commit()
-        await db.refresh(db_coupon)
+        await coupon_repo.refresh(db_coupon)
         return db_coupon
 
     @staticmethod
     async def apply_coupon(db: AsyncSession, code: str, original_amount: Decimal, user_id: int) -> Coupon:
-        result = await db.execute(select(Coupon).where(Coupon.ma_code == code))
-        coupon = result.scalars().first()
+        coupon_repo = CouponRepository(db)
+        order_repo = OrderRepository(db)
+
+        coupon = await coupon_repo.get_by_code(code)
         if not coupon:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -186,16 +164,7 @@ class OrderService:
             )
 
         # 4. Kiểm tra xem người dùng đã sử dụng mã này chưa
-        used_result = await db.execute(
-            select(Order).where(
-                and_(
-                    Order.ma_nguoi_dung == user_id,
-                    Order.ma_giam_gia_id == coupon.id,
-                    Order.trang_thai == "success"
-                )
-            )
-        )
-        if used_result.scalars().first():
+        if await order_repo.get_successful_coupon_use(user_id, coupon.id):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Bạn đã sử dụng mã giảm giá này cho một đơn hàng trước đó."
@@ -206,6 +175,10 @@ class OrderService:
     # ==================== ORDER & CHECKOUT SERVICES ====================
     @staticmethod
     async def checkout(db: AsyncSession, user_id: int, checkout_in: CheckoutRequest) -> Order:
+        coupon_repo = CouponRepository(db)
+        order_repo = OrderRepository(db)
+        order_item_repo = OrderItemRepository(db)
+
         cart_data = await OrderService.get_cart(db, user_id)
         if not cart_data["chi_tiet_gio_hang"]:
             raise HTTPException(
@@ -228,8 +201,7 @@ class OrderService:
 
         # 2. Áp dụng giảm giá nếu có coupon_id
         if checkout_in.coupon_id:
-            coupon_result = await db.execute(select(Coupon).where(Coupon.id == checkout_in.coupon_id))
-            coupon = coupon_result.scalars().first()
+            coupon = await coupon_repo.get_by_id(checkout_in.coupon_id)
             if not coupon:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -240,16 +212,7 @@ class OrderService:
             is_below_min = original_amount < coupon.gia_tri_don_toi_thieu
             is_limit_reached = coupon.so_luot_dung_toi_da is not None and coupon.so_luot_da_dung >= coupon.so_luot_dung_toi_da
 
-            used_res = await db.execute(
-                select(Order).where(
-                    and_(
-                        Order.ma_nguoi_dung == user_id,
-                        Order.ma_giam_gia_id == coupon.id,
-                        Order.trang_thai == "success"
-                    )
-                )
-            )
-            is_already_used = used_res.scalars().first() is not None
+            is_already_used = await order_repo.get_successful_coupon_use(user_id, coupon.id) is not None
 
             if is_expired:
                 raise HTTPException(
@@ -290,8 +253,8 @@ class OrderService:
             tong_tien=final_amount,
             trang_thai="pending"
         )
-        db.add(db_order)
-        await db.flush()
+        await order_repo.add(db_order)
+        await order_repo.flush()
 
         # 4. Tạo chi tiết các OrderItem
         for item in cart_data["chi_tiet_gio_hang"]:
@@ -300,45 +263,28 @@ class OrderService:
                 ma_khoa_hoc=item.ma_khoa_hoc,
                 gia_luc_mua=item.khoa_hoc.gia_tien if item.khoa_hoc else Decimal("0.00")
             )
-            db.add(order_item)
+            await order_item_repo.add(order_item)
 
         await db.commit()
         
         # Load đầy đủ chi tiết đơn hàng để trả về
-        result = await db.execute(
-            select(Order)
-            .options(
-                selectinload(Order.chi_tiet_don_hang)
-                .selectinload(OrderItem.khoa_hoc)
-                .selectinload(Course.giang_vien)
+        order = await order_repo.get_by_id_with_items_course_instructor(db_order.id)
+        if order is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Đơn hàng vừa tạo không tồn tại."
             )
-            .where(Order.id == db_order.id)
-        )
-        return result.scalars().one()
+        return order
 
     @staticmethod
     async def get_my_orders(db: AsyncSession, user_id: int) -> List[Order]:
-        result = await db.execute(
-            select(Order)
-            .options(
-                selectinload(Order.chi_tiet_don_hang)
-                .selectinload(OrderItem.khoa_hoc)
-                .selectinload(Course.giang_vien)
-            )
-            .where(Order.ma_nguoi_dung == user_id)
-            .order_by(desc(Order.ngay_tao))
-        )
-        return list(result.scalars().all())
+        order_repo = OrderRepository(db)
+        return await order_repo.list_by_user_with_items(user_id)
 
     @staticmethod
     async def process_mock_payment(db: AsyncSession, payment_in: PaymentMockRequest, user_id: int) -> Order:
-        result = await db.execute(
-            select(Order)
-            .options(selectinload(Order.chi_tiet_don_hang))
-            .where(Order.id == payment_in.order_id)
-            .with_for_update()
-        )
-        order = result.scalars().first()
+        order_repo = OrderRepository(db)
+        order = await order_repo.get_by_id_with_items_for_update(payment_in.order_id)
         if not order:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -367,13 +313,8 @@ class OrderService:
         payment_method: str,
         transaction_code: str,
     ) -> Order:
-        result = await db.execute(
-            select(Order)
-            .options(selectinload(Order.chi_tiet_don_hang))
-            .where(Order.id == order_id)
-            .with_for_update()
-        )
-        order = result.scalars().first()
+        order_repo = OrderRepository(db)
+        order = await order_repo.get_by_id_with_items_for_update(order_id)
         if not order or order.ma_nguoi_dung is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -396,22 +337,24 @@ class OrderService:
         payment_method: str,
         transaction_code: str,
     ) -> Order:
+        cart_repo = CartRepository(db)
+        coupon_repo = CouponRepository(db)
+        enrollment_repo = EnrollmentRepository(db)
+        order_repo = OrderRepository(db)
+
         if order.trang_thai == "success":
             if order.ma_giao_dich != transaction_code:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Đơn hàng đã được thanh toán bằng một mã giao dịch khác."
                 )
-            refreshed_result = await db.execute(
-                select(Order)
-                .options(
-                    selectinload(Order.chi_tiet_don_hang)
-                    .selectinload(OrderItem.khoa_hoc)
-                    .selectinload(Course.giang_vien)
+            refreshed_order = await order_repo.get_by_id_with_items_course_instructor(order.id)
+            if refreshed_order is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Đơn hàng không tồn tại."
                 )
-                .where(Order.id == order.id)
-            )
-            return refreshed_result.scalars().one()
+            return refreshed_order
 
         if order.trang_thai != "pending":
             raise HTTPException(
@@ -423,15 +366,10 @@ class OrderService:
         order.ma_giao_dich = transaction_code
         order.ngay_thanh_toan = datetime.now()
         order.trang_thai = "success"
-        db.add(order)
+        await order_repo.add(order)
 
         if order.ma_giam_gia_id:
-            coupon_res = await db.execute(
-                select(Coupon)
-                .where(Coupon.id == order.ma_giam_gia_id)
-                .with_for_update()
-            )
-            coupon = coupon_res.scalars().first()
+            coupon = await coupon_repo.get_by_id_for_update(order.ma_giam_gia_id)
             if coupon:
                 # 1. Kiểm tra ngày hết hạn
                 if coupon.ngay_het_han and coupon.ngay_het_han < datetime.now():
@@ -446,78 +384,38 @@ class OrderService:
                         detail="Mã giảm giá đã đạt số lần sử dụng tối đa."
                     )
                 # 3. Kiểm tra xem người dùng đã sử dụng mã này cho đơn hàng thành công khác chưa
-                used_result = await db.execute(
-                    select(Order).where(
-                        and_(
-                            Order.ma_nguoi_dung == user_id,
-                            Order.ma_giam_gia_id == coupon.id,
-                            Order.trang_thai == "success",
-                            Order.id != order.id
-                        )
-                    )
-                )
-                if used_result.scalars().first():
+                if await order_repo.get_successful_coupon_use(user_id, coupon.id, exclude_order_id=order.id):
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail="Bạn đã sử dụng mã giảm giá này cho một đơn hàng khác."
                     )
 
                 coupon.so_luot_da_dung += 1
-                db.add(coupon)
+                await coupon_repo.add(coupon)
 
         purchased_course_ids = []
         for item in order.chi_tiet_don_hang:
             if item.ma_khoa_hoc:
                 purchased_course_ids.append(item.ma_khoa_hoc)
-                enroll_check = await db.execute(
-                    select(Enrollment).where(
-                        and_(
-                            Enrollment.ma_nguoi_dung == user_id,
-                            Enrollment.ma_khoa_hoc == item.ma_khoa_hoc
-                        )
-                    )
-                )
-                if not enroll_check.scalars().first():
+                if not await enrollment_repo.get_by_user_and_course(user_id, item.ma_khoa_hoc):
                     new_enrollment = Enrollment(
                         ma_nguoi_dung=user_id,
                         ma_khoa_hoc=item.ma_khoa_hoc
                     )
-                    db.add(new_enrollment)
+                    await enrollment_repo.add(new_enrollment)
 
         if purchased_course_ids:
-            await db.execute(
-                delete(CartItem).where(
-                    and_(
-                        CartItem.ma_nguoi_dung == user_id,
-                        CartItem.ma_khoa_hoc.in_(purchased_course_ids),
-                    )
-                )
-            )
+            await cart_repo.delete_by_user_and_course_ids(user_id, purchased_course_ids)
 
         await db.commit()
-        refreshed_result = await db.execute(
-            select(Order)
-            .options(
-                selectinload(Order.chi_tiet_don_hang)
-                .selectinload(OrderItem.khoa_hoc)
-            )
-            .where(Order.id == order.id)
-        )
-        return refreshed_result.scalars().one()
+        return await order_repo.get_by_id_with_items_course(order.id)
 
     @staticmethod
     async def refund_order(db: AsyncSession, order_id: int, user_id: int) -> Order:
+        order_repo = OrderRepository(db)
+
         # 1. Tìm đơn hàng kèm theo chi tiết và thông tin khóa học để tránh lazy-load khi serialize
-        result = await db.execute(
-            select(Order)
-            .options(
-                selectinload(Order.chi_tiet_don_hang)
-                .selectinload(OrderItem.khoa_hoc)
-                .selectinload(Course.giang_vien)
-            )
-            .where(Order.id == order_id)
-        )
-        order = result.scalars().first()
+        order = await order_repo.get_by_id_with_items_course_instructor(order_id)
         if not order:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -561,35 +459,28 @@ class OrderService:
 
         # 5. Cập nhật trạng thái đơn hàng sang 'refund_requested' (chờ phê duyệt)
         order.trang_thai = "refund_requested"
-        db.add(order)
+        await order_repo.add(order)
 
         await db.commit()
         
         # 6. Tải lại đơn hàng cùng các quan hệ để tránh lỗi lazy-load khi serialize response
-        refreshed_result = await db.execute(
-            select(Order)
-            .options(
-                selectinload(Order.chi_tiet_don_hang)
-                .selectinload(OrderItem.khoa_hoc)
-                .selectinload(Course.giang_vien)
+        refreshed_order = await order_repo.get_by_id_with_items_course_instructor(order_id)
+        if refreshed_order is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Đơn hàng không tồn tại."
             )
-            .where(Order.id == order_id)
-        )
-        return refreshed_result.scalars().one()
+        return refreshed_order
 
     @staticmethod
     async def approve_refund(db: AsyncSession, order_id: int) -> Order:
+        coupon_repo = CouponRepository(db)
+        enrollment_repo = EnrollmentRepository(db)
+        notification_repo = NotificationRepository(db)
+        order_repo = OrderRepository(db)
+
         # 1. Tìm đơn hàng kèm theo chi tiết và thông tin khóa học
-        result = await db.execute(
-            select(Order)
-            .options(
-                selectinload(Order.chi_tiet_don_hang)
-                .selectinload(OrderItem.khoa_hoc)
-                .selectinload(Course.giang_vien)
-            )
-            .where(Order.id == order_id)
-        )
-        order = result.scalars().first()
+        order = await order_repo.get_by_id_with_items_course_instructor(order_id)
         if not order:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -597,6 +488,12 @@ class OrderService:
             )
 
         # 2. Kiểm tra trạng thái đơn hàng
+        if order.ma_nguoi_dung is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Don hang khong con thong tin hoc vien."
+            )
+
         if order.trang_thai != "refund_requested":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -605,30 +502,24 @@ class OrderService:
 
         # 3. Cập nhật trạng thái đơn hàng sang 'refunded'
         order.trang_thai = "refunded"
-        db.add(order)
+        await order_repo.add(order)
 
         # 4. Thu hồi quyền học tập (Hủy Enrollment)
         for item in order.chi_tiet_don_hang:
             if item.ma_khoa_hoc:
-                enroll_result = await db.execute(
-                    select(Enrollment).where(
-                        and_(
-                            Enrollment.ma_nguoi_dung == order.ma_nguoi_dung,
-                            Enrollment.ma_khoa_hoc == item.ma_khoa_hoc
-                        )
-                    )
+                enrollment = await enrollment_repo.get_by_user_and_course(
+                    order.ma_nguoi_dung,
+                    item.ma_khoa_hoc,
                 )
-                enrollment = enroll_result.scalars().first()
                 if enrollment:
-                    await db.delete(enrollment)
+                    await enrollment_repo.delete(enrollment)
 
         # 5. Khôi phục số lượt sử dụng của Mã giảm giá nếu có áp dụng
         if order.ma_giam_gia_id:
-            coupon_res = await db.execute(select(Coupon).where(Coupon.id == order.ma_giam_gia_id))
-            coupon = coupon_res.scalars().first()
+            coupon = await coupon_repo.get_by_id(order.ma_giam_gia_id)
             if coupon and coupon.so_luot_da_dung > 0:
                 coupon.so_luot_da_dung -= 1
-                db.add(coupon)
+                await coupon_repo.add(coupon)
 
         # 6. Tạo thông báo cho học viên
         course_names = ", ".join([item.khoa_hoc.tieu_de for item in order.chi_tiet_don_hang if item.khoa_hoc])
@@ -640,35 +531,26 @@ class OrderService:
             loai="refund",
             da_doc=False
         )
-        db.add(thong_bao)
+        await notification_repo.add(thong_bao)
 
         await db.commit()
 
         # Tải lại đơn hàng cùng các quan hệ
-        refreshed_result = await db.execute(
-            select(Order)
-            .options(
-                selectinload(Order.chi_tiet_don_hang)
-                .selectinload(OrderItem.khoa_hoc)
-                .selectinload(Course.giang_vien)
+        refreshed_order = await order_repo.get_by_id_with_items_course_instructor(order_id)
+        if refreshed_order is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Đơn hàng không tồn tại."
             )
-            .where(Order.id == order_id)
-        )
-        return refreshed_result.scalars().one()
+        return refreshed_order
 
     @staticmethod
     async def reject_refund(db: AsyncSession, order_id: int) -> Order:
+        notification_repo = NotificationRepository(db)
+        order_repo = OrderRepository(db)
+
         # 1. Tìm đơn hàng
-        result = await db.execute(
-            select(Order)
-            .options(
-                selectinload(Order.chi_tiet_don_hang)
-                .selectinload(OrderItem.khoa_hoc)
-                .selectinload(Course.giang_vien)
-            )
-            .where(Order.id == order_id)
-        )
-        order = result.scalars().first()
+        order = await order_repo.get_by_id_with_items_course_instructor(order_id)
         if not order:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -676,6 +558,12 @@ class OrderService:
             )
 
         # 2. Kiểm tra trạng thái đơn hàng
+        if order.ma_nguoi_dung is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Don hang khong con thong tin hoc vien."
+            )
+
         if order.trang_thai != "refund_requested":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -684,7 +572,7 @@ class OrderService:
 
         # 3. Khôi phục trạng thái đơn hàng sang 'success'
         order.trang_thai = "success"
-        db.add(order)
+        await order_repo.add(order)
 
         # 4. Tạo thông báo cho học viên
         course_names = ", ".join([item.khoa_hoc.tieu_de for item in order.chi_tiet_don_hang if item.khoa_hoc])
@@ -696,35 +584,25 @@ class OrderService:
             loai="refund",
             da_doc=False
         )
-        db.add(thong_bao)
+        await notification_repo.add(thong_bao)
 
         await db.commit()
 
         # Tải lại đơn hàng cùng các quan hệ
-        refreshed_result = await db.execute(
-            select(Order)
-            .options(
-                selectinload(Order.chi_tiet_don_hang)
-                .selectinload(OrderItem.khoa_hoc)
-                .selectinload(Course.giang_vien)
+        refreshed_order = await order_repo.get_by_id_with_items_course_instructor(order_id)
+        if refreshed_order is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Đơn hàng không tồn tại."
             )
-            .where(Order.id == order_id)
-        )
-        return refreshed_result.scalars().one()
+        return refreshed_order
 
     @staticmethod
     async def cancel_refund_request(db: AsyncSession, order_id: int, user_id: int) -> Order:
+        order_repo = OrderRepository(db)
+
         # 1. Tìm đơn hàng
-        result = await db.execute(
-            select(Order)
-            .options(
-                selectinload(Order.chi_tiet_don_hang)
-                .selectinload(OrderItem.khoa_hoc)
-                .selectinload(Course.giang_vien)
-            )
-            .where(Order.id == order_id)
-        )
-        order = result.scalars().first()
+        order = await order_repo.get_by_id_with_items_course_instructor(order_id)
         if not order:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -747,18 +625,15 @@ class OrderService:
 
         # 4. Khôi phục trạng thái đơn hàng sang 'success'
         order.trang_thai = "success"
-        db.add(order)
+        await order_repo.add(order)
 
         await db.commit()
 
         # Tải lại đơn hàng cùng các quan hệ
-        refreshed_result = await db.execute(
-            select(Order)
-            .options(
-                selectinload(Order.chi_tiet_don_hang)
-                .selectinload(OrderItem.khoa_hoc)
-                .selectinload(Course.giang_vien)
+        refreshed_order = await order_repo.get_by_id_with_items_course_instructor(order_id)
+        if refreshed_order is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Đơn hàng không tồn tại."
             )
-            .where(Order.id == order_id)
-        )
-        return refreshed_result.scalars().one()
+        return refreshed_order

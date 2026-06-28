@@ -46,13 +46,7 @@ from app.models.setting import Setting
 from app.models.log import AdminLog
 from app.schemas.setting import SettingResponse, SettingCreate, SettingUpdate
 from app.schemas.log import AdminLogResponse
-
-# Create a simplified Order schema for Admin CRUD just to satisfy the router generator
-from pydantic import BaseModel
-class AdminGenericCreate(BaseModel):
-    pass
-class AdminGenericUpdate(BaseModel):
-    pass
+from app.schemas.dynamic_admin import AdminGenericCreate, AdminGenericUpdate
 
 dynamic_router = APIRouter()
 

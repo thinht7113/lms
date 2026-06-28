@@ -1,12 +1,12 @@
 from fastapi import Cookie, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 import jwt
 from typing import AsyncGenerator, Optional
 from app.core.config import settings
 from app.core.database import async_session_maker
 from app.models.user import User
+from app.repositories.user_repository import UserRepository
 
 # Thư viện bảo mật lấy Token từ HTTP Header Authorization: Bearer <token>
 oauth2_scheme = OAuth2PasswordBearer(
@@ -53,8 +53,8 @@ async def get_current_user(
         raise credentials_exception
 
     # Truy vấn dữ liệu người dùng từ ID lấy trong token
-    result = await db.execute(select(User).where(User.id == int(user_id)))
-    user = result.scalars().first()
+    user_repo = UserRepository(db)
+    user = await user_repo.get_by_id(int(user_id))
     if user is None or not user.trang_thai_hoat_dong:
         raise credentials_exception
         
@@ -81,8 +81,8 @@ async def get_current_user_optional(
         user_id: str = payload.get("sub")
         if user_id is None:
             return None
-        result = await db.execute(select(User).where(User.id == int(user_id)))
-        user = result.scalars().first()
+        user_repo = UserRepository(db)
+        user = await user_repo.get_by_id(int(user_id))
         if user is None or not user.trang_thai_hoat_dong:
             return None
         return user

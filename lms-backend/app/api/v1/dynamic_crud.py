@@ -1,11 +1,14 @@
 from enum import Enum
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_, String
-from typing import Type, Any, Optional, List, Dict, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Type
+
+from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel
-from app.api.deps import get_db, get_current_admin_user
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.deps import get_current_admin_user, get_db
 from app.models.user import User
+from app.services.dynamic_crud_service import DynamicCrudService
+
 
 def create_crud_router(
     model: Type[Any],
@@ -15,7 +18,7 @@ def create_crud_router(
     prefix: str,
     tags: Sequence[str | Enum] | None = None,
     search_columns: Optional[List[str]] = None,
-    options: Optional[List[Any]] = None
+    options: Optional[List[Any]] = None,
 ) -> APIRouter:
     router = APIRouter(prefix=prefix, tags=list(tags) if tags is not None else None)
 
@@ -27,145 +30,52 @@ def create_crud_router(
         filter_col: Optional[str] = None,
         filter_val: Optional[str] = None,
         db: AsyncSession = Depends(get_db),
-        current_admin: User = Depends(get_current_admin_user)
+        current_admin: User = Depends(get_current_admin_user),
     ):
-        query = select(model)
-        if options:
-            query = query.options(*options)
-        count_query = select(func.count()).select_from(model)
-
-        if filter_col and filter_val and hasattr(model, filter_col):
-            col = getattr(model, filter_col)
-            # Try to convert to int if it's a numeric column
-            val = int(filter_val) if filter_val.isdigit() else filter_val
-            query = query.where(col == val)
-            count_query = count_query.where(col == val)
-
-        if search and search_columns:
-            conditions = []
-            for col_name in search_columns:
-                col = getattr(model, col_name)
-                if isinstance(col.type, String):
-                    conditions.append(col.ilike(f"%{search}%"))
-            if conditions:
-                query = query.where(or_(*conditions))
-                count_query = count_query.where(or_(*conditions))
-
-        if hasattr(model, 'id'):
-            query = query.order_by(model.id.desc())
-
-        query = query.offset(skip).limit(limit)
-        
-        result = await db.execute(query)
-        items = result.scalars().all()
-        
-        total_result = await db.execute(count_query)
-        total = total_result.scalar() or 0
-
-        # Convert SQLAlchemy models to Pydantic schemas explicitly then to dict
-        items_data = [response_schema.model_validate(item).model_dump() for item in items]
-
-        # Trả về format chuẩn để React Admin / Dynamic UI dễ xử lý
-        return {
-            "data": items_data,
-            "total": total,
-            "skip": skip,
-            "limit": limit
-        }
+        return await DynamicCrudService.list_items(
+            db=db,
+            model=model,
+            response_schema=response_schema,
+            skip=skip,
+            limit=limit,
+            search=search,
+            filter_col=filter_col,
+            filter_val=filter_val,
+            search_columns=search_columns,
+            options=options,
+        )
 
     @router.get("/{item_id}", response_model=response_schema)
     async def get_one(
         item_id: int,
         db: AsyncSession = Depends(get_db),
-        current_admin: User = Depends(get_current_admin_user)
+        current_admin: User = Depends(get_current_admin_user),
     ):
-        q = select(model).where(model.id == item_id)
-        if options:
-            q = q.options(*options)
-        result = await db.execute(q)
-        item = result.scalars().first()
-        if not item:
-            raise HTTPException(status_code=404, detail="Item not found")
-        return item
+        return await DynamicCrudService.get_item(db, model, item_id, options)
 
     @router.post("", response_model=response_schema, status_code=status.HTTP_201_CREATED)
     async def create_item(
         item_in: create_schema,  # pyright: ignore[reportInvalidTypeForm]
         db: AsyncSession = Depends(get_db),
-        current_admin: User = Depends(get_current_admin_user)
+        current_admin: User = Depends(get_current_admin_user),
     ):
-        # Chuyển Pydantic model thành dict
-        item_data = item_in.model_dump(exclude_unset=True)
-
-        # Lọc bỏ các key không phải là cột thật trong DB (như relationship, property)
-        from sqlalchemy import inspect
-        mapper = inspect(model)
-        column_keys = {c.key for c in mapper.attrs if hasattr(c, 'columns')}
-        valid_data = {k: v for k, v in item_data.items() if k in column_keys}
-
-        db_item = model(**valid_data)
-        db.add(db_item)
-        await db.commit()
-        await db.refresh(db_item)
-        if options:
-            query = select(model).where(model.id == getattr(db_item, "id", None)).options(*options)
-            result = await db.execute(query)
-            db_item = result.scalars().first() or db_item
-            
-        if model.__name__ == "Category":
-            from app.core.redis import clear_categories_cache
-            await clear_categories_cache()
-        return db_item
+        return await DynamicCrudService.create_item(db, model, item_in, options)
 
     @router.put("/{item_id}", response_model=response_schema)
     async def update_item(
         item_id: int,
         item_in: update_schema,  # pyright: ignore[reportInvalidTypeForm]
         db: AsyncSession = Depends(get_db),
-        current_admin: User = Depends(get_current_admin_user)
+        current_admin: User = Depends(get_current_admin_user),
     ):
-        query = select(model).where(model.id == item_id)
-        if options:
-            query = query.options(*options)
-        result = await db.execute(query)
-        db_item = result.scalars().first()
-
-        if not db_item:
-            raise HTTPException(status_code=404, detail="Item not found")
-
-        update_data = item_in.model_dump(exclude_unset=True)
-        
-        from sqlalchemy import inspect
-        mapper = inspect(model)
-        column_keys = {c.key for c in mapper.attrs if hasattr(c, 'columns')}
-        
-        for field, value in update_data.items():
-            if field in column_keys:
-                setattr(db_item, field, value)
-
-        await db.commit()
-        await db.refresh(db_item)
-        if model.__name__ == "Category":
-            from app.core.redis import clear_categories_cache
-            await clear_categories_cache()
-        return db_item
+        return await DynamicCrudService.update_item(db, model, item_id, item_in, options)
 
     @router.delete("/{item_id}")
     async def delete_item(
         item_id: int,
         db: AsyncSession = Depends(get_db),
-        current_admin: User = Depends(get_current_admin_user)
+        current_admin: User = Depends(get_current_admin_user),
     ):
-        result = await db.execute(select(model).where(model.id == item_id))
-        db_item = result.scalars().first()
-        if not db_item:
-            raise HTTPException(status_code=404, detail="Item not found")
-            
-        await db.delete(db_item)
-        await db.commit()
-        if model.__name__ == "Category":
-            from app.core.redis import clear_categories_cache
-            await clear_categories_cache()
-        return {"status": "success", "message": "Deleted successfully"}
+        return await DynamicCrudService.delete_item(db, model, item_id)
 
     return router

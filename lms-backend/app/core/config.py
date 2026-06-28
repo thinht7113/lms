@@ -5,7 +5,7 @@ DEFAULT_SECRET_KEY = "YOUR_SUPER_SECRET_KEY_FOR_JWT_SIGNING_1234567890"
 DEFAULT_MINIO_SECRET_KEY = "minioadminpassword"
 
 class Settings(BaseSettings):
-    # Cấu hình nạp biến môi trường từ file .env
+    # Cau hinh nap bien moi truong tu file .env
     model_config = SettingsConfigDict(
         env_file=".env", 
         env_file_encoding="utf-8", 
@@ -18,9 +18,9 @@ class Settings(BaseSettings):
     PORT: int = 8000
     
     # 2. Security (JWT)
-    SECRET_KEY: str = DEFAULT_SECRET_KEY  # Đổi trong .env thực tế
+    SECRET_KEY: str = DEFAULT_SECRET_KEY  # Doi trong .env thuc te
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 1 ngày
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 1 ngay
     AUTH_COOKIE_NAME: str = "lms_session"
     AUTH_COOKIE_DOMAIN: Optional[str] = None
     ENABLE_MOCK_AUTH: bool = False
@@ -48,6 +48,12 @@ class Settings(BaseSettings):
     MINIO_BUCKET_NAME: str = "lms-storage"
     MINIO_PUBLIC_URL: str = "http://localhost:9000"
 
+    # 4. External crawler config
+    CRAWLER_HOCTAPGIARE_EMAIL: Optional[str] = None
+    CRAWLER_HOCTAPGIARE_PASSWORD: Optional[str] = None
+    CRAWLER_HOCTAPGIARE_STORAGE_STATE_PATH: Optional[str] = None
+    CRAWLER_DEFAULT_HEADLESS: bool = True
+
     def model_post_init(self, __context) -> None:
         if self.APP_ENV.lower() not in {"production", "prod"}:
             return
@@ -67,5 +73,5 @@ class Settings(BaseSettings):
                 + ". Configure safe values in .env before starting the API."
             )
 
-# Khởi tạo instance duy nhất để import dùng chung toàn dự án
+# Khoi tao instance duy nhat de import dung chung toan du an
 settings = Settings()
