@@ -1,11 +1,12 @@
 ﻿from typing import List
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin_user, get_db
 from app.models.user import User
 from app.schemas.course_import import (
+    CourseImportConfigStatus,
     CourseImportCreate,
     CourseImportImportRequest,
     CourseImportJobResponse,
@@ -16,13 +17,24 @@ from app.services.course_import_service import CourseImportService
 router = APIRouter()
 
 
+@router.get("/config", response_model=CourseImportConfigStatus)
+async def get_course_import_config(
+    current_admin: User = Depends(get_current_admin_user),
+):
+    return CourseImportService.get_hoctapgiare_config_status()
+
+
 @router.post("/hoctapgiare", response_model=CourseImportJobResponse, status_code=status.HTTP_201_CREATED)
 async def crawl_hoctapgiare_courses(
     request: CourseImportCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_admin: User = Depends(get_current_admin_user),
 ):
-    return await CourseImportService.create_hoctapgiare_job(db, request, current_admin.id)
+    job = await CourseImportService.create_hoctapgiare_job(db, request, current_admin.id)
+    if job.status == "running":
+        background_tasks.add_task(CourseImportService.run_hoctapgiare_job, job.id, request)
+    return job
 
 
 @router.get("/", response_model=List[CourseImportJobResponse])

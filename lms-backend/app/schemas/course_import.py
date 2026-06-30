@@ -41,6 +41,14 @@ class CourseImportCreate(BaseModel):
     headless: bool = True
 
 
+class CourseImportConfigStatus(BaseModel):
+    source: str
+    has_login_credentials: bool
+    has_storage_state: bool
+    can_checkout_free: bool
+    headless_default: bool
+
+
 class CourseImportJobResponse(BaseModel):
     id: int
     source: str
@@ -61,4 +69,8 @@ class CourseImportImportRequest(BaseModel):
     publish: bool = Field(False, description="Neu true thi khoa hoc duoc xuat ban sau khi import")
     approve: bool = Field(True, description="Neu true thi trang thai phe duyet la approved")
     category_id: Optional[int] = None
+    course_category_map: Optional[Dict[str, Optional[int]]] = Field(
+        None,
+        description="Anh xa source_url hoac title cua tung khoa hoc draft sang category_id rieng",
+    )
     instructor_id: Optional[int] = Field(None, description="Mac dinh la admin hien tai")

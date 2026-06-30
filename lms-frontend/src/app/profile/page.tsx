@@ -174,7 +174,7 @@ export default function ProfilePage() {
                       </Link>
                     )}
                     {profile.vai_tro === "admin" && (
-                      <Link href="/admin" className="rounded-2xl border border-border bg-background p-5 transition-all hover:-translate-y-1 hover:shadow-lg">
+                      <Link href="/admin" prefetch={false} className="rounded-2xl border border-border bg-background p-5 transition-all hover:-translate-y-1 hover:shadow-lg">
                         <Award className="h-6 w-6 text-primary" />
                         <h3 className="mt-4 font-black text-slate-950">Quản trị hệ thống</h3>
                         <p className="mt-1 text-sm text-muted-foreground">Vào bảng quản trị Lumina LMS.</p>

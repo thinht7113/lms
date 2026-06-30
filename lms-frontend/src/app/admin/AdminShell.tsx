@@ -93,11 +93,8 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         }
         fetchPendingCounts();
 
-        // Refresh every 15 seconds
-        const interval = setInterval(fetchPendingCounts, 15000);
         return () => {
             isMounted = false;
-            clearInterval(interval);
         };
     }, []);
 
@@ -115,7 +112,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             >
                 <div className="flex h-full min-h-0 flex-col">
                     <div className="h-20 flex items-center justify-center border-b border-border/40 shrink-0">
-                        <Link href="/admin">
+                        <Link href="/admin" prefetch={false}>
                             <SystemLogo textLabel="ADMIN" />
                         </Link>
                     </div>
@@ -135,6 +132,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                                             <Link
                                                 key={item.name}
                                                 href={item.href}
+                                                prefetch={false}
                                                 className={`flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-all ${isActive
                                                         ? "bg-primary/10 text-primary font-bold shadow-sm"
                                                         : "hover:bg-secondary/70 text-muted-foreground hover:text-foreground font-medium"

@@ -102,11 +102,6 @@ export default function AdminDashboardPage() {
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div>
-                <h2 className="text-2xl font-black tracking-tight text-foreground">Bảng điều khiển quản trị viên</h2>
-                <p className="mt-1 text-muted-foreground">Số liệu thực tế được cập nhật trực tiếp từ cơ sở dữ liệu.</p>
-            </div>
-
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                 {metricCards.map((stat) => (
                     <div key={stat.label} className="rounded-[1.5rem] border border-border/60 bg-card p-6 shadow-sm transition-shadow hover:shadow-md">

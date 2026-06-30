@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
     
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/lms_database"
+    DATABASE_POOL_SIZE: int = 5
+    DATABASE_MAX_OVERFLOW: int = 2
+    DATABASE_POOL_TIMEOUT_SECONDS: int = 30
+    DATABASE_POOL_RECYCLE_SECONDS: int = 900
+    DATABASE_CONNECT_TIMEOUT_SECONDS: int = 10
+    DATABASE_COMMAND_TIMEOUT_SECONDS: int = 60
     REDIS_URL: str = "redis://localhost:6379/0"
 
     MOMO_PARTNER_CODE: Optional[str] = None
@@ -53,6 +59,8 @@ class Settings(BaseSettings):
     CRAWLER_HOCTAPGIARE_PASSWORD: Optional[str] = None
     CRAWLER_HOCTAPGIARE_STORAGE_STATE_PATH: Optional[str] = None
     CRAWLER_DEFAULT_HEADLESS: bool = True
+    CRAWLER_JOB_TIMEOUT_SECONDS: int = 1800
+    CRAWLER_COURSE_TIMEOUT_SECONDS: int = 420
 
     def model_post_init(self, __context) -> None:
         if self.APP_ENV.lower() not in {"production", "prod"}:

@@ -22,6 +22,13 @@ import SystemLogo from "@/components/SystemLogo";
 import AuthModal from "@/components/AuthModal";
 import Breadcrumbs from "@/components/ui/Breadcrumbs";
 
+function getSafeNextPath(value: string | null): string | null {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return null;
+  }
+  return value;
+}
+
 export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
@@ -54,19 +61,27 @@ export default function Navbar() {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const authType = params.get("auth");
+      const nextPath = getSafeNextPath(params.get("next"));
+
+      if ((authType === "login" || authType === "register") && tokenHelper.getToken() && nextPath) {
+        router.replace(nextPath);
+        return;
+      }
+
       if (authType === "login") {
         setShowAuthModal("login");
       } else if (authType === "register") {
         setShowAuthModal("register");
       }
     }
-  }, [pathname, queryString]);
+  }, [pathname, queryString, router]);
 
   const closeAuthModal = () => {
     setShowAuthModal(null);
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
       url.searchParams.delete("auth");
+      url.searchParams.delete("next");
       window.history.replaceState({}, "", url.pathname + url.search);
     }
   };
@@ -301,6 +316,7 @@ export default function Navbar() {
                         <Link
                           key={item.href}
                           href={item.href}
+                          prefetch={item.href.startsWith("/admin") ? false : undefined}
                           onClick={() => setIsAccountMenuOpen(false)}
                           className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
                           role="menuitem"
@@ -376,6 +392,7 @@ export default function Navbar() {
                   <Link
                     key={item.href}
                     href={item.href}
+                    prefetch={item.href.startsWith("/admin") ? false : undefined}
                     onClick={() => setIsMobileMenuOpen(false)}
                     className="flex items-center gap-3 text-lg font-black py-4 border-b border-border/50"
                   >

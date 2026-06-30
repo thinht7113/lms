@@ -1,11 +1,20 @@
-from fastapi import FastAPI
+import logging
+import traceback
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import uvicorn
 from app.api.v1.router import api_router
 from app.core.database import engine
 from app.core.config import settings
+from app.core.logging_config import setup_logging
 from app.models.base import Base
+
+# Cấu hình logging ngay đầu tiên
+setup_logging()
+logger = logging.getLogger(__name__)
 
 # Import toàn bộ models để Base.metadata biết tất cả bảng cần tạo
 import app.models  # noqa: F401
@@ -18,9 +27,15 @@ async def lifespan(app: FastAPI):
     if settings.APP_ENV.lower() in {"development", "test"}:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+    logger.info(
+        "LMS Backend started | env=%s | port=%s",
+        settings.APP_ENV,
+        settings.PORT,
+    )
     yield
     # Shutdown: Đóng kết nối engine
     await engine.dispose()
+    logger.info("LMS Backend shutdown complete")
 
 
 # Cấu hình Metadata các phân hệ API dành cho tài liệu OpenAPI/Swagger
@@ -77,6 +92,26 @@ app = FastAPI(
     },
     lifespan=lifespan
 )
+
+
+# Global exception handler — bắt tất cả lỗi không xử lý
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.error(
+        "Unhandled exception on %s %s: %s\n%s",
+        request.method,
+        request.url.path,
+        exc,
+        traceback.format_exc(),
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.",
+            "error_code": "INTERNAL_SERVER_ERROR",
+        },
+    )
+
 
 # Cấu hình Middleware CORS (cho phép Frontend kết nối)
 origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]

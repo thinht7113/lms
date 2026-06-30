@@ -12,6 +12,13 @@ type AuthModalProps = {
   initialTab?: "login" | "register";
 };
 
+function getSafeNextPath(value: string | null): string | null {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return null;
+  }
+  return value;
+}
+
 export default function AuthModal({ isOpen, onClose, initialTab = "login" }: AuthModalProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -67,7 +74,7 @@ export default function AuthModal({ isOpen, onClose, initialTab = "login" }: Aut
 
         setTimeout(() => {
           onClose(); // Đóng modal trước
-          const nextPath = searchParams.get("next");
+          const nextPath = getSafeNextPath(searchParams.get("next"));
           if (nextPath) {
             router.push(nextPath);
           }

@@ -96,6 +96,7 @@ export default function Breadcrumbs({ variant = "dashboard", isScrolled = false 
                         ) : (
                             <Link 
                                 href={crumb.href}
+                                prefetch={crumb.href.startsWith("/admin") ? false : undefined}
                                 className="font-medium text-slate-500 hover:text-purple-600 transition-colors line-clamp-1"
                             >
                                 {crumb.label}

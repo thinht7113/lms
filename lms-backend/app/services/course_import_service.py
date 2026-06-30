@@ -1,45 +1,144 @@
-﻿from decimal import Decimal
+import asyncio
+from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from typing import Any, List, Optional
+from sqlalchemy import select, func
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crawlers.exceptions import CrawlerError
 from app.crawlers.hoctapgiare_crawler import HocTapGiaReCrawler
+from app.core.config import settings
+from app.core.database import async_session_maker
 from app.models.course import Course, Lesson, LessonContent, Section
 from app.models.course_import import CourseImportJob
 from app.repositories.course_import_repository import CourseImportRepository
-from app.schemas.course_import import CourseImportCreate, CourseImportImportRequest
+from app.schemas.course_import import CourseImportConfigStatus, CourseImportCreate, CourseImportImportRequest
 from app.services.external_asset_service import ExternalAssetError, ExternalAssetService
 
 
 class CourseImportService:
     @staticmethod
-    async def create_hoctapgiare_job(
-        db: AsyncSession,
-        request: CourseImportCreate,
-        admin_id: int,
-    ) -> CourseImportJob:
+    def get_hoctapgiare_config_status() -> CourseImportConfigStatus:
+        has_login = bool(settings.CRAWLER_HOCTAPGIARE_EMAIL and settings.CRAWLER_HOCTAPGIARE_PASSWORD)
+        has_session = bool(settings.CRAWLER_HOCTAPGIARE_STORAGE_STATE_PATH)
+        return CourseImportConfigStatus(
+            source="hoctapgiare",
+            has_login_credentials=has_login,
+            has_storage_state=has_session,
+            can_checkout_free=has_login or has_session,
+            headless_default=settings.CRAWLER_DEFAULT_HEADLESS,
+        )
+
+    @staticmethod
+    async def create_hoctapgiare_job(db: AsyncSession,request: CourseImportCreate,admin_id: int,) -> CourseImportJob:
         repo = CourseImportRepository(db)
         job = CourseImportJob(
             source="hoctapgiare",
             source_url=str(request.source_url),
-            status="pending",
+            status="running",
             created_by=admin_id,
         )
         await repo.add(job)
         await db.commit()
         await repo.refresh(job)
 
-        job.status = "running"
-        await db.commit()
+        if CourseImportService._missing_checkout_credentials(request):
+            job.status = "failed"
+            job.error_message = (
+                "Chưa cấu hình tài khoản hoctapgiare.top hoặc storage_state. "
+                "Hãy điền CRAWLER_HOCTAPGIARE_EMAIL và CRAWLER_HOCTAPGIARE_PASSWORD, "
+                "hoặc CRAWLER_HOCTAPGIARE_STORAGE_STATE_PATH, sau đó khởi động lại backend."
+            )
+            job.draft_data = {
+                "courses": [],
+                "errors": [
+                    {
+                        "code": "missing_crawler_credentials",
+                        "stage": "crawler_config",
+                        "message": job.error_message,
+                    }
+                ],
+                "summary": {
+                    "requested_limit": request.limit,
+                    "success_count": 0,
+                    "error_count": 1,
+                    "checkout_free": request.checkout_free,
+                },
+            }
+            await db.commit()
+            await repo.refresh(job)
+        return job
 
+    @staticmethod
+    async def run_hoctapgiare_job(job_id: int, request: CourseImportCreate) -> None:
+        async with async_session_maker() as db:
+            repo = CourseImportRepository(db)
+            job = await repo.get_by_id(job_id)
+            if not job or job.status != "running":
+                return
+            try:
+                await asyncio.wait_for(
+                    CourseImportService._execute_hoctapgiare_crawl(db, repo, job, request),
+                    timeout=CourseImportService._job_timeout_seconds(),
+                )
+            except asyncio.TimeoutError:
+                job = await repo.get_by_id(job_id)
+                if job and job.status == "running":
+                    CourseImportService._mark_job_failed(
+                        job,
+                        "Job crawler da vuot qua thoi gian xu ly toi da nen bi dung lai.",
+                        code="crawler_job_timeout",
+                        stage="course_import_job",
+                        details={"timeout_seconds": CourseImportService._job_timeout_seconds()},
+                    )
+                    await db.commit()
+
+    @staticmethod
+    def _missing_checkout_credentials(request: CourseImportCreate) -> bool:
+        if not request.checkout_free:
+            return False
+        return not CourseImportService.get_hoctapgiare_config_status().can_checkout_free
+
+    @staticmethod
+    async def _execute_hoctapgiare_crawl(
+        db: AsyncSession,
+        repo: CourseImportRepository,
+        job: CourseImportJob,
+        request: CourseImportCreate,
+    ) -> CourseImportJob:
         try:
+            from sqlalchemy import select
+            from app.models.course import Course
+            
+            stmt = select(Course.tieu_de)
+            result = await db.execute(stmt)
+            existing_titles = {row[0].strip().lower() for row in result.all() if row[0]}
+
             crawler = HocTapGiaReCrawler(headless=request.headless)
+            partial_drafts: list[dict[str, Any]] = []
+
+            async def save_partial_draft(draft: dict[str, Any]) -> None:
+                partial_drafts.append(draft)
+                job.draft_data = {
+                    "courses": partial_drafts,
+                    "errors": crawler.errors,
+                    "summary": {
+                        "requested_limit": request.limit,
+                        "success_count": len(partial_drafts),
+                        "error_count": len(crawler.errors),
+                        "checkout_free": request.checkout_free,
+                    },
+                }
+                await db.commit()
+
             drafts = await crawler.crawl(
                 source_url=str(request.source_url),
                 limit=request.limit,
                 checkout_free=request.checkout_free,
+                on_draft=save_partial_draft,
+                existing_titles=existing_titles,
             )
             job.draft_data = {
                 "courses": drafts,
@@ -93,14 +192,88 @@ class CourseImportService:
 
     @staticmethod
     async def list_jobs(db: AsyncSession, limit: int = 50) -> List[CourseImportJob]:
-        return await CourseImportRepository(db).list_recent(limit=limit)
+        repo = CourseImportRepository(db)
+        jobs = await repo.list_recent(limit=limit)
+        if CourseImportService._expire_stale_running_jobs(jobs):
+            await db.commit()
+            jobs = await repo.list_recent(limit=limit)
+        return jobs
 
     @staticmethod
     async def get_job(db: AsyncSession, job_id: int) -> CourseImportJob:
         job = await CourseImportRepository(db).get_by_id(job_id)
         if not job:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Khong tim thay job import.")
+        if CourseImportService._expire_stale_running_jobs([job]):
+            await db.commit()
         return job
+
+    @staticmethod
+    def _job_timeout_seconds() -> int:
+        return max(300, settings.CRAWLER_JOB_TIMEOUT_SECONDS)
+
+    @staticmethod
+    def _expire_stale_running_jobs(jobs: list[CourseImportJob]) -> bool:
+        changed = False
+        for job in jobs:
+            if not CourseImportService._is_stale_running_job(job):
+                continue
+
+            CourseImportService._mark_job_failed(
+                job,
+                "Job crawler da qua han xu ly. Neu backend bi restart hoac Playwright bi dung giua chung, job se khong the tu hoan tat.",
+                code="crawler_job_stale",
+                stage="course_import_job",
+                details={"timeout_seconds": CourseImportService._job_timeout_seconds()},
+            )
+            changed = True
+        return changed
+
+    @staticmethod
+    def _is_stale_running_job(job: CourseImportJob) -> bool:
+        if job.status != "running" or not job.updated_at:
+            return False
+
+        updated_at = job.updated_at
+        if updated_at.tzinfo is not None:
+            updated_at = updated_at.astimezone(timezone.utc).replace(tzinfo=None)
+
+        return datetime.utcnow() - updated_at > timedelta(seconds=CourseImportService._job_timeout_seconds())
+
+    @staticmethod
+    def _mark_job_failed(
+        job: CourseImportJob,
+        message: str,
+        *,
+        code: str,
+        stage: str,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        job.status = "failed"
+        job.error_message = message
+
+        draft_data = job.draft_data if isinstance(job.draft_data, dict) else {}
+        courses = list(draft_data.get("courses") or [])
+        errors = list(draft_data.get("errors") or [])
+        if not any(isinstance(error, dict) and error.get("code") == code for error in errors):
+            errors.append(
+                {
+                    "code": code,
+                    "stage": stage,
+                    "message": message,
+                    "details": details or {},
+                }
+            )
+
+        summary = dict(draft_data.get("summary") or {})
+        summary["success_count"] = len(courses)
+        summary["error_count"] = len(errors)
+        job.draft_data = {
+            **draft_data,
+            "courses": courses,
+            "errors": errors,
+            "summary": summary,
+        }
 
     @staticmethod
     async def import_job(
@@ -115,7 +288,7 @@ class CourseImportService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Khong tim thay job import.")
         if job.status == "imported":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Job nay da duoc import truoc do.")
-        if job.status != "completed" or not job.draft_data:
+        if job.status not in {"completed", "failed"} or not job.draft_data:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Job chua co draft hop le de import.")
         if not request.confirmed_preview:
             raise HTTPException(
@@ -133,16 +306,23 @@ class CourseImportService:
 
         try:
             for draft in courses:
+                course_title = (draft.get("title") or "Khoa hoc crawl")[0:255]
+                stmt = select(Course.id).where(func.lower(func.trim(Course.tieu_de)) == course_title.strip().lower())
+                existing = await db.execute(stmt)
+                if existing.scalar_one_or_none():
+                    continue
+
                 thumbnail_url = await CourseImportService._mirror_external_asset(
                     draft.get("thumbnail_url"),
                     "image",
                     asset_mirror_errors,
                     context={"course_title": draft.get("title"), "field": "thumbnail_url"},
                 )
+                course_category_id = CourseImportService._resolve_draft_category_id(draft, request)
                 course = Course(
                     ma_giang_vien=instructor_id,
-                    ma_danh_muc=request.category_id,
-                    tieu_de=(draft.get("title") or "Khoa hoc crawl")[0:255],
+                    ma_danh_muc=course_category_id,
+                    tieu_de=course_title,
                     mo_ta=draft.get("description"),
                     gia_tien=Decimal("0.00"),
                     trinh_do=draft.get("level") or "beginner",
@@ -223,6 +403,18 @@ class CourseImportService:
             raise
 
     @staticmethod
+    def _resolve_draft_category_id(draft: dict[str, Any], request: CourseImportImportRequest) -> Optional[int]:
+        category_map = request.course_category_map or {}
+        source_url = draft.get("source_url")
+        title = draft.get("title")
+
+        if isinstance(source_url, str) and source_url in category_map:
+            return category_map[source_url]
+        if isinstance(title, str) and title in category_map:
+            return category_map[title]
+        return request.category_id
+
+    @staticmethod
     def _normalize_content_type(value: str | None) -> str:
         normalized = (value or "text").strip().lower()
         if normalized in {"video", "pdf", "text", "code", "image"}:
@@ -283,3 +475,4 @@ class CourseImportService:
                 }
             )
             return None
+

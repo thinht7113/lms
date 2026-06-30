@@ -35,11 +35,12 @@ interface DynamicTableProps {
     filterCol?: string; // Optional: filter data by a column
     filterVal?: string; // Optional: value for the filter column
     hideIdColumn?: boolean; // Tùy chọn ẩn cột ID
+    disableBulkDelete?: boolean; // Tùy chọn ẩn tính năng xóa nhiều
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
-export default function DynamicTable({ title, endpoint, columns, formFields, customActions, disableCreate = false, disableEdit = false, disableDelete = false, filterCol, filterVal, hideIdColumn = false }: DynamicTableProps) {
+export default function DynamicTable({ title, endpoint, columns, formFields, customActions, disableCreate = false, disableEdit = false, disableDelete = false, filterCol, filterVal, hideIdColumn = false, disableBulkDelete = false }: DynamicTableProps) {
     const toast = useToast();
     const [data, setData] = useState<DynamicTableRow[]>([]);
     const [total, setTotal] = useState(0);
@@ -47,6 +48,7 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
     const [limit] = useState(10);
     const [search, setSearch] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<DynamicTableRow | null>(null);
@@ -82,6 +84,7 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                 setData([]);
                 setTotal(0);
             }
+            setSelectedIds([]);
         } catch (err) {
             console.error("Error fetching table data:", err);
         } finally {
@@ -96,6 +99,7 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
     }, [fetchData]);
 
     const handleDelete = async (id: number) => {
+        if (!confirm("Bạn có chắc chắn muốn xóa bản ghi này?")) return;
         try {
             const res = await fetchWithAuth(`${API_BASE_URL}${endpoint}/${id}`, {
                 method: "DELETE"
@@ -106,6 +110,37 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
         } catch (err) {
             toast.error("Lỗi khi xóa bản ghi");
             console.error(err);
+        }
+    };
+
+    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            setSelectedIds(data.map(item => Number(item.id)));
+        } else {
+            setSelectedIds([]);
+        }
+    };
+
+    const handleSelectItem = (id: number) => {
+        setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedIds.length === 0) return;
+        if (!confirm(`Bạn có chắc chắn muốn xóa ${selectedIds.length} bản ghi đã chọn?`)) return;
+        
+        setIsLoading(true);
+        try {
+            await Promise.all(selectedIds.map(id => 
+                fetchWithAuth(`${API_BASE_URL}${endpoint}/${id}`, { method: "DELETE" })
+            ));
+            toast.success(`Đã xóa ${selectedIds.length} bản ghi`);
+            setSelectedIds([]);
+            fetchData();
+        } catch (err) {
+            toast.error("Lỗi khi xóa một số bản ghi");
+            console.error(err);
+            fetchData();
         }
     };
 
@@ -138,7 +173,7 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
 
         if (col.type === "boolean") {
             return (
-                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${val ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-slate-500/10 text-slate-500 border border-slate-500/20'}`}>
+                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest ${val ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-slate-500/10 text-slate-500 border border-slate-500/20'}`}>
                     {val ? "Active" : "Inactive"}
                 </span>
             );
@@ -148,8 +183,8 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
         }
         if (col.type === "image") {
             return (
-                <a href={String(val)} target="_blank" rel="noreferrer" className="block w-28">
-                    <img src={String(val)} className="h-auto max-h-20 w-28 rounded-xl object-contain bg-secondary border border-border/50 shadow-sm" alt="" />
+                <a href={String(val)} target="_blank" rel="noreferrer" className="block w-20">
+                    <img src={String(val)} className="h-auto max-h-14 w-20 rounded-lg object-contain bg-secondary border border-border/50 shadow-sm" alt="" />
                 </a>
             );
         }
@@ -195,12 +230,12 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
 
     return (
         <>
-            <div className="bg-card border border-border/60 rounded-[2rem] shadow-sm overflow-hidden flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="bg-card border border-border/60 rounded-xl shadow-sm overflow-hidden flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {/* Header Toolbar */}
-                <div className="p-6 border-b border-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
-                    <h2 className="text-lg font-black tracking-tight flex items-center gap-2">
+                <div className="p-4 border-b border-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
+                    <h2 className="text-base font-black tracking-tight flex items-center gap-2">
                         {title}
-                        <span className="text-xs font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">{total}</span>
+                        <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">{total}</span>
                     </h2>
 
                     <div className="flex flex-col sm:flex-row items-center gap-4">
@@ -211,15 +246,26 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                                 placeholder="Tìm kiếm..."
                                 value={search}
                                 onChange={(e) => { setSearch(e.target.value); setSkip(0); }}
-                                className="w-full bg-white border border-border/60 rounded-xl py-2 pl-9 pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-sm"
+                                className="w-full bg-white border border-border/60 rounded-md py-1.5 pl-9 pr-4 text-[11px] focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-sm"
                             />
                         </div>
+                        
+                        {selectedIds.length > 0 && !disableDelete && !disableBulkDelete && (
+                            <button
+                                onClick={handleBulkDelete}
+                                className="w-full sm:w-auto bg-rose-600 text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-md shadow-md shadow-rose-600/20 flex items-center justify-center gap-1.5 hover:bg-rose-700 transition-all"
+                            >
+                                <Trash2 className="h-4 w-4" />
+                                <span>Xóa ({selectedIds.length})</span>
+                            </button>
+                        )}
+
                         {formFields && formFields.length > 0 && !disableCreate && (
                             <button
                                 onClick={handleCreate}
-                                className="w-full sm:w-auto bg-primary text-white text-xs font-bold uppercase tracking-widest px-6 py-2.5 rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 hover:bg-blue-700 transition-all"
+                                className="w-full sm:w-auto bg-primary text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-md shadow-md shadow-primary/20 flex items-center justify-center gap-1.5 hover:bg-blue-700 transition-all"
                             >
-                                <Plus className="h-4 w-4" />
+                                <Plus className="h-3.5 w-3.5" />
                                 <span>Thêm mới</span>
                             </button>
                         )}
@@ -228,41 +274,61 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
 
                 {/* Table */}
                 <div className="overflow-x-auto flex-grow">
-                    <table className="w-full text-left text-sm whitespace-nowrap">
-                        <thead className="bg-slate-50 border-b border-border/40 text-xs uppercase font-black text-muted-foreground tracking-widest">
+                    <table className="w-full text-left text-[11px] whitespace-nowrap">
+                        <thead className="bg-slate-50 border-b border-border/40 text-[10px] uppercase font-black text-muted-foreground tracking-widest">
                             <tr>
-                                {!hideIdColumn && <th className="px-6 py-4 rounded-tl-[2rem]">ID</th>}
+                                {!disableDelete && !disableBulkDelete && (
+                                    <th className="px-4 py-2.5 rounded-tl-xl w-8">
+                                        <input
+                                            type="checkbox"
+                                            className="w-3.5 h-3.5 rounded-sm border-slate-300 text-primary focus:ring-primary/20"
+                                            checked={data.length > 0 && selectedIds.length === data.length}
+                                            onChange={handleSelectAll}
+                                        />
+                                    </th>
+                                )}
+                                {!hideIdColumn && <th className={`px-4 py-2.5 ${(!disableDelete && !disableBulkDelete) ? '' : 'rounded-tl-xl'}`}>ID</th>}
                                 {columns.map((col, idx) => (
-                                    <th key={col.key} className={`px-6 py-4 ${hideIdColumn && idx === 0 ? 'rounded-tl-[2rem]' : ''}`}>{col.label}</th>
+                                    <th key={col.key} className={`px-4 py-2.5 ${hideIdColumn && idx === 0 && (disableDelete || disableBulkDelete) ? 'rounded-tl-xl' : ''}`}>{col.label}</th>
                                 ))}
-                                <th className="px-6 py-4 text-right rounded-tr-[2rem]">Hành động</th>
+                                <th className="px-4 py-2.5 text-right rounded-tr-xl">Hành động</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border/30">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={columns.length + (hideIdColumn ? 1 : 2)} className="px-6 py-12 text-center">
+                                    <td colSpan={columns.length + (hideIdColumn ? 1 : 2) + (!disableDelete && !disableBulkDelete ? 1 : 0)} className="px-4 py-8 text-center">
                                         <RefreshCw className="h-6 w-6 text-primary animate-spin mx-auto mb-2" />
                                         <span className="text-xs font-bold text-muted-foreground">Đang tải dữ liệu...</span>
                                     </td>
                                 </tr>
                             ) : data.length === 0 ? (
                                 <tr>
-                                    <td colSpan={columns.length + (hideIdColumn ? 1 : 2)} className="px-6 py-12 text-center">
+                                    <td colSpan={columns.length + (hideIdColumn ? 1 : 2) + (!disableDelete && !disableBulkDelete ? 1 : 0)} className="px-4 py-8 text-center">
                                         <span className="text-xs font-bold text-muted-foreground">Không có dữ liệu</span>
                                     </td>
                                 </tr>
                             ) : (
                                 data.map((item, idx) => (
-                                    <tr key={String(item.id ?? idx)} className="hover:bg-slate-50/50 transition-colors">
-                                        {!hideIdColumn && <td className="px-6 py-4 font-bold text-muted-foreground">#{String(item.id ?? "")}</td>}
+                                    <tr key={String(item.id ?? idx)} className={`hover:bg-slate-50/50 transition-colors ${selectedIds.includes(Number(item.id)) ? 'bg-primary/5' : ''}`}>
+                                        {!disableDelete && !disableBulkDelete && (
+                                            <td className="px-4 py-2.5">
+                                                <input
+                                                    type="checkbox"
+                                                    className="w-3.5 h-3.5 rounded-sm border-slate-300 text-primary focus:ring-primary/20"
+                                                    checked={selectedIds.includes(Number(item.id))}
+                                                    onChange={() => handleSelectItem(Number(item.id))}
+                                                />
+                                            </td>
+                                        )}
+                                        {!hideIdColumn && <td className="px-4 py-2.5 font-bold text-muted-foreground">#{String(item.id ?? "")}</td>}
                                         {columns.map(col => (
-                                            <td key={col.key} className="px-6 py-4 font-medium text-foreground/80">
+                                            <td key={col.key} className="px-4 py-2.5 font-medium text-foreground/80">
                                                 {renderCell(item, col)}
                                             </td>
                                         ))}
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex items-center justify-end space-x-2">
+                                        <td className="px-4 py-2.5 text-right">
+                                            <div className="flex items-center justify-end space-x-1.5">
                                                 {customActions && customActions
                                                     .filter((action) => !action.shouldShow || action.shouldShow(item))
                                                     .map((action, aIdx) => (
@@ -279,20 +345,20 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                                                 {formFields && formFields.length > 0 && !disableEdit && (
                                                     <button
                                                         onClick={() => handleEdit(item)}
-                                                        className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                                                        className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
                                                         title="Sửa"
                                                     >
-                                                        <Edit className="h-4 w-4" />
+                                                        <Edit className="h-3.5 w-3.5" />
                                                     </button>
                                                 )}
 
                                                 {!disableDelete && (
                                                     <button
                                                         onClick={() => handleDelete(Number(item.id))}
-                                                        className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors"
+                                                        className="p-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-md transition-colors"
                                                         title="Xóa"
                                                     >
-                                                        <Trash2 className="h-4 w-4" />
+                                                        <Trash2 className="h-3.5 w-3.5" />
                                                     </button>
                                                 )}
                                             </div>
@@ -312,7 +378,7 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                         <button
                             onClick={() => setSkip(Math.max(0, skip - limit))}
                             disabled={skip === 0}
-                            className="p-2 border border-border/60 rounded-lg bg-white disabled:opacity-50 hover:bg-secondary transition-colors"
+                            className="p-2 border border-border/60 rounded-md bg-white disabled:opacity-50 hover:bg-secondary transition-colors"
                         >
                             <ChevronLeft className="h-4 w-4 text-foreground" />
                         </button>
@@ -322,7 +388,7 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                         <button
                             onClick={() => setSkip(skip + limit)}
                             disabled={skip + limit >= total}
-                            className="p-2 border border-border/60 rounded-lg bg-white disabled:opacity-50 hover:bg-secondary transition-colors"
+                            className="p-2 border border-border/60 rounded-md bg-white disabled:opacity-50 hover:bg-secondary transition-colors"
                         >
                             <ChevronRight className="h-4 w-4 text-foreground" />
                         </button>
