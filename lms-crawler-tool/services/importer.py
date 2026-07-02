@@ -1,9 +1,9 @@
 import re
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from models import Course, Section, Lesson, LessonContent, Category
+from models import Course, Section, Lesson, LessonContent, Category, User
 from services.uploader import MinioUploader
 
 class CourseImporter:
@@ -16,6 +16,11 @@ class CourseImporter:
             cleaned = re.sub(r"<[^>]+>", "", cleaned)
         cleaned = re.sub(r"\s+", " ", cleaned).strip()
         return cleaned if cleaned else None
+
+    @staticmethod
+    def extract_video_duration_or_default(draft_lesson: Dict[str, Any]) -> int:
+        val = draft_lesson.get("duration_seconds", 0)
+        return int(val) if isinstance(val, (int, float)) and val > 0 else 0
 
     @staticmethod
     def normalize_content_type(raw_type: Optional[str]) -> str:
@@ -42,15 +47,28 @@ class CourseImporter:
     ) -> int:
         course_title = (cls.clean_text(draft.get("title")) or "Khóa học chưa đặt tên")[0:255]
         
-        # Kiểm tra trùng lặp khóa học
-        res_exist = await db.execute(select(Course).where(Course.tieu_de == course_title))
+        # Kiểm tra trùng lặp khóa học (không phân biệt hoa/thường và khoảng trắng thừa)
+        course_title_clean = course_title.strip().lower()
+        res_exist = await db.execute(select(Course).where(func.lower(func.trim(Course.tieu_de)) == course_title_clean))
         existing_course = res_exist.scalars().first()
         if existing_course:
             print(f"⚠️ [Trùng lặp] Khóa học '{course_title}' đã tồn tại trong CSDL (ID = {existing_course.id}). Bỏ qua import để tránh trùng lặp!")
             return existing_course.id
 
-        # 1. Resolve Category
+        # 0. Tự động gán giảng viên mặc định nếu không truyền vào (lấy giảng viên hoặc admin đầu tiên trong DB)
+        if instructor_id is None:
+            res_user = await db.execute(
+                select(User).where(User.vai_tro.in_(["instructor", "admin"])).order_by(User.id).limit(1)
+            )
+            inst = res_user.scalars().first()
+            if not inst:
+                res_any = await db.execute(select(User).order_by(User.id).limit(1))
+                inst = res_any.scalars().first()
+            if inst:
+                instructor_id = inst.id
+                print(f"👤 Tự động gán Giảng viên phụ trách: {inst.ho_ten} [ID: {inst.id}]")
 
+        # 1. Resolve Category
         category_id = None
         if category_name:
             res = await db.execute(select(Category).where(Category.ten_danh_muc == category_name))
@@ -61,8 +79,8 @@ class CourseImporter:
                 await db.flush()
             category_id = cat.id
 
-        # 2. Mirror Thumbnail
-        thumbnail_url = draft.get("thumbnail")
+        # 2. Mirror Thumbnail (Ưu tiên thumbnail_url trước, sau đó tới thumbnail)
+        thumbnail_url = draft.get("thumbnail_url") or draft.get("thumbnail")
         if thumbnail_url:
             print(f"📥 Đang tải ảnh đại diện: {thumbnail_url[:60]}...")
             thumbnail_url = await MinioUploader.mirror_url(thumbnail_url, "image")

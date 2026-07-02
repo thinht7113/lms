@@ -12,6 +12,9 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     email: Mapped[str] = mapped_column(String(255), nullable=False)
+    ho_ten: Mapped[str] = mapped_column(String(255), nullable=False)
+    vai_tro: Mapped[str] = mapped_column(String(50), default="student", nullable=False)
+
 
 class Category(Base):
     __tablename__ = "danh_muc"
