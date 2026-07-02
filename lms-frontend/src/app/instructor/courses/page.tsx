@@ -56,15 +56,15 @@ export default function InstructorCoursesPage() {
   return (
     <div className="space-y-8 pb-20">
       <div className="flex flex-col gap-4 rounded-[2rem] bg-white border border-slate-200 p-8 text-slate-900 shadow-sm relative overflow-hidden sm:flex-row sm:items-center sm:justify-between">
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-purple-50 to-blue-50 mix-blend-multiply"></div>
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 mix-blend-multiply"></div>
         <div className="relative z-10">
-          <p className="text-xs font-black uppercase tracking-widest text-purple-600">Quản lý học liệu</p>
+          <p className="text-xs font-black uppercase tracking-widest text-primary">Quản lý học liệu</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight">Khóa học của tôi</h1>
 
         </div>
         <Link
           href="/instructor/courses/create"
-          className="relative z-10 inline-flex items-center justify-center gap-2 rounded-2xl bg-purple-600 px-5 py-4 text-sm font-black text-white shadow-lg shadow-purple-950/40 hover:bg-purple-500"
+          className="relative z-10 inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-4 text-sm font-black text-white shadow-lg shadow-blue-950/20 hover:bg-primary/95"
         >
           <Plus className="h-4 w-4" />
           Tạo khóa học
@@ -81,7 +81,7 @@ export default function InstructorCoursesPage() {
           const Icon = item.icon;
           return (
             <div key={item.label} className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
-              <Icon className="h-5 w-5 text-purple-600" />
+              <Icon className="h-5 w-5 text-primary" />
               <p className="mt-4 text-2xl font-black text-slate-950">{item.value}</p>
               <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{item.label}</p>
             </div>
@@ -123,7 +123,7 @@ export default function InstructorCoursesPage() {
 
         {loading ? (
           <div className="flex items-center justify-center p-12">
-            <RefreshCw className="h-8 w-8 animate-spin text-purple-600" />
+            <RefreshCw className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : courses.length === 0 ? (
           <div className="p-12 text-center">
@@ -145,7 +145,7 @@ export default function InstructorCoursesPage() {
 
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${statusClass[course.trang_thai_phe_duyet] || "bg-purple-50 text-purple-700"}`}>
+                    <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${statusClass[course.trang_thai_phe_duyet] || "bg-primary/10 text-primary"}`}>
                       {statusLabel[course.trang_thai_phe_duyet] || course.trang_thai_phe_duyet}
                     </span>
                     <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-600">
@@ -154,15 +154,15 @@ export default function InstructorCoursesPage() {
                   </div>
                   <h3 className="mt-3 truncate text-lg font-black text-slate-950">{course.tieu_de}</h3>
                   <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-500">{course.mo_ta || "Chưa có mô tả"}</p>
-                  <p className="mt-2 text-sm font-black text-purple-700">{Number(course.gia_tien).toLocaleString("vi-VN")} đ</p>
+                  <p className="mt-2 text-sm font-black text-primary">{Number(course.gia_tien).toLocaleString("vi-VN")} đ</p>
                 </div>
 
                 <div className="flex flex-wrap gap-2 lg:justify-end">
-                  <Link href={`/instructor/courses/${course.id}/sections`} className="inline-flex items-center gap-2 rounded-xl bg-purple-600 px-4 py-2.5 text-xs font-black text-white hover:bg-purple-500 shadow-sm">
+                  <Link href={`/instructor/courses/${course.id}/sections`} className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-white hover:bg-primary/95 shadow-sm">
                     <Layers className="h-4 w-4" />
                     Nội dung
                   </Link>
-                  <Link href={`/instructor/courses/${course.id}/edit`} className="inline-flex items-center gap-2 rounded-xl bg-purple-50 px-4 py-2.5 text-xs font-black text-purple-700 hover:bg-purple-100">
+                  <Link href={`/instructor/courses/${course.id}/edit`} className="inline-flex items-center gap-2 rounded-xl bg-primary/10 px-4 py-2.5 text-xs font-black text-primary hover:bg-primary/20">
                     <Edit3 className="h-4 w-4" />
                     Sửa
                   </Link>

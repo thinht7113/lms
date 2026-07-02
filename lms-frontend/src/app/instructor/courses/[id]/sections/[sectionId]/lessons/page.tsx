@@ -7,12 +7,7 @@ import { ArrowLeft, Edit3, FileText, Plus, RefreshCw, Trash2, Video, Send } from
 import { apiService, CourseDetail, Lesson } from "@/services/api";
 import { useToast } from "@/contexts/ToastContext";
 import { setBreadcrumbLabel } from "@/utils/breadcrumbStore";
-
-const getYouTubeEmbedUrl = (url: string) => {
-  if (!url) return "";
-  const match = url.match(/^.*(youtu.be\/|v\/|vi\/|u\/\w\/|embed\/|shorts\/|watch\?v=|\&v=)([^#\&\?]*).*/);
-  return match && match[2].length === 11 ? `https://www.youtube.com/embed/${match[2]}` : url;
-};
+import { getVideoEmbedInfo } from "@/utils/video";
 
 export default function InstructorLessonsPage() {
   const params = useParams();
@@ -271,20 +266,21 @@ export default function InstructorLessonsPage() {
                       {type === "video" && (
                         <div className="space-y-2">
                           <p className="text-[10px] font-black uppercase tracking-wider text-purple-500 mb-2">Video</p>
-                          {block.duong_dan_file ? (
-                            block.duong_dan_file.includes("youtube.com") || block.duong_dan_file.includes("youtu.be") ? (
+                          {block.duong_dan_file ? (() => {
+                            const videoInfo = getVideoEmbedInfo(block.duong_dan_file);
+                            return videoInfo.isIframe ? (
                               <iframe
                                 className="w-full aspect-video rounded-2xl overflow-hidden border border-slate-200"
-                                src={getYouTubeEmbedUrl(block.duong_dan_file)}
+                                src={videoInfo.embedUrl}
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                 allowFullScreen
                               />
                             ) : (
                               <video controls className="w-full aspect-video rounded-2xl bg-black">
-                                <source src={block.duong_dan_file} />
+                                <source src={videoInfo.embedUrl} />
                               </video>
-                            )
-                          ) : (
+                            );
+                          })() : (
                             <p className="text-xs text-rose-500">Chưa có đường dẫn video</p>
                           )}
                         </div>

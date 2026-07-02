@@ -21,6 +21,7 @@ import {
 import Navbar from "@/components/Navbar";
 import { apiService, CourseDetail, CourseProgress, Lesson, LessonContent, Quiz } from "@/services/api";
 import { setBreadcrumbLabel } from "@/utils/breadcrumbStore";
+import { getVideoEmbedInfo } from "@/utils/video";
 import dynamic from 'next/dynamic';
 
 const PdfViewer = dynamic(() => import('@/components/PdfViewer'), { ssr: false });
@@ -257,21 +258,16 @@ export default function LearnSpacePage() {
     const title = content.loai_noi_dung ? content.loai_noi_dung.toUpperCase() : `Nội dung ${index + 1}`;
 
     if (type === "video") {
-      const isYouTube = content.duong_dan_file?.includes("youtube.com") || content.duong_dan_file?.includes("youtu.be");
-      const videoUrl = content.duong_dan_file || "";
-      const embedUrl = isYouTube && videoUrl ? (() => {
-        const match = videoUrl.match(/^.*(youtu.be\/|v\/|vi\/|u\/\w\/|embed\/|shorts\/|watch\?v=|\&v=)([^#\&\?]*).*/);
-        return match && match[2].length === 11 ? `https://www.youtube.com/embed/${match[2]}` : videoUrl;
-      })() : "";
+      const videoInfo = getVideoEmbedInfo(content.duong_dan_file);
 
       return (
         <div key={content.id || index} className="my-10">
           {content.duong_dan_file ? (
             <div className="relative overflow-hidden rounded-2xl bg-slate-950">
-              {isYouTube ? (
+              {videoInfo.isIframe ? (
                 <iframe
                   className="aspect-video w-full object-contain bg-black"
-                  src={embedUrl}
+                  src={videoInfo.embedUrl}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                 />
@@ -279,7 +275,7 @@ export default function LearnSpacePage() {
                 <>
                   <video
                     ref={index === 0 ? videoRef : undefined}
-                    src={content.duong_dan_file}
+                    src={videoInfo.embedUrl}
                     controls
                     className="aspect-video w-full object-contain"
                     onLoadedMetadata={() => {

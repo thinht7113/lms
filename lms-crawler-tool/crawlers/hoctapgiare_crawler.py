@@ -9,8 +9,8 @@ from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
 from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError, async_playwright
 
-from app.crawlers.base import BaseCourseCrawler
-from app.crawlers.exceptions import (
+from crawlers.base import BaseCourseCrawler
+from crawlers.exceptions import (
     CrawlerAccessDeniedError,
     CrawlerBrowserError,
     CrawlerConfigError,
@@ -21,7 +21,7 @@ from app.crawlers.exceptions import (
     CrawlerLoginError,
     CrawlerSelectorError,
 )
-from app.core.config import settings
+from config import settings
 
 
 class HocTapGiaReCrawler(BaseCourseCrawler):
@@ -32,27 +32,16 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
         "category=all&price=free&level=all&language=all&rating=all&sort_by=newest"
     )
 
-    def __init__(
-        self,
-        email: Optional[str] = None,
-        password: Optional[str] = None,
-        headless: bool = True,
-        storage_state_path: Optional[str] = None,
-    ) -> None:
+    def __init__(self,email: Optional[str] = None,password: Optional[str] = None,headless: bool = True,storage_state_path: Optional[str] = None,max_concurrency: int = 8) -> None:
         self.email = email or settings.CRAWLER_HOCTAPGIARE_EMAIL
         self.password = password or settings.CRAWLER_HOCTAPGIARE_PASSWORD
         self.headless = headless
         self.storage_state_path = storage_state_path or settings.CRAWLER_HOCTAPGIARE_STORAGE_STATE_PATH
+        self.max_concurrency = max_concurrency
         self.errors: List[Dict[str, Any]] = []
 
-    async def crawl(
-        self,
-        source_url: str,
-        limit: int = 5,
-        checkout_free: bool = False,
-        on_draft: Optional[Callable[[Dict[str, Any]], Awaitable[None]]] = None,
-        existing_titles: Optional[set[str]] = None,
-    ) -> List[Dict[str, Any]]:
+
+    async def crawl(self,source_url: str,limit: int = 5,checkout_free: bool = False,on_draft: Optional[Callable[[Dict[str, Any]], Awaitable[None]]] = None,existing_titles: Optional[set[str]] = None,) -> List[Dict[str, Any]]:
         self.errors = []
         playwright_context = async_playwright()
         playwright = None
@@ -294,7 +283,7 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
             fallback_attr="src",
         )
         price_text = await self._text(page, ".current-price, .course-price, .price")
-        level_text = await self._text(page, ".badge.badge-primary, .course-level, .level")
+        level_text = await self._text(page, ".course-badge, .badge.badge-primary, .course-level, .level")
 
         if checkout_free:
             await self._enroll_free_course(page, course_url)
@@ -319,9 +308,11 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
                 lesson_jobs.append((lesson, lesson_url))
 
         if lesson_jobs:
-            semaphore = asyncio.Semaphore(8)
+            print(f"  ⚡ [Đa luồng] Kích hoạt {self.max_concurrency} luồng cào song song cho {len(lesson_jobs)} bài học...")
+            semaphore = asyncio.Semaphore(self.max_concurrency)
 
             async def crawl_lesson_job(lesson: Dict[str, Any], lesson_url: str) -> tuple[Dict[str, Any], Optional[Dict[str, Any]], Optional[CrawlerError]]:
+
                 async with semaphore:
                     lesson_page = await page.context.new_page()
                     lesson_page.set_default_timeout(8000)
@@ -392,7 +383,7 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
             "source": "hoctapgiare",
             "source_url": course_url,
             "title": title,
-            "description": description_html or description_text,
+            "description": description_text or self._clean_html_str(description_html, is_html=False),
             "thumbnail_url": thumbnail_url,
             "price": 0,
             "level": self._normalize_level(level_text),
@@ -548,11 +539,18 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
             sort_order += 1
 
         embedded_video_selector = (
+            "#player iframe, "
+            ".playing-box iframe, "
+            ".video-player iframe, "
+            ".embed-responsive iframe, "
             "iframe[src*='youtube.com'], "
             "iframe[src*='youtube-nocookie.com'], "
             "iframe[src*='youtu.be'], "
             "iframe[src*='drive.google.com'], "
-            "iframe[src*='player.vimeo.com']"
+            "iframe[src*='player.vimeo.com'], "
+            "iframe[src*='rumble.com'], "
+            "iframe[src*='dailymotion.com'], "
+            "iframe[src*='ok.ru']"
         )
         for link in await self._links(page, embedded_video_selector, attr="src"):
             add_url_content("video", link)
@@ -588,6 +586,18 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
                 }
             )
 
+        # --- Resolve embed URLs to real downloadable video URLs ---
+        for item in contents:
+            if item.get("type") != "video" or not item.get("url"):
+                continue
+            url = item["url"]
+            if self._is_youtube_like_url(url) or self._is_direct_video_file_url(url):
+                continue
+            # This is an embed URL (Rumble, GDrive, Vimeo, etc.) — try to extract real .mp4
+            real_url = await self._extract_real_video_url(page.context, url)
+            if real_url:
+                item["url"] = real_url
+
         video_urls = [
             item.get("url", "")
             for item in contents
@@ -613,21 +623,109 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
         except Exception:
             pass
 
+    async def _extract_real_video_url(self, context: Any, embed_url: str) -> Optional[str]:
+        """Open an embed iframe URL in a fresh browser context (without media
+        blocking), intercept network requests and inspect the DOM to capture
+        the real downloadable video URL (.mp4/.webm)."""
+        browser = context.browser
+        if browser is None:
+            return None
+
+        captured_urls: List[str] = []
+
+        def _on_request(request: Any) -> None:
+            url = request.url
+            resource_type = request.resource_type
+            parsed_path = urlparse(url).path.lower()
+            is_video_resource = resource_type == "media"
+            is_video_extension = any(parsed_path.endswith(ext) for ext in (".mp4", ".webm", ".mov", ".m3u8"))
+            if is_video_resource or is_video_extension:
+                captured_urls.append(url)
+
+        # Create a clean context without any resource-blocking routes
+        clean_context = await browser.new_context()
+        page = await clean_context.new_page()
+        try:
+            page.on("request", _on_request)
+            try:
+                await page.goto(embed_url, wait_until="domcontentloaded", timeout=20000)
+            except PlaywrightTimeoutError:
+                pass
+            await page.wait_for_timeout(8000)
+
+            # Strategy 1: Check <video> and <source> tags in the DOM
+            try:
+                dom_srcs = await page.evaluate("""() => {
+                    const results = [];
+                    document.querySelectorAll('video, source, video source').forEach(el => {
+                        const src = el.src || el.getAttribute('src');
+                        if (src) results.push(src);
+                    });
+                    return results;
+                }""")
+                captured_urls.extend(dom_srcs)
+            except Exception:
+                pass
+
+            # Strategy 2: Regex search page source for .mp4/.webm URLs
+            try:
+                html = await page.content()
+                import re as _re
+                video_urls_in_html = _re.findall(r'(https?://[^\s"\'<>&]+\.(?:mp4|webm|mov)[^\s"\'<>&]*)', html)
+                captured_urls.extend(video_urls_in_html)
+            except Exception:
+                pass
+
+            # Return the first valid video file URL from all strategies
+            for url in captured_urls:
+                lower = url.lower()
+                if any(ext in lower for ext in (".mp4", ".webm", ".mov")):
+                    return url
+            return None
+        except Exception:
+            return None
+        finally:
+            await page.close()
+            await clean_context.close()
+
     async def _route_lightweight_resources(self, route: Any) -> None:
         if route.request.resource_type in {"font", "image", "media"}:
             await route.abort()
             return
         await route.continue_()
 
+    def _clean_html_str(self, val: str, is_html: bool = False) -> str:
+        if not val:
+            return ""
+        cleaned = val.replace("\x00", "")
+        cleaned = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", cleaned)
+        if is_html:
+            cleaned = re.sub(r'<div[^>]*class="[^"]*view-more[^"]*"[^>]*>.*?</div>', "", cleaned, flags=re.IGNORECASE | re.DOTALL)
+            cleaned = re.sub(r'<div[^>]*class="[^"]*description-title[^"]*"[^>]*>.*?</div>', "", cleaned, flags=re.IGNORECASE | re.DOTALL)
+            cleaned = re.sub(r'<span[^>]*xss="removed"[^>]*>.*?</span>', "", cleaned, flags=re.IGNORECASE | re.DOTALL)
+            cleaned = re.sub(r'<(script|style)[^>]*>.*?</\1>', "", cleaned, flags=re.IGNORECASE | re.DOTALL)
+            cleaned = re.sub(r'\s+(onclick|onerror|onload|xss)=("[^"]*"|\'[^\']*\'|[^\s>]+)', "", cleaned, flags=re.IGNORECASE)
+        else:
+            cleaned = re.sub(r'<(script|style)[^>]*>.*?</\1>', "", cleaned, flags=re.IGNORECASE | re.DOTALL)
+            cleaned = re.sub(r'<div[^>]*class="[^"]*view-more[^"]*"[^>]*>.*?</div>', "", cleaned, flags=re.IGNORECASE | re.DOTALL)
+            cleaned = re.sub(r'<div[^>]*class="[^"]*description-title[^"]*"[^>]*>.*?</div>', "", cleaned, flags=re.IGNORECASE | re.DOTALL)
+            cleaned = re.sub(r'<br\s*/?>|</p>|</div>', "\n", cleaned, flags=re.IGNORECASE)
+            cleaned = re.sub(r'<[^>]+>', " ", cleaned)
+            cleaned = re.sub(r'[ \t]+', ' ', cleaned)
+            cleaned = re.sub(r'\n\s*\n+', '\n\n', cleaned)
+        return cleaned.strip()
+
     async def _text(self, page: Page, selector: str, timeout: int = 5000) -> str:
         try:
-            return (await page.locator(selector).first.inner_text(timeout=timeout)).strip()
+            val = await page.locator(selector).first.inner_text(timeout=timeout)
+            return self._clean_html_str(val, is_html=False)
         except Exception:
             return ""
 
     async def _html(self, page: Page, selector: str, timeout: int = 5000) -> str:
         try:
-            return (await page.locator(selector).first.inner_html(timeout=timeout)).strip()
+            val = await page.locator(selector).first.inner_html(timeout=timeout)
+            return self._clean_html_str(val, is_html=True)
         except Exception:
             return ""
 

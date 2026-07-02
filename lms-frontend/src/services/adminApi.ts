@@ -4,7 +4,6 @@
 
 import type {
   AdminStats, Course, Order, Enrollment, Lesson, AdminQuizDetail, PendingLesson,
-  CourseImportConfigStatus, CourseImportCreatePayload, CourseImportJob, CourseImportImportPayload,
 } from "./types";
 import { API_BASE_URL, fetchWithAuth } from "./client";
 
@@ -111,57 +110,5 @@ export const adminApi = {
       throw new Error(errData.detail || "Không thể thu hồi quyền học");
     }
   },
-
-  // ── Course Import ──
-
-  async getCourseImportConfig(): Promise<CourseImportConfigStatus> {
-    const res = await fetchWithAuth(`${API_BASE_URL}/admin/course-imports/config`);
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.detail || "Không thể tải cấu hình crawler khóa học");
-    }
-    return await res.json();
-  },
-
-  async createHoctapgiareImportJob(payload: CourseImportCreatePayload): Promise<CourseImportJob> {
-    const res = await fetchWithAuth(`${API_BASE_URL}/admin/course-imports/hoctapgiare`, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.detail || "Không thể chạy crawler khóa học");
-    }
-    return await res.json();
-  },
-
-  async getCourseImportJobs(limit = 50): Promise<CourseImportJob[]> {
-    const res = await fetchWithAuth(`${API_BASE_URL}/admin/course-imports/?limit=${limit}`);
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.detail || "Không thể tải danh sách job import");
-    }
-    return await res.json();
-  },
-
-  async getCourseImportJob(jobId: number): Promise<CourseImportJob> {
-    const res = await fetchWithAuth(`${API_BASE_URL}/admin/course-imports/${jobId}`);
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.detail || "Không thể tải chi tiết job import");
-    }
-    return await res.json();
-  },
-
-  async importCourseImportJob(jobId: number, payload: CourseImportImportPayload): Promise<CourseImportJob> {
-    const res = await fetchWithAuth(`${API_BASE_URL}/admin/course-imports/${jobId}/import`, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.detail || "Không thể import khóa học vào LMS");
-    }
-    return await res.json();
-  },
 };
+

@@ -53,13 +53,13 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
                     <div className="h-20 flex items-center justify-center border-b border-slate-100 shrink-0">
                         <Link href="/instructor/dashboard">
                             {isDesktopSidebarCollapsed ? (
-                                <div className="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center text-white font-black">ST</div>
+                                <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white font-black">ST</div>
                             ) : (
                                 <SystemLogo
                                     textLabel="STUDIO"
                                     textColorClass="text-slate-900"
                                     iconColorClass="text-white"
-                                    iconBgClass="bg-purple-600"
+                                    iconBgClass="bg-primary"
                                 />
                             )}
                         </Link>
@@ -68,7 +68,7 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
                     {/* Toggle Button for Desktop */}
                     <button 
                         onClick={() => setDesktopSidebarCollapsed(!isDesktopSidebarCollapsed)}
-                        className="hidden lg:flex absolute -right-3 top-24 z-50 h-6 w-6 bg-white border border-slate-200 rounded-full items-center justify-center text-slate-400 hover:text-purple-600 hover:border-purple-300 shadow-sm transition-colors"
+                        className="hidden lg:flex absolute -right-3 top-24 z-50 h-6 w-6 bg-white border border-slate-200 rounded-full items-center justify-center text-slate-400 hover:text-primary hover:border-primary/30 shadow-sm transition-colors"
                     >
                         {isDesktopSidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
                     </button>
@@ -93,11 +93,11 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
                                                 title={isDesktopSidebarCollapsed ? item.name : undefined}
                                                 className={`flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-all ${
                                                     isActive 
-                                                    ? "bg-purple-50 text-purple-700 font-bold border border-purple-100" 
+                                                    ? "bg-primary/10 text-primary font-bold shadow-sm" 
                                                     : "hover:bg-slate-50 hover:text-slate-900 font-medium border border-transparent"
                                                 } ${isDesktopSidebarCollapsed ? "justify-center" : ""}`}
                                             >
-                                                <Icon className={`h-5 w-5 shrink-0 ${isActive ? "text-purple-600" : "text-slate-400"}`} />
+                                                <Icon className={`h-5 w-5 shrink-0 ${isActive ? "text-primary" : "text-slate-400"}`} />
                                                 {!isDesktopSidebarCollapsed && <span className="text-sm whitespace-nowrap">{item.name}</span>}
                                             </Link>
                                         );
@@ -138,17 +138,17 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
                     <div className="flex items-center space-x-4">
                         <Link
                             href="/"
-                            className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest shadow-md transition-all shrink-0"
+                            className="flex items-center space-x-2 bg-primary hover:bg-primary/95 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest shadow-md transition-all shrink-0"
                         >
                             <Home className="h-4 w-4" />
                             <span className="hidden md:inline">Trang người dùng</span>
                         </Link>
 
-                        <div className="flex items-center space-x-2.5 bg-purple-50 border border-purple-100 px-3 py-1.5 rounded-xl">
-                            <div className="h-7 w-7 rounded-lg bg-purple-600 flex items-center justify-center text-white font-bold text-xs">
+                        <div className="flex items-center space-x-2.5 bg-secondary/50 border border-border/50 px-3 py-1.5 rounded-xl">
+                            <div className="h-7 w-7 rounded-lg bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
                                 IN
                             </div>
-                            <span className="text-sm font-bold text-purple-900 hidden sm:block">
+                            <span className="text-sm font-bold text-foreground hidden sm:block">
                                 Instructor Mode
                             </span>
                         </div>

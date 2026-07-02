@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+storage_states/*.json
+!storage_states/.gitkeep
+drafts/
+*.log
+.venv/

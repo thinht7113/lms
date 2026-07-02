@@ -34,7 +34,7 @@ export default function InstructorRevenuePage() {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <RefreshCw className="w-8 h-8 animate-spin text-purple-600" />
+                <RefreshCw className="w-8 h-8 animate-spin text-primary" />
             </div>
         );
     }
@@ -44,8 +44,8 @@ export default function InstructorRevenuePage() {
             title: "Tổng doanh thu", 
             value: `${(stats?.total_revenue || 0).toLocaleString('vi-VN')} đ`, 
             icon: Wallet, 
-            color: "text-purple-600", 
-            bg: "bg-purple-50",
+            color: "text-primary", 
+            bg: "bg-primary/10",
             desc: "Tổng số tiền tích lũy từ trước đến nay"
         },
         { 
@@ -75,7 +75,7 @@ export default function InstructorRevenuePage() {
                 </div>
                 <button 
                     onClick={() => router.push('/instructor/revenue/withdraw')}
-                    className="w-fit inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-lg shadow-purple-200"
+                    className="w-fit inline-flex items-center gap-2 bg-primary hover:bg-primary/95 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-lg shadow-blue-200"
                 >
                     <ArrowUpRight className="w-4 h-4" /> Rút tiền
                 </button>

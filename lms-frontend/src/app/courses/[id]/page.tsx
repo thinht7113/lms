@@ -24,6 +24,7 @@ import Footer from "@/components/Footer";
 import { apiService, Course, CourseDetail, Lesson, Review, Section, tokenHelper } from "@/services/api";
 import { useToast } from "@/contexts/ToastContext";
 import { setBreadcrumbLabel } from "@/utils/breadcrumbStore";
+import { getVideoEmbedInfo } from "@/utils/video";
 
 type TabKey = "overview" | "curriculum" | "reviews";
 
@@ -752,11 +753,23 @@ function PreviewModal({ lesson, onClose }: { lesson: Lesson; onClose: () => void
                 const type = content.loai_noi_dung?.toLowerCase() || "";
                 return (
                   <div key={content.id} className="w-full">
-                    {type === "video" && content.duong_dan_file && (
-                      <div className="overflow-hidden rounded-2xl shadow-sm border border-slate-200 bg-black">
-                        <video controls className="w-full h-auto max-h-[500px]" src={content.duong_dan_file} />
-                      </div>
-                    )}
+                    {type === "video" && content.duong_dan_file && (() => {
+                      const videoInfo = getVideoEmbedInfo(content.duong_dan_file);
+                      return (
+                        <div className="overflow-hidden rounded-2xl shadow-sm border border-slate-200 bg-black">
+                          {videoInfo.isIframe ? (
+                            <iframe
+                              src={videoInfo.embedUrl}
+                              className="w-full aspect-video bg-black"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            />
+                          ) : (
+                            <video controls className="w-full h-auto max-h-[500px]" src={videoInfo.embedUrl} />
+                          )}
+                        </div>
+                      );
+                    })()}
                     {type === "text" && content.noi_dung_text && (
                       <div className="prose max-w-none prose-slate rounded-2xl bg-white p-6 shadow-sm border border-slate-200" dangerouslySetInnerHTML={{ __html: content.noi_dung_text }} />
                     )}

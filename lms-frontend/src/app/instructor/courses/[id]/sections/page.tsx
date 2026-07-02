@@ -92,30 +92,30 @@ export default function InstructorCourseSectionsPage() {
   };
 
   if (loading) {
-    return <div className="flex min-h-[50vh] items-center justify-center"><RefreshCw className="h-10 w-10 animate-spin text-purple-600" /></div>;
+    return <div className="flex min-h-[50vh] items-center justify-center"><RefreshCw className="h-10 w-10 animate-spin text-primary" /></div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/instructor/courses" className="rounded-2xl border border-slate-200 bg-white p-3 text-slate-500 hover:text-purple-700">
+          <Link href="/instructor/courses" className="rounded-2xl border border-slate-200 bg-white p-3 text-slate-500 hover:text-primary">
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <p className="text-xs font-black uppercase tracking-widest text-purple-600">Biên soạn khóa học</p>
+            <p className="text-xs font-black uppercase tracking-widest text-primary">Biên soạn khóa học</p>
             <h1 className="text-3xl font-black tracking-tight text-slate-950">{course?.tieu_de || "Khóa học"}</h1>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => { resetForm(); setIsModalOpen(true); }}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-purple-600 px-5 py-3 text-sm font-black text-white shadow-sm hover:bg-purple-700"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-black text-white shadow-sm hover:bg-primary/95"
           >
             <Plus className="h-4 w-4" />
             Thêm chương
           </button>
-          <Link href={`/instructor/courses/${courseId}/edit`} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-purple-50 px-5 py-3 text-sm font-black text-purple-700 hover:bg-purple-100">
+          <Link href={`/instructor/courses/${courseId}/edit`} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary/10 px-5 py-3 text-sm font-black text-primary hover:bg-primary/20">
             <Edit3 className="h-4 w-4" />
             Sửa khóa học
           </Link>
@@ -131,7 +131,7 @@ export default function InstructorCourseSectionsPage() {
             <h2 className="text-lg font-black text-slate-950">Cấu trúc chương học</h2>
             <button
               onClick={() => { resetForm(); setIsModalOpen(true); }}
-              className="inline-flex items-center gap-2 rounded-xl bg-purple-50 px-4 py-2 text-sm font-black text-purple-700 hover:bg-purple-100"
+              className="inline-flex items-center gap-2 rounded-xl bg-primary/10 px-4 py-2 text-sm font-black text-primary hover:bg-primary/20"
             >
               <Plus className="h-4 w-4" />
               Thêm chương
@@ -142,7 +142,7 @@ export default function InstructorCourseSectionsPage() {
               {course.chuong_hoc.map((section) => (
                 <article key={section.id} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-start gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-purple-50 text-sm font-black text-purple-700">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-sm font-black text-primary">
                       {section.thu_tu}
                     </div>
                     <div>

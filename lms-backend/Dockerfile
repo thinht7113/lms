@@ -7,7 +7,6 @@ WORKDIR /app
 # 3. Optimize Python runtime in container
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 # 4. Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -24,8 +23,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
-# 5a. Install Chromium and Linux dependencies for Playwright in Docker
-RUN python -m playwright install --with-deps chromium
 
 # 5b. Download Roboto fonts for Vietnamese PDF rendering
 RUN mkdir -p app/assets/fonts && \

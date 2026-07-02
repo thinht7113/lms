@@ -7,6 +7,7 @@ import { ArrowLeft, FileText, ImageIcon, Plus, RefreshCw, Save, Trash2, UploadCl
 import { apiService, CourseDetail, Lesson, LessonContentPayload } from "@/services/api";
 import dynamic from "next/dynamic";
 import { setBreadcrumbLabel } from "@/utils/breadcrumbStore";
+import { getVideoEmbedInfo } from "@/utils/video";
 
 const CKEditorWrapper = dynamic(() => import("@/components/CKEditorWrapper"), {
   ssr: false,
@@ -21,12 +22,6 @@ type ContentBlock = LessonContentPayload & {
   id?: number;
   isUploading?: boolean;
   uploadProgress?: number;
-};
-
-const getYouTubeEmbedUrl = (url: string) => {
-  if (!url) return "";
-  const match = url.match(/^.*(youtu.be\/|v\/|vi\/|u\/\w\/|embed\/|shorts\/|watch\?v=|\&v=)([^#\&\?]*).*/);
-  return match && match[2].length === 11 ? `https://www.youtube.com/embed/${match[2]}` : url;
 };
 
 type Props = {
@@ -78,15 +73,13 @@ const renderEmbeddedPreview = (block: ContentBlock) => {
   if (!block.duong_dan_file || !isUploadableType(block.loai_noi_dung)) return null;
 
   if (block.loai_noi_dung === "video") {
-    const isYouTube = block.duong_dan_file.includes("youtube.com") || block.duong_dan_file.includes("youtu.be");
+    const videoInfo = getVideoEmbedInfo(block.duong_dan_file);
     
-    if (isYouTube) {
-      const embedUrl = getYouTubeEmbedUrl(block.duong_dan_file);
-      
+    if (videoInfo.isIframe) {
       return (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-950">
           <iframe 
-            src={embedUrl} 
+            src={videoInfo.embedUrl} 
             className="aspect-video w-full bg-black" 
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen 
@@ -97,7 +90,7 @@ const renderEmbeddedPreview = (block: ContentBlock) => {
     
     return (
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-950">
-        <video src={block.duong_dan_file} controls className="aspect-video w-full bg-black object-contain" />
+        <video src={videoInfo.embedUrl} controls className="aspect-video w-full bg-black object-contain" />
       </div>
     );
   }

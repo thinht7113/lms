@@ -203,165 +203,167 @@ export default function Navbar() {
   return (
     <>
       <header
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-          isScrolled
-            ? "bg-background/80 backdrop-blur-md border-b border-border shadow-sm py-3"
-            : "bg-transparent py-6"
-        }`}
+        suppressHydrationWarning
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${isScrolled
+          ? "bg-background/80 backdrop-blur-md border-b border-border shadow-sm py-3"
+          : "bg-transparent py-6"
+          }`}
       >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between">
-          {/* Logo Lumina Style */}
-          <div className="flex items-center flex-shrink-0 mr-8 lg:mr-12">
-            <Link href="/">
-              <SystemLogo />
-            </Link>
-          </div>
-
-          {/* Main Nav */}
-          <nav className="hidden md:flex items-center space-x-8">
-            <Link
-              href="/"
-              className={`text-[13px] font-bold uppercase tracking-widest transition-colors relative group ${isActive("/") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
-            >
-              Trang chủ
-              {isActive("/") && <span className="absolute -bottom-2 left-0 w-full h-0.5 bg-primary rounded-full"></span>}
-            </Link>
-            <Link
-              href="/courses"
-              className={`text-[13px] font-bold uppercase tracking-widest transition-colors relative group ${isActive("/courses") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
-            >
-              Khóa học
-              {isActive("/courses") && <span className="absolute -bottom-2 left-0 w-full h-0.5 bg-primary rounded-full"></span>}
-            </Link>
-            <Link
-              href="/instructors"
-              className={`text-[13px] font-bold uppercase tracking-widest transition-colors relative group ${isActive("/instructors") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
-            >
-              Giảng viên
-              {isActive("/instructors") && <span className="absolute -bottom-2 left-0 w-full h-0.5 bg-primary rounded-full"></span>}
-            </Link>
-
-            <Link
-              href="/about"
-              className={`text-[13px] font-bold uppercase tracking-widest transition-colors relative group ${isActive("/about") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
-            >
-              Giới thiệu
-              {isActive("/about") && <span className="absolute -bottom-2 left-0 w-full h-0.5 bg-primary rounded-full"></span>}
-            </Link>
-          </nav>
-
-          {/* Action Area */}
-          <div className="hidden md:flex items-center space-x-6">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (searchTerm.trim()) router.push(`/courses?q=${encodeURIComponent(searchTerm)}`);
-              }}
-              className="relative"
-            >
-              <input
-                type="text"
-                placeholder="Tìm khóa học..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-40 lg:w-56 bg-secondary border border-border/50 text-foreground text-xs rounded-xl py-2 pl-4 pr-10 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:w-64 transition-all duration-300"
-              />
-              <Search className="absolute right-3 top-2 w-4 h-4 text-muted-foreground" />
-            </form>
-
-            <div className="flex items-center space-x-1">
-              <Link href="/cart" className="p-2 text-muted-foreground hover:text-primary transition-colors relative">
-                <ShoppingCart className="h-5 w-5" />
-                {cartCount > 0 && (
-                  <span className="absolute top-0 right-0 bg-primary text-white text-[9px] font-black h-4 w-4 rounded-full flex items-center justify-center border-2 border-background">
-                    {cartCount}
-                  </span>
-                )}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between">
+            {/* Logo Lumina Style */}
+            <div className="flex items-center flex-shrink-0 mr-8 lg:mr-12">
+              <Link href="/">
+                <SystemLogo />
               </Link>
             </div>
 
-            <div className="h-6 w-px bg-border/60 mx-2" />
+            {/* Main Nav */}
+            <nav className="hidden md:flex items-center space-x-8">
+              <Link
+                href="/"
+                className={`text-[13px] font-bold uppercase tracking-widest transition-colors relative group ${isActive("/") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
+              >
+                Trang chủ
+                {isActive("/") && <span className="absolute -bottom-2 left-0 w-full h-0.5 bg-primary rounded-full"></span>}
+              </Link>
+              <Link
+                href="/courses"
+                className={`text-[13px] font-bold uppercase tracking-widest transition-colors relative group ${isActive("/courses") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
+              >
+                Khóa học
+                {isActive("/courses") && <span className="absolute -bottom-2 left-0 w-full h-0.5 bg-primary rounded-full"></span>}
+              </Link>
+              <Link
+                href="/instructors"
+                className={`text-[13px] font-bold uppercase tracking-widest transition-colors relative group ${isActive("/instructors") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
+              >
+                Giảng viên
+                {isActive("/instructors") && <span className="absolute -bottom-2 left-0 w-full h-0.5 bg-primary rounded-full"></span>}
+              </Link>
 
-            {currentUser ? (
-              <div className="relative" ref={accountMenuRef}>
-                <button
-                  type="button"
-                  onClick={() => setIsAccountMenuOpen((open) => !open)}
-                  className="flex items-center space-x-2.5 bg-card border border-border px-3 py-1.5 rounded-xl hover:shadow-md transition-all"
-                  aria-expanded={isAccountMenuOpen}
-                  aria-haspopup="menu"
-                >
-                  <img 
-                    src={currentUser.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser.ho_ten}`} 
-                    alt={currentUser.ho_ten || "Avatar"}
-                    className="h-6 w-6 rounded-lg bg-primary/10 object-cover"
-                  />
-                  <span className="text-xs font-bold text-foreground">
-                    {currentUser.ho_ten.split(' ').pop()}
-                  </span>
-                  <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isAccountMenuOpen ? "rotate-180" : ""}`} />
-                </button>
-                {isAccountMenuOpen && (
-                  <div
-                    role="menu"
-                    className="absolute right-0 top-full mt-3 w-72 overflow-hidden rounded-2xl border border-border bg-card shadow-2xl shadow-slate-900/10"
+              <Link
+                href="/about"
+                className={`text-[13px] font-bold uppercase tracking-widest transition-colors relative group ${isActive("/about") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
+              >
+                Giới thiệu
+                {isActive("/about") && <span className="absolute -bottom-2 left-0 w-full h-0.5 bg-primary rounded-full"></span>}
+              </Link>
+            </nav>
+
+            {/* Action Area */}
+            <div className="hidden md:flex items-center space-x-6" suppressHydrationWarning>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (searchTerm.trim()) router.push(`/courses?q=${encodeURIComponent(searchTerm)}`);
+                }}
+                className="relative"
+              >
+                <input
+                  type="text"
+                  placeholder="Tìm khóa học..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-40 lg:w-56 bg-secondary border border-border/50 text-foreground text-xs rounded-xl py-2 pl-4 pr-10 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:w-64 transition-all duration-300"
+                />
+                <Search className="absolute right-3 top-2 w-4 h-4 text-muted-foreground" />
+              </form>
+
+              <div className="flex items-center space-x-1" suppressHydrationWarning>
+                <Link href="/cart" className="p-2 text-muted-foreground hover:text-primary transition-colors relative">
+                  <ShoppingCart className="h-5 w-5" />
+                  {cartCount > 0 && (
+                    <span className="absolute top-0 right-0 bg-primary text-white text-[9px] font-black h-4 w-4 rounded-full flex items-center justify-center border-2 border-background">
+                      {cartCount}
+                    </span>
+                  )}
+                </Link>
+              </div>
+
+              <div className="h-6 w-px bg-border/60 mx-2" />
+
+              {currentUser ? (
+                <div className="relative" ref={accountMenuRef} suppressHydrationWarning>
+                  <button
+                    type="button"
+                    onClick={() => setIsAccountMenuOpen((open) => !open)}
+                    className="flex items-center space-x-2.5 bg-card border border-border px-3 py-1.5 rounded-xl hover:shadow-md transition-all"
+                    aria-expanded={isAccountMenuOpen}
+                    aria-haspopup="menu"
                   >
-                    <div className="border-b border-border/70 p-4">
-                      <p className="text-sm font-black text-foreground line-clamp-1">{currentUser.ho_ten}</p>
-                      <p className="text-xs text-muted-foreground line-clamp-1">{currentUser.email}</p>
-                    </div>
-                    <div className="p-2">
-                      {accountMenuItems.map((item) => (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          prefetch={item.href.startsWith("/admin") ? false : undefined}
-                          onClick={() => setIsAccountMenuOpen(false)}
-                          className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
+                    <img
+                      src={currentUser.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser.ho_ten}`}
+                      alt={currentUser.ho_ten || "Avatar"}
+                      className="h-6 w-6 rounded-lg bg-primary/10 object-cover"
+                    />
+                    <span className="text-xs font-bold text-foreground">
+                      {currentUser.ho_ten.split(' ').pop()}
+                    </span>
+                    <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isAccountMenuOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  {isAccountMenuOpen && (
+                    <div
+                      role="menu"
+                      className="absolute right-0 top-full mt-3 w-72 overflow-hidden rounded-2xl border border-border bg-card shadow-2xl shadow-slate-900/10"
+                    >
+                      <div className="border-b border-border/70 p-4">
+                        <p className="text-sm font-black text-foreground line-clamp-1">{currentUser.ho_ten}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-1">{currentUser.email}</p>
+                      </div>
+                      <div className="p-2">
+                        {accountMenuItems.map((item) => (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            prefetch={item.href.startsWith("/admin") ? false : undefined}
+                            onClick={() => setIsAccountMenuOpen(false)}
+                            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
+                            role="menuitem"
+                          >
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.label}</span>
+                          </Link>
+                        ))}
+                      </div>
+                      <div className="border-t border-border/70 p-2">
+                        <button
+                          type="button"
+                          onClick={handleLogout}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold text-destructive transition-colors hover:bg-destructive/10"
                           role="menuitem"
                         >
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.label}</span>
-                        </Link>
-                      ))}
+                          <LogOut className="h-4 w-4" />
+                          <span>Thoát</span>
+                        </button>
+                      </div>
                     </div>
-                    <div className="border-t border-border/70 p-2">
-                      <button
-                        type="button"
-                        onClick={handleLogout}
-                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold text-destructive transition-colors hover:bg-destructive/10"
-                        role="menuitem"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        <span>Thoát</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowAuthModal("login")}
-                className="bg-primary hover:bg-blue-700 text-white text-[13px] font-bold px-6 py-2.5 rounded-xl transition-all shadow-lg shadow-primary/20"
-              >
-                Đăng nhập
-              </button>
-            )}
-          </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2.5" suppressHydrationWarning>
+                  <button
+                    onClick={() => setShowAuthModal("login")}
+                    className="bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-bold px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-blue-600/20"
+                  >
+                    Đăng nhập
+                  </button>
+                </div>
+              )}
+            </div>
 
-          {/* Mobile Menu Trigger */}
-          <div className="md:hidden flex items-center space-x-4">
-             <Link href="/cart" className="relative text-foreground">
+            {/* Mobile Menu Trigger */}
+            <div className="md:hidden flex items-center space-x-4" suppressHydrationWarning>
+              <Link href="/cart" className="relative text-foreground">
                 <ShoppingCart className="h-6 w-6" />
                 {cartCount > 0 && <span className="absolute -top-1 -right-1 bg-primary text-white text-[8px] font-bold h-4 w-4 rounded-full flex items-center justify-center border border-background">{cartCount}</span>}
-             </Link>
-             <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-foreground">
+              </Link>
+              <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-foreground">
                 {isMobileMenuOpen ? <X className="h-7 w-7" /> : <Menu className="h-7 w-7" />}
-             </button>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
       </header>
 
@@ -369,58 +371,66 @@ export default function Navbar() {
 
       {/* Mobile Drawer */}
       {isMobileMenuOpen && (
-        <div 
+        <div
           className="md:hidden fixed inset-0 z-[49] pt-24 px-6 pb-24 animate-in slide-in-from-right duration-300 overflow-y-auto"
           style={{ backgroundColor: "var(--color-background, #ffffff)" }}
         >
-           <div className="flex flex-col space-y-6">
-              <div className="relative">
-                <Search className="absolute left-4 top-3.5 h-5 w-5 text-muted-foreground" />
-                <input 
-                  type="text" 
-                  placeholder="Tìm kiếm khóa học..." 
-                  className="w-full bg-secondary py-3.5 pl-12 pr-4 rounded-2xl border border-border text-sm outline-none"
-                />
-              </div>
-              <nav className="flex flex-col space-y-2">
-                <Link href="/" className="text-lg font-black py-4 border-b border-border/50" onClick={() => setIsMobileMenuOpen(false)}>Trang chủ</Link>
-                <Link href="/courses" className="text-lg font-black py-4 border-b border-border/50" onClick={() => setIsMobileMenuOpen(false)}>Khóa học</Link>
-                <Link href="/instructors" className="text-lg font-black py-4 border-b border-border/50" onClick={() => setIsMobileMenuOpen(false)}>Giảng viên</Link>
+          <div className="flex flex-col space-y-6">
+            <div className="relative">
+              <Search className="absolute left-4 top-3.5 h-5 w-5 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Tìm kiếm khóa học..."
+                className="w-full bg-secondary py-3.5 pl-12 pr-4 rounded-2xl border border-border text-sm outline-none"
+              />
+            </div>
+            <nav className="flex flex-col space-y-2">
+              <Link href="/" className="text-lg font-black py-4 border-b border-border/50" onClick={() => setIsMobileMenuOpen(false)}>Trang chủ</Link>
+              <Link href="/courses" className="text-lg font-black py-4 border-b border-border/50" onClick={() => setIsMobileMenuOpen(false)}>Khóa học</Link>
+              <Link href="/instructors" className="text-lg font-black py-4 border-b border-border/50" onClick={() => setIsMobileMenuOpen(false)}>Giảng viên</Link>
 
-                <Link href="/about" className="text-lg font-black py-4 border-b border-border/50" onClick={() => setIsMobileMenuOpen(false)}>Giới thiệu</Link>
-                {currentUser && accountMenuItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    prefetch={item.href.startsWith("/admin") ? false : undefined}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center gap-3 text-lg font-black py-4 border-b border-border/50"
-                  >
-                    <item.icon className="h-5 w-5 text-primary" />
-                    <span>{item.label}</span>
-                  </Link>
-                ))}
-              </nav>
-              <div className="pt-6">
-                {currentUser ? (
-                  <button
-                    type="button"
-                    onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }}
-                    className="w-full bg-destructive/10 text-destructive py-4 rounded-2xl font-bold flex items-center justify-center space-x-2"
-                  >
-                    <LogOut className="h-5 w-5" />
-                    <span>Thoát</span>
-                  </button>
-                ) : (
+              <Link href="/about" className="text-lg font-black py-4 border-b border-border/50" onClick={() => setIsMobileMenuOpen(false)}>Giới thiệu</Link>
+              {currentUser && accountMenuItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  prefetch={item.href.startsWith("/admin") ? false : undefined}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center gap-3 text-lg font-black py-4 border-b border-border/50"
+                >
+                  <item.icon className="h-5 w-5 text-primary" />
+                  <span>{item.label}</span>
+                </Link>
+              ))}
+            </nav>
+            <div className="pt-6">
+              {currentUser ? (
+                <button
+                  type="button"
+                  onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }}
+                  className="w-full bg-destructive/10 text-destructive py-4 rounded-2xl font-bold flex items-center justify-center space-x-2"
+                >
+                  <LogOut className="h-5 w-5" />
+                  <span>Thoát</span>
+                </button>
+              ) : (
+                <div className="flex gap-3">
                   <button
                     onClick={() => { setShowAuthModal("login"); setIsMobileMenuOpen(false); }}
-                    className="block w-full bg-primary text-white text-center py-4 rounded-2xl font-bold shadow-xl shadow-primary/20"
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-center py-4 rounded-2xl font-bold shadow-xl shadow-blue-600/20"
                   >
-                    Bắt đầu học ngay
+                    Đăng nhập
                   </button>
-                )}
-              </div>
-           </div>
+                  <button
+                    onClick={() => { setShowAuthModal("register"); setIsMobileMenuOpen(false); }}
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-center py-4 rounded-2xl font-bold shadow-xl shadow-emerald-600/20"
+                  >
+                    Đăng ký
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
       <Suspense fallback={null}>

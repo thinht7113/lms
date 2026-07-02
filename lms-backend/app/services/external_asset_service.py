@@ -16,7 +16,7 @@ from app.services.storage_service import StorageService
 MAX_EXTERNAL_ASSET_SIZE = {
     "image": 5 * 1024 * 1024,
     "pdf": 25 * 1024 * 1024,
-    "video": 200 * 1024 * 1024,
+    "video": 500 * 1024 * 1024,
 }
 
 EXTERNAL_ASSET_RULES = {
@@ -31,7 +31,10 @@ EXTERNAL_ASSET_RULES = {
         "folder": "crawler/pdfs",
     },
     "video": {
-        "content_types": {"video/mp4", "video/webm", "video/quicktime", "video/mpeg"},
+        "content_types": {
+            "video/mp4", "video/webm", "video/quicktime", "video/mpeg",
+            "application/octet-stream", "binary/octet-stream",
+        },
         "extensions": {".mp4", ".webm", ".mov", ".mpeg", ".mpg"},
         "folder": "crawler/videos",
     },
@@ -47,6 +50,8 @@ class ExternalAssetService:
     async def mirror_url(url: Optional[str], asset_type: str) -> Optional[str]:
         if not url:
             return None
+
+        # YouTube: always keep original URL (embed via iframe on frontend)
         if ExternalAssetService.is_youtube_url(url):
             return url
 
@@ -76,7 +81,7 @@ class ExternalAssetService:
     async def _download_and_validate(url: str, asset_type: str) -> tuple[bytes, str, str]:
         rules = EXTERNAL_ASSET_RULES[asset_type]
         max_size = MAX_EXTERNAL_ASSET_SIZE[asset_type]
-        timeout = httpx.Timeout(connect=15.0, read=120.0, write=15.0, pool=15.0)
+        timeout = httpx.Timeout(connect=15.0, read=300.0, write=15.0, pool=15.0)
 
         async with httpx.AsyncClient(follow_redirects=True, timeout=timeout) as client:
             async with client.stream("GET", url, headers={"User-Agent": ExternalAssetService._user_agent()}) as response:
@@ -85,10 +90,25 @@ class ExternalAssetService:
                 content_type = ExternalAssetService._normalize_content_type(response.headers.get("content-type"))
                 extension = ExternalAssetService._extension_from_url(url) or mimetypes.guess_extension(content_type) or ""
 
-                if content_type not in rules["content_types"]:
-                    raise ExternalAssetError(f"Unexpected content type {content_type!r} for {url}")
-                if extension.lower() not in rules["extensions"]:
-                    raise ExternalAssetError(f"Unexpected extension {extension!r} for {url}")
+                # For video: be lenient with content types from CDNs
+                if asset_type == "video":
+                    if content_type not in rules["content_types"]:
+                        # Accept if extension is valid, assume mp4
+                        if extension.lower() in rules["extensions"]:
+                            content_type = "video/mp4"
+                        else:
+                            # Fallback: assume mp4 for unknown types from video CDNs
+                            content_type = "video/mp4"
+                            extension = ".mp4"
+                else:
+                    if content_type not in rules["content_types"]:
+                        raise ExternalAssetError(f"Unexpected content type {content_type!r} for {url}")
+                    if extension.lower() not in rules["extensions"]:
+                        raise ExternalAssetError(f"Unexpected extension {extension!r} for {url}")
+
+                # Ensure extension is valid for the asset type
+                if not extension or extension.lower() not in rules["extensions"]:
+                    extension = mimetypes.guess_extension(content_type) or (".mp4" if asset_type == "video" else "")
 
                 content_length = response.headers.get("content-length")
                 if content_length and int(content_length) > max_size:
@@ -103,8 +123,10 @@ class ExternalAssetService:
                     chunks.append(chunk)
 
         content = b"".join(chunks)
-        if not ExternalAssetService._matches_magic(asset_type, content_type, content[:512]):
-            raise ExternalAssetError(f"External asset content does not match declared type: {url}")
+        # For video: skip strict magic byte check (many CDNs serve valid video with unusual headers)
+        if asset_type != "video":
+            if not ExternalAssetService._matches_magic(asset_type, content_type, content[:512]):
+                raise ExternalAssetError(f"External asset content does not match declared type: {url}")
         return content, content_type, extension.lower()
 
     @staticmethod
@@ -143,3 +165,4 @@ class ExternalAssetService:
             "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/120.0.0.0 Safari/537.36"
         )
+

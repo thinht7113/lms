@@ -368,6 +368,7 @@ export interface CourseImportImportPayload {
   category_id?: number | null;
   course_category_map?: Record<string, number | null>;
   instructor_id?: number | null;
+  excluded_indexes?: number[];
 }
 
 export interface CourseImportDraft {

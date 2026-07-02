@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter
+from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
     admin,
@@ -6,7 +6,6 @@ from app.api.v1.endpoints import (
     banners,
     cart,
     certificates,
-    course_imports,
     courses,
     dynamic_admin,
     instructor_studio,
@@ -42,4 +41,4 @@ api_router.include_router(dynamic_admin.dynamic_router, prefix="/dynamic-admin",
 api_router.include_router(settings.router, prefix="/settings", tags=["System Settings"])
 
 api_router.include_router(upload.router, prefix="/upload", tags=["File Storage"])
-api_router.include_router(course_imports.router, prefix="/admin/course-imports", tags=["Admin Course Imports"])
+

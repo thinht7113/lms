@@ -133,11 +133,5 @@ export const apiService = {
   getAdminEnrollments: adminApi.getAdminEnrollments,
   createAdminEnrollment: adminApi.createAdminEnrollment,
   deleteAdminEnrollment: adminApi.deleteAdminEnrollment,
-
-  // Course Import
-  getCourseImportConfig: adminApi.getCourseImportConfig,
-  createHoctapgiareImportJob: adminApi.createHoctapgiareImportJob,
-  getCourseImportJobs: adminApi.getCourseImportJobs,
-  getCourseImportJob: adminApi.getCourseImportJob,
-  importCourseImportJob: adminApi.importCourseImportJob,
 };
+
