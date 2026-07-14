@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import html
 import re
+import unicodedata
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
@@ -9,7 +11,13 @@ from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
 from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError, async_playwright
 
-from crawlers.base import BaseCourseCrawler
+from crawlers.base import (
+    BaseCourseCrawler,
+    CourseDraft,
+    LessonContentDraft,
+    LessonDraft,
+    SectionDraft,
+)
 from crawlers.exceptions import (
     CrawlerAccessDeniedError,
     CrawlerBrowserError,
@@ -21,7 +29,7 @@ from crawlers.exceptions import (
     CrawlerLoginError,
     CrawlerSelectorError,
 )
-from config import settings
+from config import TOOL_ROOT, settings
 
 
 class HocTapGiaReCrawler(BaseCourseCrawler):
@@ -37,11 +45,11 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
         self.password = password or settings.CRAWLER_HOCTAPGIARE_PASSWORD
         self.headless = headless
         self.storage_state_path = storage_state_path or settings.CRAWLER_HOCTAPGIARE_STORAGE_STATE_PATH
-        self.max_concurrency = max_concurrency
+        self.max_concurrency = max(1, min(int(max_concurrency or 1), 32))
         self.errors: List[Dict[str, Any]] = []
 
 
-    async def crawl(self,source_url: str,limit: int = 5,checkout_free: bool = False,on_draft: Optional[Callable[[Dict[str, Any]], Awaitable[None]]] = None,existing_titles: Optional[set[str]] = None,) -> List[Dict[str, Any]]:
+    async def crawl(self,source_url: str,limit: int = 5,checkout_free: bool = False,on_draft: Optional[Callable[[CourseDraft], Awaitable[None]]] = None,existing_titles: Optional[set[str]] = None,) -> List[CourseDraft]:
         self.errors = []
         playwright_context = async_playwright()
         playwright = None
@@ -81,14 +89,24 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
                     await self._save_storage_state(context)
 
                 course_urls = await self._resolve_course_urls(page, source_url, limit, existing_titles)
-                drafts: List[Dict[str, Any]] = []
-                for course_url in course_urls[:limit]:
+                drafts: List[CourseDraft] = []
+                total_courses = len(course_urls[:limit])
+                for course_index, course_url in enumerate(course_urls[:limit], 1):
                     try:
+                        print(f"  -> Crawling course {course_index}/{total_courses}: {course_url}", flush=True)
                         draft = await asyncio.wait_for(
                             self._crawl_course(page, course_url, checkout_free=checkout_free),
                             timeout=max(60, settings.CRAWLER_COURSE_TIMEOUT_SECONDS),
                         )
                         drafts.append(draft)
+                        raw = draft.get("raw", {})
+                        print(
+                            "     Done: "
+                            f"{draft.get('title')} | lessons={raw.get('lesson_count', 0)} "
+                            f"videos={raw.get('video_count', 0)} youtube={raw.get('youtube_count', 0)} "
+                            f"mp4={raw.get('mp4_count', 0)} external={raw.get('external_video_count', 0)}",
+                            flush=True,
+                        )
                         if on_draft is not None:
                             await on_draft(draft)
                     except asyncio.TimeoutError:
@@ -196,12 +214,13 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
                 count = await boxes.count()
                 for index in range(count):
                     box = boxes.nth(index)
-                    price_text = (await self._safe_inner_text(box.locator(".current-price").first)).lower()
-                    if price_text and "miễn phí" not in price_text and "mien phi" not in price_text:
+                    price_text = await self._safe_inner_text(box.locator(".current-price").first)
+                    normalized_price = self._normalize_for_match(price_text)
+                    if price_text and not any(token in normalized_price for token in ("mien phi", "free", "0 d", "0d", "0 dong")):
                         continue
                         
                     title_text = await self._safe_inner_text(box.locator("a.course-title").first)
-                    if existing_titles and title_text.strip().lower() in existing_titles:
+                    if existing_titles and self._normalize_title_key(title_text) in existing_titles:
                         continue
 
                     href = await self._safe_attr(
@@ -226,19 +245,11 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
             next_url = await self._next_listing_url(page, next_url, urls, limit)
 
         if not urls:
-            diagnostics = await self._page_diagnostics(page)
-            raise CrawlerListingError(
-                "Khong tim thay khoa hoc mien phi nao trong trang danh sach.",
-                url=listing_url,
-                details={
-                    "limit": limit,
-                    "selectors": ["li .course-box-2", ".course-box-2", "a.course-title"],
-                    **diagnostics,
-                },
-            )
+            print("  ℹ️ Không còn khóa học miễn phí mới nào cần cào (tất cả đã tồn tại trong CSDL hoặc không có khóa miễn phí mới).", flush=True)
+            return []
         return urls
 
-    async def _crawl_course(self, page: Page, course_url: str, checkout_free: bool = False) -> Dict[str, Any]:
+    async def _crawl_course(self, page: Page, course_url: str, checkout_free: bool = False) -> CourseDraft:
         try:
             await page.goto(course_url, wait_until="domcontentloaded")
             await self._wait(page, networkidle_timeout=6000)
@@ -271,6 +282,7 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
             page,
             ".description-box .description-content, .description-box, .course-description",
         )
+        description_text = self._clean_description_text(description_text)
         thumbnail_url = await self._first_attr(
             page,
             [
@@ -296,7 +308,7 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
         mp4_count = 0
         external_video_count = 0
         pdf_count = 0
-        lesson_jobs: List[tuple[Dict[str, Any], str]] = []
+        lesson_jobs: List[tuple[LessonDraft, str]] = []
 
         for section in sections:
             for lesson in section["lessons"]:
@@ -308,17 +320,31 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
                 lesson_jobs.append((lesson, lesson_url))
 
         if lesson_jobs:
-            print(f"  ⚡ [Đa luồng] Kích hoạt {self.max_concurrency} luồng cào song song cho {len(lesson_jobs)} bài học...")
+            print(f"     Lessons: {len(lesson_jobs)} items with concurrency={self.max_concurrency}", flush=True)
             semaphore = asyncio.Semaphore(self.max_concurrency)
 
-            async def crawl_lesson_job(lesson: Dict[str, Any], lesson_url: str) -> tuple[Dict[str, Any], Optional[Dict[str, Any]], Optional[CrawlerError]]:
+            async def crawl_lesson_job(lesson: LessonDraft, lesson_url: str) -> tuple[LessonDraft, Optional[LessonDraft], Optional[CrawlerError]]:
 
                 async with semaphore:
                     lesson_page = await page.context.new_page()
                     lesson_page.set_default_timeout(8000)
                     lesson_page.set_default_navigation_timeout(7000)
                     try:
-                        return lesson, await self._crawl_lesson(lesson_page, lesson_url), None
+                        lesson_content = await asyncio.wait_for(
+                            self._crawl_lesson(lesson_page, lesson_url),
+                            timeout=max(10, settings.CRAWLER_LESSON_TIMEOUT_SECONDS),
+                        )
+                        return lesson, lesson_content, None
+                    except asyncio.TimeoutError:
+                        return (
+                            lesson,
+                            None,
+                            CrawlerContentError(
+                                "Qua thoi gian toi da khi crawl bai hoc, da dung fallback text de tranh treo job.",
+                                url=lesson_url,
+                                details={"timeout_seconds": settings.CRAWLER_LESSON_TIMEOUT_SECONDS},
+                            ),
+                        )
                     except CrawlerError as exc:
                         return lesson, None, exc
                     except Exception as exc:
@@ -402,12 +428,11 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
         }
 
     async def _enroll_free_course(self, page: Page, course_url: str) -> None:
-        already_purchased = await page.locator(".already_purchased a, a[href*='/home/my_courses']").first.count()
-        if already_purchased:
-            return
-
-        button = page.locator(".buy-btns a.btn-buy-now, a[href*='get_enrolled_to_free_course']").first
+        button = page.locator(".buy-btns a.btn-buy-now, a[href*='get_enrolled_to_free_course'], button:has-text('Đăng ký ngay'), a:has-text('Đăng ký ngay')").first
         if not await button.count():
+            already_purchased = await page.locator(".buy-btns .already_purchased, .course-sidebar .already_purchased, div.already_purchased, button.already_purchased").first.count()
+            if already_purchased:
+                return
             raise CrawlerSelectorError(
                 "Khong tim thay nut dang ky khoa hoc mien phi.",
                 stage="enroll_free_course",
@@ -445,7 +470,7 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
                     details={"enroll_url": href, **await self._page_diagnostics(page)},
                 )
 
-            purchased = await page.locator(".already_purchased a, a[href*='/home/my_courses']").first.count()
+            purchased = await page.locator(".buy-btns .already_purchased, .course-sidebar .already_purchased, div.already_purchased, a[href*='/home/lesson/']").first.count()
             if not purchased:
                 raise CrawlerAccessDeniedError(
                     "Da goi dang ky mien phi nhung trang khoa hoc chua hien thi trang thai da mua.",
@@ -461,8 +486,8 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
                 details={"error": str(exc), "enroll_url": href},
             ) from exc
 
-    async def _extract_curriculum(self, page: Page, course_id: str, course_slug: str) -> List[Dict[str, Any]]:
-        sections: List[Dict[str, Any]] = []
+    async def _extract_curriculum(self, page: Page, course_id: str, course_slug: str) -> List[SectionDraft]:
+        sections: List[SectionDraft] = []
         groups = page.locator(".course-curriculum-box .lecture-group-wrapper, .lecture-group-wrapper")
         group_count = await groups.count()
 
@@ -484,11 +509,11 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
             )
         return sections
 
-    async def _extract_lessons_from_page(self, page: Page, course_id: str, course_slug: str) -> List[Dict[str, Any]]:
+    async def _extract_lessons_from_page(self, page: Page, course_id: str, course_slug: str) -> List[LessonDraft]:
         return await self._extract_lessons_from_locator(page.locator("body"), course_id, course_slug)
 
-    async def _extract_lessons_from_locator(self, locator: Any, course_id: str, course_slug: str) -> List[Dict[str, Any]]:
-        lessons: List[Dict[str, Any]] = []
+    async def _extract_lessons_from_locator(self, locator: Any, course_id: str, course_slug: str) -> List[LessonDraft]:
+        lessons: List[LessonDraft] = []
         lesson_nodes = locator.locator("li.lecture .lecture-title, a[href*='/home/lesson/']")
         count = await lesson_nodes.count()
         for index in range(count):
@@ -507,14 +532,28 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
             )
         return lessons
 
-    async def _crawl_lesson(self, page: Page, lesson_url: str) -> Dict[str, Any]:
+    async def _crawl_lesson(self, page: Page, lesson_url: str) -> LessonDraft:
+        captured_media_urls: List[str] = []
+
+        def capture_media_request(request: Any) -> None:
+            url = request.url
+            lower_url = url.lower()
+            is_media_request = request.resource_type == "media"
+            is_video_url = any(ext in lower_url for ext in (".mp4", ".webm", ".mov", ".mpeg", ".mpg", ".m3u8"))
+            if not is_media_request and not is_video_url:
+                return
+            clean_url = self._clean_url(url)
+            if clean_url:
+                captured_media_urls.append(clean_url)
+
+        page.on("request", capture_media_request)
         try:
             try:
                 await page.goto(lesson_url, wait_until="commit", timeout=5000)
             except PlaywrightTimeoutError:
                 if urlparse(page.url).path != urlparse(lesson_url).path:
                     raise
-            await page.wait_for_timeout(900)
+            await page.wait_for_timeout(1400)
             await self._raise_if_blocked(page, lesson_url)
         except Exception as exc:
             if isinstance(exc, CrawlerError):
@@ -525,8 +564,13 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
                 url=lesson_url,
                 details={"error": str(exc), **diagnostics},
             ) from exc
+        finally:
+            try:
+                page.remove_listener("request", capture_media_request)
+            except Exception:
+                pass
 
-        contents: List[Dict[str, Any]] = []
+        contents: List[LessonContentDraft] = []
         seen_urls: set[str] = set()
         sort_order = 0
 
@@ -550,7 +594,10 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
             "iframe[src*='player.vimeo.com'], "
             "iframe[src*='rumble.com'], "
             "iframe[src*='dailymotion.com'], "
-            "iframe[src*='ok.ru']"
+            "iframe[src*='ok.ru'], "
+            "iframe[data-src*='youtube.com'], "
+            "iframe[data-src*='youtu.be'], "
+            "iframe[data-src*='drive.google.com']"
         )
         for link in await self._links(page, embedded_video_selector, attr="src"):
             add_url_content("video", link)
@@ -569,8 +616,14 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
         for link in await self._links(page, direct_video_selector, attr="src"):
             add_url_content("video", link)
 
+        for link in captured_media_urls:
+            add_url_content("video", link)
+
         for link in await self._links(page, "a[href$='.pdf'], a[href*='.pdf?']"):
             add_url_content("pdf", link)
+
+        for content_type, link in await self._extract_media_urls_from_page_source(page):
+            add_url_content(content_type, link)
 
         text_html = await self._html(page, "#lesson-summary .card-body, .lesson-summary, .lesson-content", timeout=350)
         text_plain = await self._text(page, "#lesson-summary .card-body, .lesson-summary, .lesson-content", timeout=350)
@@ -593,8 +646,16 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
             url = item["url"]
             if self._is_youtube_like_url(url) or self._is_direct_video_file_url(url):
                 continue
-            # This is an embed URL (Rumble, GDrive, Vimeo, etc.) — try to extract real .mp4
-            real_url = await self._extract_real_video_url(page.context, url)
+            if self._is_probably_downloadable_video_url(url):
+                continue
+            # This is an embed URL (Rumble, Vimeo, etc.) - try to extract real .mp4.
+            try:
+                real_url = await asyncio.wait_for(
+                    self._extract_real_video_url(page.context, url),
+                    timeout=max(5, settings.CRAWLER_RESOLVE_VIDEO_TIMEOUT_SECONDS),
+                )
+            except asyncio.TimeoutError:
+                real_url = None
             if real_url:
                 item["url"] = real_url
 
@@ -651,7 +712,7 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
                 await page.goto(embed_url, wait_until="domcontentloaded", timeout=20000)
             except PlaywrightTimeoutError:
                 pass
-            await page.wait_for_timeout(8000)
+            await page.wait_for_timeout(min(8000, max(1000, settings.CRAWLER_RESOLVE_VIDEO_TIMEOUT_SECONDS * 500)))
 
             # Strategy 1: Check <video> and <source> tags in the DOM
             try:
@@ -685,8 +746,18 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
         except Exception:
             return None
         finally:
-            await page.close()
-            await clean_context.close()
+            try:
+                page.remove_listener("request", _on_request)
+            except Exception:
+                pass
+            try:
+                await page.close()
+            except Exception:
+                pass
+            try:
+                await clean_context.close()
+            except Exception:
+                pass
 
     async def _route_lightweight_resources(self, route: Any) -> None:
         if route.request.resource_type in {"font", "image", "media"}:
@@ -754,7 +825,14 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
     async def _links(self, page: Page, selector: str, attr: str = "href") -> List[str]:
         try:
             links = await page.locator(selector).evaluate_all(
-                "(els, attr) => els.map(e => e.getAttribute(attr) || e.getAttribute('src') || e.getAttribute('href')).filter(Boolean)",
+                """(els, attr) => els.map(e =>
+                    e.getAttribute(attr) ||
+                    e.getAttribute('src') ||
+                    e.getAttribute('href') ||
+                    e.getAttribute('data-src') ||
+                    e.getAttribute('data-lazy-src') ||
+                    e.getAttribute('data-url')
+                ).filter(Boolean)""",
                 attr,
             )
             return [clean for link in links if (clean := self._clean_url(str(link)))]
@@ -866,12 +944,46 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
     async def _next_listing_url(self, page: Page, current_url: str, urls: List[str], limit: int) -> Optional[str]:
         if len(urls) >= limit:
             return None
-        for selector in ["a[rel='next']", ".pagination a:has-text('›')", ".pagination a:has-text('Next')"]:
+        try:
+            hrefs = await page.locator(".pagination a[href*='/home/courses']").evaluate_all(
+                "(els) => els.map(e => e.href).filter(Boolean)"
+            )
+        except Exception:
+            hrefs = []
+
+        current_offset = self._listing_offset(current_url)
+        candidates: List[tuple[int, str]] = []
+        for href in hrefs:
+            clean = self._clean_url(str(href))
+            if not clean:
+                continue
+            offset = self._listing_offset(clean)
+            if offset > current_offset:
+                candidates.append((offset, clean))
+
+        if candidates:
+            candidates.sort(key=lambda item: item[0])
+            return candidates[0][1]
+
+        for selector in [
+            "a[rel='next']",
+            ".pagination a:has-text('›')",
+            ".pagination a:has-text('»')",
+            ".pagination a:has-text('Next')",
+            ".pagination li:not(.disabled) a.page-link[aria-label*='Next']",
+        ]:
             href = await self._attr(page, selector, "href")
             clean = self._clean_url(href)
             if clean and clean != current_url:
                 return clean
         return None
+
+    def _listing_offset(self, url: str) -> int:
+        parsed = urlparse(url)
+        match = re.search(r"/home/courses/(\d+)$", parsed.path.rstrip("/"))
+        if match:
+            return int(match.group(1))
+        return 0
 
     def _normalize_source_url(self, source_url: str) -> str:
         source_url = source_url.strip() if source_url else self.free_courses_url
@@ -897,21 +1009,44 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
     def _clean_url(self, value: Optional[str]) -> Optional[str]:
         if not value:
             return None
-        return urljoin(self.base_url, value.split("#", 1)[0].strip())
+        decoded = html.unescape(str(value))
+        return urljoin(self.base_url, decoded.split("#", 1)[0].strip())
 
     def _is_course_url(self, url: str) -> bool:
         parsed = urlparse(url)
         return "hoctapgiare.top" in parsed.netloc and "/home/course/" in parsed.path
 
-    def _is_youtube_like_url(self, url: str) -> bool:
+    def _is_probably_downloadable_video_url(self, url: str) -> bool:
+        if self._is_direct_video_file_url(url):
+            return True
         parsed = urlparse(url)
         host = parsed.netloc.lower()
-        return "youtube.com" in host or "youtube-nocookie.com" in host or "youtu.be" in host
-
-    def _is_direct_video_file_url(self, url: str) -> bool:
-        parsed = urlparse(url)
         path = parsed.path.lower()
-        return path.endswith((".mp4", ".webm", ".mov", ".mpeg", ".mpg"))
+        query = parsed.query.lower()
+        if "dl.dropboxusercontent.com" in host:
+            return True
+        if "drive.google.com" in host and path.endswith("/uc") and "export=download" in query:
+            return True
+        return False
+
+    async def _extract_media_urls_from_page_source(self, page: Page) -> List[tuple[str, str]]:
+        try:
+            html = await page.content()
+        except Exception:
+            return []
+
+        patterns = [
+            ("video", r"https?://[^\s\"'<>()]+(?:youtube\.com|youtube-nocookie\.com|youtu\.be)[^\s\"'<>()]*"),
+            ("video", r"https?://[^\s\"'<>()]+\.(?:mp4|webm|mov|mpeg|mpg)(?:\?[^\s\"'<>()]*)?"),
+            ("pdf", r"https?://[^\s\"'<>()]+\.pdf(?:\?[^\s\"'<>()]*)?"),
+        ]
+        results: List[tuple[str, str]] = []
+        for content_type, pattern in patterns:
+            for match in re.findall(pattern, html, flags=re.IGNORECASE):
+                clean = self._clean_url(match)
+                if clean:
+                    results.append((content_type, clean))
+        return results
 
     def _extract_course_identity(self, course_url: str) -> tuple[str, str]:
         parsed = urlparse(course_url)
@@ -934,7 +1069,7 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
                     return f"{self.base_url}/home/lesson/{course_slug}/{resolved_course_id}/{lesson_id}"
         return None
 
-    def _fallback_lesson_contents(self, text: Optional[str]) -> List[Dict[str, Any]]:
+    def _fallback_lesson_contents(self, text: Optional[str]) -> List[LessonContentDraft]:
         return [{"type": "text", "text": text or "Bai hoc chua co noi dung cu the.", "sort_order": 0}]
 
     def _clean_lesson_title(self, value: Optional[str]) -> str:
@@ -954,7 +1089,7 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
 
         path = Path(self.storage_state_path)
         if not path.is_absolute():
-            path = Path.cwd() / path
+            path = TOOL_ROOT / path
 
         if not path.exists():
             if self.email and self.password:
@@ -963,7 +1098,7 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
                 "Da cau hinh storage_state nhung file khong ton tai.",
                 details={
                     "storage_state_path": str(path),
-                    "hint": "Chay python -m app.crawlers.save_hoctapgiare_session de tao file session.",
+                    "hint": "Chay python -m main --login --email ... --password ... trong thu muc lms-crawler-tool de tao file session.",
                 },
             )
         return path
@@ -973,7 +1108,7 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
             return
         path = Path(self.storage_state_path)
         if not path.is_absolute():
-            path = Path.cwd() / path
+            path = TOOL_ROOT / path
         path.parent.mkdir(parents=True, exist_ok=True)
         await context.storage_state(path=str(path))
 
