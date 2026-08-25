@@ -18,9 +18,11 @@ class Settings(BaseSettings):
     PORT: int = 8000
     
     # 2. Security (JWT)
-    SECRET_KEY: str = DEFAULT_SECRET_KEY  # Doi trong .env thuc te
+    SECRET_KEY: str = DEFAULT_SECRET_KEY  
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 1 ngay
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    REFRESH_COOKIES_NAME: str = "lms_refresh_token"
     AUTH_COOKIE_NAME: str = "lms_session"
     AUTH_COOKIE_DOMAIN: Optional[str] = None
     ENABLE_MOCK_AUTH: bool = False

@@ -52,7 +52,6 @@ export default function CourseCard({
             src={thumbnail}
             alt={title}
             fill
-            unoptimized
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className="object-contain p-1 group-hover:scale-105 transition-transform duration-700"
           />
@@ -84,12 +83,13 @@ export default function CourseCard({
             </div>
           </div>
 
+          {/* Title & Description */}
           <h3 className="font-sans font-black text-base text-foreground leading-tight line-clamp-2 group-hover:text-primary transition-colors">
             {title}
           </h3>
 
-          <p className="text-[11px] text-muted-foreground font-medium line-clamp-2 min-h-[32px]" title={description}>
-            {description}
+          <p className="text-[11px] text-muted-foreground font-medium line-clamp-2 min-h-[32px]" title={(description || "").replace(/<[^>]*>?/gm, "").trim()}>
+            {(description || "").replace(/<[^>]*>?/gm, "").trim()}
           </p>
         </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { LayoutGrid } from "lucide-react";
 
 interface SystemLogoProps {
@@ -57,7 +58,7 @@ export default function SystemLogo({
         let isMounted = true;
         const cached = localStorage.getItem("system_logo");
 
-        if (cached) {
+        if (cached && !cached.includes("localhost:9000")) {
             cachedLogoUrl = cached;
             setLogoUrl(cached);
         }
@@ -79,9 +80,13 @@ export default function SystemLogo({
     return (
         <div className="flex items-center space-x-3 group">
             {logoUrl ? (
-                <img 
+                <Image 
                     src={logoUrl} 
                     alt="System Logo" 
+                    width={200}
+                    height={40}
+                    priority
+                    style={{ height: "40px", width: "auto" }}
                     className="h-10 w-auto object-contain drop-shadow-md group-hover:scale-105 transition-transform duration-300" 
                 />
             ) : (

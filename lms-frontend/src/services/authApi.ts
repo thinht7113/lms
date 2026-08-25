@@ -19,6 +19,9 @@ export const authApi = {
     }
     const data = await res.json();
     tokenHelper.setCurrentUser(data.user);
+    if (data.access_token) {
+      tokenHelper.setToken(data.access_token);
+    }
     return data;
   },
 
@@ -143,6 +146,7 @@ export const authApi = {
       console.warn("Logout endpoint error:", err);
     } finally {
       tokenHelper.removeCurrentUser();
+      tokenHelper.removeToken();
     }
   },
 };

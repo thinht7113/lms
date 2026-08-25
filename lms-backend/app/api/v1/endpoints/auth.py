@@ -13,11 +13,17 @@ from app.schemas.user import (
     ResetPasswordRequest
 )
 from app.services.auth_service import AuthService
-from app.core.security import create_access_token
+from app.core.security import create_access_token,create_refresh_token
 from app.core.config import settings
 from app.core.security_guards import auth_cookie_secure, mock_feature_enabled
+from app.core.redis import redis_client
 from app.models.user import User
-
+from fastapi import Cookie
+from app.api.deps import oauth2_scheme
+from app.core.redis import redis_client
+import jwt
+from datetime import datetime, timezone
+from typing import Optional
 router = APIRouter()
 
 
@@ -33,7 +39,18 @@ def set_auth_cookie(response: Response, access_token: str) -> None:
         domain=settings.AUTH_COOKIE_DOMAIN,
     )
 
-
+def set_refresh_cookies(response: Response, refresh_token: str) -> None:
+    response.set_cookie(
+        key=settings.REFRESH_COOKIES_NAME,
+        value=refresh_token,
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        httponly=True,
+        secure=auth_cookie_secure(settings.APP_ENV),
+        samesite="lax",
+        path="/api/v1/auth/refresh",
+        domain=settings.AUTH_COOKIE_DOMAIN,
+    )
+    
 # 1. API Đăng ký tài khoản mới
 @router.post(
     "/register", 
@@ -63,15 +80,65 @@ async def login(
     user = await AuthService.authenticate(db, login_data.email, login_data.mat_khau)
     # Tạo mã JWT bảo mật chứa ID người dùng
     access_token = create_access_token(subject=user.id)
+    refresh_token = create_refresh_token(subject=user.id)
+
+    set_refresh_cookies(response, refresh_token)
     set_auth_cookie(response, access_token)
-    
+
     return {
         "access_token": access_token,
         "token_type": "bearer",
         "user": user
     }
 
-# 2b. API Đăng nhập dành riêng cho Swagger UI (Form Data để tương thích nút Authorize)
+@router.post("/refresh", summary="Update Access Token")
+async def refresh_token_enpoint(response: Response,db: AsyncSession = Depends(get_db),refresh_token: Optional[str] = Cookie(default=None,alias=settings.REFRESH_COOKIES_NAME),):
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Vui lòng đăng nhập lại"
+        )
+    try:
+        # Giải mã và xác thực Token
+        payload = jwt.decode(
+            refresh_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
+        user_id: str = payload.get("sub")
+        token_type: str = payload.get("type")
+        if not user_id or token_type != "refresh":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Lỗi không hợp lệ."
+            )
+        is_blacklisted = await redis_client.get(f"blacklist:{refresh_token}")
+        if is_blacklisted:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Phiên đăng nhập đã bị vô hiệu hóa."
+            )
+        user = await AuthService.get_user_by_id(db, int(user_id))
+        if not user or not user.trang_thai:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Tài khoản không tồn tại hoặc đã bị khóa."
+            )
+        new_access_token = create_access_token(subject=user.id)
+        set_auth_cookie(response, new_access_token)
+        return {
+            "access_token": new_access_token,
+            "token_type": "bearer"
+        }
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
+        )
+    except jwt.PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Xác thực thất bại."
+        )
+
 @router.post(
     "/login/swagger",
     response_model=TokenResponse,
@@ -124,43 +191,20 @@ async def social_login(
         "user": user
     }
 
-
-from fastapi import Cookie
-from app.api.deps import oauth2_scheme
-from app.core.redis import redis_client
-import jwt
-from datetime import datetime, timezone
-from typing import Optional
-
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(
     response: Response,
-    token: Optional[str] = Depends(oauth2_scheme),
-    session_token: Optional[str] = Cookie(default=None, alias=settings.AUTH_COOKIE_NAME),
+    refresh_token: Optional[str] = Cookie(default=None, alias=settings.REFRESH_COOKIES_NAME),
 ):
-    auth_token = token or session_token
-    if auth_token:
-        try:
-            payload = jwt.decode(
-                auth_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
-            )
-            exp = payload.get("exp")
-            if exp:
-                now = int(datetime.now(timezone.utc).timestamp())
-                ttl = exp - now
-                if ttl > 0:
-                    await redis_client.setex(f"blacklist:{auth_token}", ttl, "true")
-        except jwt.PyJWTError:
-            pass
+    if refresh_token:
+        await redis_client.setex(
+            f"blacklist:{refresh_token}",
+            settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+            "true"
+        )
+    response.delete_cookie(key=settings.AUTH_COOKIE_NAME, path="/")
+    response.delete_cookie(key=settings.REFRESH_COOKIES_NAME, path="/api/v1/auth/refresh")
 
-    response.delete_cookie(
-        key=settings.AUTH_COOKIE_NAME,
-        path="/",
-        secure=auth_cookie_secure(settings.APP_ENV),
-        httponly=True,
-        samesite="lax",
-        domain=settings.AUTH_COOKIE_DOMAIN,
-    )
 
 
 # 4. API Lấy thông tin cá nhân (Đòi hỏi đăng nhập)

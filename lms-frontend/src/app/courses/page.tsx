@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Search, Filter, Star, RefreshCw, LayoutGrid, List } from "lucide-react";
+import { Search, Filter, Star, RefreshCw, LayoutGrid, List, ChevronLeft, ChevronRight } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import CourseCard from "@/components/CourseCard";
@@ -33,6 +33,11 @@ function CoursesContent() {
   const [sortBy, setSortBy] = useState<string>(initialSort);
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalCourses, setTotalCourses] = useState<number>(0);
+  const pageSize = 16; // 4 rows x 4 courses per row = 16 items per page
 
   // Fetch results state
   const [dbCategories, setDbCategories] = useState<Category[]>([]);
@@ -68,7 +73,12 @@ function CoursesContent() {
     loadCategories();
   }, []);
 
-  // Fetch courses on filter changes
+  // Reset to page 1 on filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm, selectedCategory, selectedLevel, selectedPrice, sortBy, minRating]);
+
+  // Fetch courses on filter or page changes
   useEffect(() => {
     async function fetchCourses() {
       setIsLoading(true);
@@ -78,7 +88,9 @@ function CoursesContent() {
           ma_danh_muc: selectedCategory || undefined,
           trinh_do: selectedLevel || undefined,
           sort_by: sortBy === "popular" ? "so_luong_hoc_vien" : sortBy === "rating" ? "danh_gia_trung_binh" : "gia_tien",
-          order: sortBy === "price-asc" ? "asc" : "desc"
+          order: sortBy === "price-asc" ? "asc" : "desc",
+          page: currentPage,
+          limit: pageSize,
         };
 
         if (selectedPrice === "free") {
@@ -87,8 +99,9 @@ function CoursesContent() {
           queryParams.gia_min = 1;
         }
 
-        const data = await apiService.getCourses(queryParams);
-        setDbCourses(data);
+        const { courses, total } = await apiService.getCoursesWithPagination(queryParams);
+        setDbCourses(courses);
+        setTotalCourses(total);
       } catch (err) {
         console.error("Error fetching courses:", err);
       } finally {
@@ -96,7 +109,7 @@ function CoursesContent() {
       }
     }
     fetchCourses();
-  }, [debouncedSearchTerm, selectedCategory, selectedLevel, selectedPrice, sortBy]);
+  }, [debouncedSearchTerm, selectedCategory, selectedLevel, selectedPrice, sortBy, currentPage]);
 
   // Client-side rating filter
   const finalCourses = useMemo(() => {
@@ -114,7 +127,17 @@ function CoursesContent() {
     setSelectedPrice(null);
     setMinRating(null);
     setSortBy("popular");
+    setCurrentPage(1);
     router.push("/courses");
+  };
+
+  const totalPages = Math.max(1, Math.ceil(totalCourses / pageSize));
+
+  const generatePageNumbers = (current: number, total: number) => {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    if (current <= 4) return [1, 2, 3, 4, 5, "...", total];
+    if (current >= total - 3) return [1, "...", total - 4, total - 3, total - 2, total - 1, total];
+    return [1, "...", current - 1, current, current + 1, "...", total];
   };
 
   const getGradient = (index: number) => {
@@ -142,7 +165,7 @@ function CoursesContent() {
   });
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16">
+    <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16">
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 pb-6 border-b border-border/60">
         <div>
         </div>
@@ -287,7 +310,7 @@ function CoursesContent() {
         <div className="lg:col-span-3 space-y-6">
           <div className="bg-card border border-border/60 p-3 rounded-2xl shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
             <p className="text-xs font-medium text-muted-foreground px-2">
-              Tìm thấy <strong className="text-foreground">{finalCourses.length}</strong> khóa học phù hợp
+              Tìm thấy <strong className="text-foreground">{totalCourses}</strong> khóa học phù hợp
             </p>
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center space-x-2 bg-secondary rounded-lg p-1 border border-border">
@@ -335,13 +358,78 @@ function CoursesContent() {
               <p className="text-sm font-bold text-muted-foreground animate-pulse">Đang tải dữ liệu từ CSDL...</p>
             </div>
           ) : finalCourses.length > 0 ? (
-            <div className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3" : "grid-cols-1"}`}>
-              {finalCourses.map((c, i) => (
-                <div key={c.id} className={viewMode === "list" ? "w-full max-w-none" : ""}>
-                    <CourseCard {...mapDbCourse(c, i)} />
+            <>
+              <div className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4" : "grid-cols-1"}`}>
+                {finalCourses.map((c, i) => (
+                  <div key={c.id} className={viewMode === "list" ? "w-full max-w-none" : ""}>
+                      <CourseCard {...mapDbCourse(c, i)} />
+                  </div>
+                ))}
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 border-t border-border/60">
+                  <p className="text-xs text-muted-foreground font-medium">
+                    Hiển thị <span className="font-bold text-foreground">{(currentPage - 1) * pageSize + 1}</span> -{" "}
+                    <span className="font-bold text-foreground">{Math.min(currentPage * pageSize, totalCourses)}</span> trong tổng số{" "}
+                    <span className="font-bold text-primary">{totalCourses}</span> khóa học
+                  </p>
+
+                  <div className="flex items-center space-x-1.5 bg-card border border-border/60 p-1.5 rounded-2xl shadow-sm">
+                    <button
+                      disabled={currentPage === 1}
+                      onClick={() => {
+                        setCurrentPage((p) => Math.max(1, p - 1));
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                      className="p-2 rounded-xl text-xs font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-secondary text-foreground flex items-center space-x-1"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      <span className="hidden sm:inline">Trước</span>
+                    </button>
+
+                    {/* Page Numbers */}
+                    <div className="flex items-center space-x-1 px-1">
+                      {generatePageNumbers(currentPage, totalPages).map((p, idx) =>
+                        p === "..." ? (
+                          <span key={`dots-${idx}`} className="px-2 py-1 text-xs text-muted-foreground">
+                            ...
+                          </span>
+                        ) : (
+                          <button
+                            key={`page-${p}`}
+                            onClick={() => {
+                              setCurrentPage(Number(p));
+                              window.scrollTo({ top: 0, behavior: "smooth" });
+                            }}
+                            className={`w-8 h-8 rounded-xl text-xs font-bold transition-all ${
+                              currentPage === p
+                                ? "bg-primary text-white shadow-md shadow-primary/20 scale-105"
+                                : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        )
+                      )}
+                    </div>
+
+                    <button
+                      disabled={currentPage >= totalPages}
+                      onClick={() => {
+                        setCurrentPage((p) => Math.min(totalPages, p + 1));
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                      className="p-2 rounded-xl text-xs font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-secondary text-foreground flex items-center space-x-1"
+                    >
+                      <span className="hidden sm:inline">Sau</span>
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           ) : (
             <div className="bg-card border border-border/60 rounded-3xl p-16 text-center shadow-sm">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-secondary mb-4">

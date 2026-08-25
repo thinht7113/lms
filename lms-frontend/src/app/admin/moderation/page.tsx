@@ -321,7 +321,7 @@ export default function ModerationPage() {
                                     </div>
                                     <div className="space-y-3">
                                         <h1 className="text-2xl font-black text-foreground leading-tight">{selectedCourse.tieu_de}</h1>
-                                        <p className="text-sm font-medium text-muted-foreground leading-relaxed">{selectedCourse.mo_ta}</p>
+                                        <div className="text-sm font-medium text-muted-foreground leading-relaxed prose max-w-none dark:prose-invert" dangerouslySetInnerHTML={{ __html: selectedCourse.mo_ta || "Chưa có mô tả" }} />
                                     </div>
                                 </div>
 

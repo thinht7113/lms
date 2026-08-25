@@ -12,7 +12,7 @@ from app.schemas.course import (
     LessonContentCreate, LessonContentUpdate,
     ReviewCreate,
 )
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from decimal import Decimal
 
 class CourseService:
@@ -89,6 +89,7 @@ class CourseService:
                 Course.trang_thai_phe_duyet == "approved"
             ))
             .group_by(Category.id)
+            .order_by(func.count(Course.id).desc(), Category.ten_danh_muc.asc())
         )
         rows = result.all()
         return [
@@ -104,13 +105,13 @@ class CourseService:
     @staticmethod
     async def get_featured_courses(db: AsyncSession, limit: int = 8) -> dict:
         """Trả về 3 nhóm khóa học nổi bật trong 1 lần truy vấn batch: phổ biến, giá tốt, mới nhất."""
-        popular = await CourseService.get_courses(
+        popular, _ = await CourseService.get_courses(
             db, limit=limit, sort_by="so_luong_hoc_vien", order="desc"
         )
-        affordable = await CourseService.get_courses(
+        affordable, _ = await CourseService.get_courses(
             db, limit=limit, min_price=Decimal("0.01"), sort_by="gia_tien", order="asc"
         )
-        newest = await CourseService.get_courses(
+        newest, _ = await CourseService.get_courses(
             db, limit=limit, sort_by="ngay_tao", order="desc"
         )
         return {
@@ -189,7 +190,7 @@ class CourseService:
         instructor_id: Optional[int] = None,
         sort_by: Optional[str] = "ngay_tao",
         order: Optional[str] = "desc"
-    ) -> List[Course]:
+    ) -> Tuple[List[Course], int]:
         enrollment_count = (
             select(
                 Enrollment.ma_khoa_hoc.label("course_id"),
@@ -209,24 +210,38 @@ class CourseService:
             )
         )
 
+        count_query = select(func.count(Course.id)).where(
+            Course.da_xuat_ban == True,
+            Course.trang_thai_phe_duyet == "approved"
+        )
+
         # 1. Filters
         if q:
-            query = query.where(
-                or_(
-                    Course.tieu_de.ilike(f"%{q}%"),
-                    Course.mo_ta.ilike(f"%{q}%")
-                )
+            filter_cond = or_(
+                Course.tieu_de.ilike(f"%{q}%"),
+                Course.mo_ta.ilike(f"%{q}%")
             )
+            query = query.where(filter_cond)
+            count_query = count_query.where(filter_cond)
         if category_id:
             query = query.where(Course.ma_danh_muc == category_id)
+            count_query = count_query.where(Course.ma_danh_muc == category_id)
         if level:
             query = query.where(Course.trinh_do == level)
+            count_query = count_query.where(Course.trinh_do == level)
         if min_price is not None:
             query = query.where(Course.gia_tien >= min_price)
+            count_query = count_query.where(Course.gia_tien >= min_price)
         if max_price is not None:
             query = query.where(Course.gia_tien <= max_price)
+            count_query = count_query.where(Course.gia_tien <= max_price)
         if instructor_id:
             query = query.where(Course.ma_giang_vien == instructor_id)
+            count_query = count_query.where(Course.ma_giang_vien == instructor_id)
+
+        # Total matching items
+        total_res = await db.execute(count_query)
+        total_count = int(total_res.scalar() or 0)
 
         # 2. Sorting
         sort_column = Course.ngay_tao
@@ -250,7 +265,7 @@ class CourseService:
         for course, student_count in result.all():
             setattr(course, "_so_luong_hoc_vien", int(student_count or 0))
             courses.append(course)
-        return courses
+        return courses, total_count
 
     @staticmethod
     async def get_instructor_courses(db: AsyncSession, instructor_id: int) -> List[Course]:

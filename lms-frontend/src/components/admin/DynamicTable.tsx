@@ -392,6 +392,28 @@ export default function DynamicTable({ title, endpoint, columns, formFields, cus
                         >
                             <ChevronRight className="h-4 w-4 text-foreground" />
                         </button>
+
+                        <div className="hidden sm:flex items-center space-x-2 ml-4 pl-4 border-l border-slate-200 dark:border-slate-700">
+                            <span className="text-xs font-bold text-slate-500">Đến trang:</span>
+                            <input
+                                type="number"
+                                min="1"
+                                max={totalPages}
+                                placeholder="Số..."
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        const val = parseInt(e.currentTarget.value, 10);
+                                        if (!isNaN(val) && val >= 1 && val <= totalPages) {
+                                            setSkip((val - 1) * limit);
+                                            e.currentTarget.value = "";
+                                        } else {
+                                            toast.error(`Vui lòng nhập trang từ 1 đến ${totalPages}`);
+                                        }
+                                    }
+                                }}
+                                className="w-16 px-2 py-1.5 text-xs font-bold text-slate-700 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-center bg-white shadow-sm"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>

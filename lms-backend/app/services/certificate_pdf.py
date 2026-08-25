@@ -75,6 +75,63 @@ def draw_gold_seal(c: canvas.Canvas, x: float, y: float) -> None:
     c.drawCentredString(x, y - 2, "VERIFIED")
 
 
+def draw_centered_title(
+    c: canvas.Canvas,
+    text: str,
+    y: float,
+    font_name: str,
+    max_font_size: float = 22,
+    max_width: float = 660.0,
+    color: Color = HexColor("#2563EB"),
+) -> None:
+    font_size = max_font_size
+    text_width = pdfmetrics.stringWidth(text, font_name, font_size)
+
+    # 1. Nếu vừa 1 dòng ở font max_font_size
+    if text_width <= max_width:
+        c.setFont(font_name, font_size)
+        c.setFillColor(color)
+        c.drawCentredString(396, y, text)
+        return
+
+    # 2. Thử giảm font_size dần xuống tối thiểu 14px để giữ 1 dòng
+    while font_size > 14 and pdfmetrics.stringWidth(text, font_name, font_size) > max_width:
+        font_size -= 1
+
+    text_width = pdfmetrics.stringWidth(text, font_name, font_size)
+    if text_width <= max_width:
+        c.setFont(font_name, font_size)
+        c.setFillColor(color)
+        c.drawCentredString(396, y, text)
+        return
+
+    # 3. Nếu vẫn dài hơn max_width ở font 14px, tự động xuống dòng (multi-line wrap)
+    words = text.split()
+    lines = []
+    current_line = []
+
+    for word in words:
+        test_line = " ".join(current_line + [word])
+        if pdfmetrics.stringWidth(test_line, font_name, font_size) <= max_width:
+            current_line.append(word)
+        else:
+            if current_line:
+                lines.append(" ".join(current_line))
+            current_line = [word]
+    if current_line:
+        lines.append(" ".join(current_line))
+
+    leading = font_size * 1.25
+    total_height = (len(lines) - 1) * leading
+    start_y = y + (total_height / 2)
+
+    c.setFont(font_name, font_size)
+    c.setFillColor(color)
+    for idx, line in enumerate(lines):
+        line_y = start_y - (idx * leading)
+        c.drawCentredString(396, line_y, line)
+
+
 def build_certificate_pdf(
     student_name: str,
     course_title: str,
@@ -123,7 +180,7 @@ def build_certificate_pdf(
         11,
         HexColor("#64748B"),
     )
-    draw_centered_string(c, course_title.upper(), 235, FONT_BOLD, 22, HexColor("#2563EB"))
+    draw_centered_title(c, course_title.upper(), 235, FONT_BOLD, 22, 660.0, HexColor("#2563EB"))
 
     draw_gold_seal(c, 396, 175)
 

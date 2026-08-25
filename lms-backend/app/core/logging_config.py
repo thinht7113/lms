@@ -23,7 +23,7 @@ def setup_logging() -> None:
     root_logger.addHandler(handler)
 
     # Giảm noise từ thư viện bên thứ ba
-    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn.access").setLevel(logging.INFO)
     logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
     logging.getLogger("boto3").setLevel(logging.WARNING)
     logging.getLogger("botocore").setLevel(logging.WARNING)

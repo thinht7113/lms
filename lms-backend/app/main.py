@@ -1,5 +1,6 @@
 import logging
 import traceback
+import time
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,18 +13,14 @@ from app.core.config import settings
 from app.core.logging_config import setup_logging
 from app.models.base import Base
 
-# Cấu hình logging ngay đầu tiên
 setup_logging()
 logger = logging.getLogger(__name__)
 
-# Import toàn bộ models để Base.metadata biết tất cả bảng cần tạo
-import app.models  # noqa: F401
+import app.models  
 
 
-# Startup & Shutdown lifespan handler
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Development remains convenient; production schema is managed by Alembic.
     if settings.APP_ENV.lower() in {"development", "test"}:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
@@ -33,12 +30,10 @@ async def lifespan(app: FastAPI):
         settings.PORT,
     )
     yield
-    # Shutdown: Đóng kết nối engine
     await engine.dispose()
     logger.info("LMS Backend shutdown complete")
 
 
-# Cấu hình Metadata các phân hệ API dành cho tài liệu OpenAPI/Swagger
 tags_metadata = [
     {
         "name": "Health Check",
@@ -93,6 +88,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    response.headers["X-Process-Time"] = str(process_time)
+    logger.info(f"Process Time: {process_time:.4f}s | {request.method} {request.url.path}")
+    return response
 
 # Global exception handler — bắt tất cả lỗi không xử lý
 @app.exception_handler(Exception)

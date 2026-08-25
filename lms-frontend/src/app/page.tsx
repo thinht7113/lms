@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { ChevronLeft, ChevronRight, BookOpen, Layers, Star, Zap, Briefcase, Building, ArrowRight, ImageIcon, ArrowUpRight } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -99,12 +100,13 @@ export default function HomePage() {
                                 key={banner.id}
                                 className={`absolute inset-0 transition-opacity duration-1000 ${idx === currentBannerIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
                             >
-                                <img
+                                <Image
                                     src={banner.hinh_anh_url}
                                     alt={`Banner ${idx}`}
-                                    loading={idx === currentBannerIndex ? "eager" : "lazy"}
-                                    decoding="async"
-                                    className="w-full h-full object-cover"
+                                    fill
+                                    priority={idx === currentBannerIndex}
+                                    sizes="(max-width: 1280px) 100vw, 1280px"
+                                    className="object-cover"
                                 />
                             </Link>
                         ))}

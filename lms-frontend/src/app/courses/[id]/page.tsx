@@ -225,7 +225,7 @@ export default function CourseDetailPage() {
       <main className="flex-1 pt-28">
         <section className="border-b border-slate-200 bg-white">
           <div className="mx-auto grid max-w-[1380px] gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[470px_1fr_280px] lg:px-8 lg:py-14">
-            <div>
+            <div className="flex flex-col h-full">
               <div className="overflow-hidden rounded-[1.8rem] border-[5px] border-lime-400 bg-white shadow-xl shadow-slate-900/10">
                 <div className="relative w-full overflow-hidden bg-slate-50 flex items-center justify-center min-h-[300px]">
                 {course.anh_dai_dien ? (
@@ -243,10 +243,9 @@ export default function CourseDetailPage() {
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex min-w-0 flex-col">
-              <div className="mb-4 flex flex-wrap items-center gap-3">
+              {/* Thẻ Khóa học chuyên sâu & Trình độ */}
+              <div className="mt-4 flex flex-wrap items-center gap-3">
                 <span className="rounded-md bg-blue-600 px-3 py-1 text-xs font-black text-white">
                   Khóa học chuyên sâu
                 </span>
@@ -255,21 +254,49 @@ export default function CourseDetailPage() {
                 </span>
               </div>
 
+              {/* Phần Cập nhật ngày tháng */}
+              <div className="mt-3 flex items-center gap-2 text-xs font-bold text-slate-500">
+                <ShieldCheck className="h-4 w-4 shrink-0 text-blue-600" />
+                <span>Cập nhật {new Date(course.ngay_tao).toLocaleDateString("vi-VN")} • Học mọi lúc, mọi nơi</span>
+              </div>
+
+              {/* Phần Đánh giá Sao (Nằm trên 3 ô thống kê) */}
+              <div className="mt-3 flex items-center gap-2 text-sm font-bold">
+                <span className="flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1 text-amber-500 ring-1 ring-amber-200/60">
+                  <Star className="h-4 w-4 fill-current" />
+                  {rating.toFixed(1)}
+                </span>
+                <span className="text-slate-500">({course.danh_gia_khoa_hoc?.length || 0} đánh giá)</span>
+              </div>
+
+              {/* 3 ô Thống kê (Căn ngang bằng mép dưới nút Thêm giỏ hàng / Thanh toán) */}
+              <div className="mt-auto pt-4 grid grid-cols-3 gap-3 text-center">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5 shadow-sm transition hover:border-blue-200 hover:bg-blue-50/50 flex flex-col justify-center">
+                  <p className="text-xl font-black text-blue-600">{stats.sectionsCount}</p>
+                  <p className="mt-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">Chương</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5 shadow-sm transition hover:border-blue-200 hover:bg-blue-50/50 flex flex-col justify-center">
+                  <p className="text-xl font-black text-blue-600">{stats.lessonsCount}</p>
+                  <p className="mt-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">Bài học</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5 shadow-sm transition hover:border-blue-200 hover:bg-blue-50/50 flex flex-col justify-center">
+                  <p className="text-xl font-black text-blue-600">{course.so_luong_hoc_vien || 0}</p>
+                  <p className="mt-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">Học viên</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex min-w-0 flex-col">
               <h1 className="text-2xl font-black leading-tight text-slate-950 sm:text-3xl lg:text-[2rem]">
                 {course.tieu_de}
               </h1>
 
               <p className="mt-4 text-sm font-medium leading-7 text-slate-600 line-clamp-3">
-                {course.mo_ta || "Khóa học này cung cấp kiến thức nền tảng, bài học có cấu trúc rõ ràng và giúp học viên áp dụng vào thực tế sau từng chương."}
+                {(course.mo_ta || "").replace(/<[^>]*>?/gm, "").trim() || "Khóa học này cung cấp kiến thức nền tảng, bài học có cấu trúc rõ ràng và giúp học viên áp dụng vào thực tế sau từng chương."}
               </p>
 
-              <div className="mt-5 flex flex-wrap items-center gap-3">
+              <div className="mt-5 flex items-center gap-3">
                 <span className="text-2xl font-black text-red-600">{formatPrice(course.gia_tien)}</span>
-                <span className="flex items-center gap-1 text-sm font-bold text-amber-500">
-                  <Star className="h-4 w-4 fill-current" />
-                  {rating.toFixed(1)}
-                </span>
-                <span className="text-sm font-medium text-slate-500">({course.danh_gia_khoa_hoc?.length || 0} đánh giá)</span>
               </div>
 
               <div className="mt-4 overflow-hidden border-y border-slate-300">
@@ -316,26 +343,6 @@ export default function CourseDetailPage() {
                   </>
                 )}
               </div>
-
-              <div className="mt-5 grid grid-cols-3 gap-3 text-center">
-                <div className="rounded-xl bg-slate-100 px-3 py-2">
-                  <p className="text-lg font-black text-blue-600">{stats.sectionsCount}</p>
-                  <p className="text-[10px] font-bold uppercase text-slate-500">Chương</p>
-                </div>
-                <div className="rounded-xl bg-slate-100 px-3 py-2">
-                  <p className="text-lg font-black text-blue-600">{stats.lessonsCount}</p>
-                  <p className="text-[10px] font-bold uppercase text-slate-500">Bài học</p>
-                </div>
-                <div className="rounded-xl bg-slate-100 px-3 py-2">
-                  <p className="text-lg font-black text-blue-600">{course.so_luong_hoc_vien || 0}</p>
-                  <p className="text-[10px] font-bold uppercase text-slate-500">Học viên</p>
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-wrap items-center gap-3 text-sm font-bold text-slate-500">
-                <ShieldCheck className="h-5 w-5 text-blue-600" />
-                <span>Cập nhật {new Date(course.ngay_tao).toLocaleDateString("vi-VN")} • Học mọi lúc, mọi nơi</span>
-              </div>
             </div>
 
             <aside className="self-start rounded-[0.45rem] border-4 border-yellow-400 border-l-lime-500 bg-white p-6 shadow-sm">
@@ -358,7 +365,7 @@ export default function CourseDetailPage() {
           </div>
         </section>
 
-        <section className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1fr_330px] lg:px-8">
+        <section className="mx-auto grid max-w-[1380px] gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1fr_330px] lg:px-8">
           <div className="space-y-8">
             <div className="overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white shadow-sm">
               <div className="flex border-b border-slate-200">
@@ -449,9 +456,12 @@ function OverviewTab({ course }: { course: CourseDetail }) {
   return (
     <div className="p-6 sm:p-8">
       <h2 className="text-2xl font-black text-slate-950">Tổng quan khóa học</h2>
-      <p className="mt-4 text-base font-medium leading-8 text-slate-600">
-        {course.mo_ta || "Khóa học đang được giảng viên cập nhật mô tả chi tiết. Học viên có thể xem trước cấu trúc chương học và nội dung bài học bên dưới."}
-      </p>
+      <div
+        className="mt-4 text-base font-medium leading-8 text-slate-700 prose max-w-none prose-headings:font-bold prose-headings:text-slate-900 prose-p:mb-3 prose-strong:text-slate-900 prose-ul:list-disc prose-ul:pl-5 prose-li:mb-1"
+        dangerouslySetInnerHTML={{
+          __html: course.mo_ta || "<p>Khóa học đang được giảng viên cập nhật mô tả chi tiết. Học viên có thể xem trước cấu trúc chương học và nội dung bài học bên dưới.</p>"
+        }}
+      />
 
       <div className="mt-8 rounded-[1.25rem] border border-emerald-100 bg-emerald-50/70 p-6">
         <h3 className="text-lg font-black text-slate-950">Bạn sẽ học được gì?</h3>

@@ -19,6 +19,8 @@ import {
     Users,
     MessageSquare,
     Medal,
+    ChevronLeft,
+    ChevronRight,
 } from "lucide-react";
 import { tokenHelper, apiService } from "@/services/api";
 import SystemLogo from "@/components/SystemLogo";
@@ -69,6 +71,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     const pathname = usePathname();
     const router = useRouter();
     const [isSidebarOpen, setSidebarOpen] = useState(true);
+    const [isDesktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false);
     const [pendingCount, setPendingCount] = useState(0);
 
     React.useEffect(() => {
@@ -105,22 +108,37 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     return (
         <div className="h-screen overflow-hidden bg-[#F8F9FA] flex">
             <aside
-                className={`fixed inset-y-0 left-0 z-50 h-screen w-64 bg-white border-r border-border/60 transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:shrink-0 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-                    }`}
+                className={`fixed inset-y-0 left-0 z-50 h-screen bg-white border-r border-border/60 transition-all duration-300 ease-in-out lg:static lg:shrink-0 flex flex-col ${
+                    isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+                } ${isDesktopSidebarCollapsed ? "lg:w-20" : "w-64"}`}
             >
-                <div className="flex h-full min-h-0 flex-col">
+                <div className="flex h-full min-h-0 flex-col relative">
                     <div className="h-20 flex items-center justify-center border-b border-border/40 shrink-0">
                         <Link href="/admin" prefetch={false}>
-                            <SystemLogo textLabel="ADMIN" />
+                            {isDesktopSidebarCollapsed ? (
+                                <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white font-black">AD</div>
+                            ) : (
+                                <SystemLogo textLabel="ADMIN" />
+                            )}
                         </Link>
                     </div>
 
-                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-6 px-4 space-y-8 custom-scrollbar">
+                    {/* Toggle Button for Desktop */}
+                    <button 
+                        onClick={() => setDesktopSidebarCollapsed(!isDesktopSidebarCollapsed)}
+                        className="hidden lg:flex absolute -right-3 top-24 z-50 h-6 w-6 bg-white border border-slate-200 rounded-full items-center justify-center text-slate-400 hover:text-primary hover:border-primary/30 shadow-sm transition-colors"
+                    >
+                        {isDesktopSidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+                    </button>
+
+                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-6 px-3 space-y-8 custom-scrollbar overflow-x-hidden">
                         {sidebarGroups.map((group) => (
                             <div key={group.title} className="space-y-2">
-                                <h3 className="px-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">
-                                    {group.title}
-                                </h3>
+                                {!isDesktopSidebarCollapsed && (
+                                    <h3 className="px-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground/70 whitespace-nowrap">
+                                        {group.title}
+                                    </h3>
+                                )}
                                 <div className="space-y-1">
                                     {group.items.map((item) => {
                                         const isActive = pathname === item.href || (pathname.startsWith(item.href) && item.href !== "/admin");
@@ -131,15 +149,23 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                                                 key={item.name}
                                                 href={item.href}
                                                 prefetch={false}
-                                                className={`flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-all ${isActive
+                                                title={isDesktopSidebarCollapsed ? item.name : undefined}
+                                                className={`flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-all relative ${
+                                                    isActive
                                                         ? "bg-primary/10 text-primary font-bold shadow-sm"
-                                                        : "hover:bg-secondary/70 text-muted-foreground hover:text-foreground font-medium"
-                                                    }`}
+                                                        : "hover:bg-secondary/70 text-muted-foreground hover:text-foreground font-medium border border-transparent"
+                                                } ${isDesktopSidebarCollapsed ? "justify-center" : ""}`}
                                             >
-                                                <Icon className={`h-5 w-5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
-                                                <span className="text-sm">{item.name}</span>
-                                                {item.href === "/admin/moderation" && pendingCount > 0 && (
+                                                <Icon className={`h-5 w-5 shrink-0 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
+                                                {!isDesktopSidebarCollapsed && <span className="text-sm whitespace-nowrap">{item.name}</span>}
+                                                {!isDesktopSidebarCollapsed && item.href === "/admin/moderation" && pendingCount > 0 && (
                                                     <span className="flex h-2 w-2 relative shrink-0 ml-auto">
+                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                                                    </span>
+                                                )}
+                                                {isDesktopSidebarCollapsed && item.href === "/admin/moderation" && pendingCount > 0 && (
+                                                    <span className="absolute top-2 right-2 flex h-2 w-2">
                                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
                                                         <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
                                                     </span>
@@ -155,10 +181,11 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                     <div className="p-4 border-t border-border/40 shrink-0">
                         <button
                             onClick={handleLogout}
-                            className="flex items-center space-x-3 px-3 py-2.5 w-full rounded-xl text-muted-foreground hover:bg-rose-50 hover:text-rose-600 transition-all font-medium"
+                            title={isDesktopSidebarCollapsed ? "Đăng xuất" : undefined}
+                            className={`flex items-center space-x-3 px-3 py-2.5 w-full rounded-xl text-muted-foreground hover:bg-rose-50 hover:text-rose-600 transition-all font-medium ${isDesktopSidebarCollapsed ? "justify-center" : ""}`}
                         >
-                            <LogOut className="h-5 w-5" />
-                            <span className="text-sm">Đăng xuất</span>
+                            <LogOut className="h-5 w-5 shrink-0" />
+                            {!isDesktopSidebarCollapsed && <span className="text-sm whitespace-nowrap">Đăng xuất</span>}
                         </button>
                     </div>
                 </div>

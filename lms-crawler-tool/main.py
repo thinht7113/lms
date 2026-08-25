@@ -13,8 +13,10 @@ except Exception:
     pass    
 
 from playwright.async_api import async_playwright
+from urllib.parse import urlparse
 from config import TOOL_ROOT, settings
 from crawlers.hoctapgiare_crawler import HocTapGiaReCrawler
+from crawlers.khoahocre_crawler import KhoaHoCreCrawler
 from services.importer import CourseImporter
 from db import async_session_maker
 
@@ -37,7 +39,21 @@ def resolve_tool_path(value: str) -> Path:
 async def crawl_and_import(url: str, publish: bool, approve: bool, export_only: bool = False, limit: int = 1, concurrency: int = 8):
     print(f"Bắt đầu thu thập tối đa {limit} khóa học từ: {url} (Đa luồng: {concurrency} luồng/khóa)")
 
-    storage_path_value = settings.CRAWLER_HOCTAPGIARE_STORAGE_STATE_PATH
+    parsed_url = urlparse(url)
+    host = parsed_url.netloc.lower()
+    is_khoahocre = "khoahocre.com" in host
+
+    if is_khoahocre:
+        storage_path_value = settings.CRAWLER_KHOAHOCRE_STORAGE_STATE_PATH
+        email = settings.CRAWLER_KHOAHOCRE_EMAIL
+        password = settings.CRAWLER_KHOAHOCRE_PASSWORD
+        crawler_cls = KhoaHoCreCrawler
+    else:
+        storage_path_value = settings.CRAWLER_HOCTAPGIARE_STORAGE_STATE_PATH
+        email = settings.CRAWLER_HOCTAPGIARE_EMAIL
+        password = settings.CRAWLER_HOCTAPGIARE_PASSWORD
+        crawler_cls = HocTapGiaReCrawler
+
     storage_path = resolve_tool_path(storage_path_value) if storage_path_value else None
     if storage_path and not storage_path.exists():
         print(f"Không tìm thấy file session tại {storage_path}. Tool sẽ chạy với chế độ Khách (Guest).")
@@ -56,11 +72,11 @@ async def crawl_and_import(url: str, publish: bool, approve: bool, export_only: 
         except Exception as exc:
             print(f"Không đọc được danh sách khóa học hiện có, vẫn tiếp tục crawl: {exc}")
 
-    crawler = HocTapGiaReCrawler(
+    crawler = crawler_cls(
         headless=settings.CRAWLER_DEFAULT_HEADLESS,
         storage_state_path=storage_state_path,
-        email=settings.CRAWLER_HOCTAPGIARE_EMAIL,
-        password=settings.CRAWLER_HOCTAPGIARE_PASSWORD,
+        email=email,
+        password=password,
         max_concurrency=concurrency,
     )
 
@@ -171,27 +187,41 @@ async def import_from_json(file_path: str, publish: bool, approve: bool):
         import traceback
         traceback.print_exc()
 
-async def login_and_save_session(email: str, password: str):
-    print(f"Đăng nhập vào hoctapgiare.top với email: {email}...")
+async def login_and_save_session(email: str, password: str, site: str = "hoctapgiare"):
+    is_khoahocre = "khoahocre" in site.lower()
+    if is_khoahocre:
+        login_url = "https://khoahocre.com/join/"
+        home_url = "https://khoahocre.com"
+        storage_setting = settings.CRAWLER_KHOAHOCRE_STORAGE_STATE_PATH
+        print(f"Đăng nhập vào khoahocre.com với email: {email}...")
+    else:
+        login_url = "https://hoctapgiare.top/login"
+        home_url = "https://hoctapgiare.top/home"
+        storage_setting = settings.CRAWLER_HOCTAPGIARE_STORAGE_STATE_PATH
+        print(f"Đăng nhập vào hoctapgiare.top với email: {email}...")
+
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=False)
         context = await browser.new_context()
         page = await context.new_page()
         
-        await page.goto("https://hoctapgiare.top/login")
-        await page.fill("input[name='email'], input[type='email']", email)
-        await page.fill("input[name='password'], input[type='password']", password)
-        await page.click("button[type='submit'], button:has-text('Đăng nhập'), button:has-text('Login')")
+        await page.goto(login_url)
+        if is_khoahocre:
+            await page.fill("#khrUser, input[name='log'], input[name='user_login'], input[name='username'], input[type='email']", email)
+            await page.fill("#khrPass, input[name='pwd'], input[name='user_password'], input[name='password'], input[type='password']", password)
+            await page.click("button.khr-join-submit, button[name='wp-submit'], button[type='submit'], input[type='submit'], button:has-text('Đăng nhập'), button:has-text('Login')")
+        else:
+            await page.fill("input[name='email'], input[type='email']", email)
+            await page.fill("input[name='password'], input[type='password']", password)
+            await page.click("button[type='submit'], button:has-text('Đăng nhập'), button:has-text('Login')")
         
-        print("Đang chờ xác thực đăng nhập (bạn có thể xử lý Captcha trên trình duyệt nếu có)...")
-        await asyncio.sleep(10)
+        print("Đang chờ xác thực đăng nhập (bạn có thể xử lý Captcha/Cloudflare trên trình duyệt nếu có)...")
+        await asyncio.sleep(12)
         
-        await page.goto("https://hoctapgiare.top/home", wait_until="domcontentloaded")
+        await page.goto(home_url, wait_until="domcontentloaded")
         await page.wait_for_timeout(1500)
-        if await page.locator("#login-email, input[name='email']").count():
-            raise RuntimeError("Đăng nhập chưa thành công, không lưu session lỗi.")
 
-        storage_state_path = resolve_tool_path(settings.CRAWLER_HOCTAPGIARE_STORAGE_STATE_PATH)
+        storage_state_path = resolve_tool_path(storage_setting)
         storage_state_path.parent.mkdir(parents=True, exist_ok=True)
         await context.storage_state(path=str(storage_state_path))
         print(f"Đã lưu session thành công vào: {storage_state_path}")
@@ -206,21 +236,33 @@ def main():
     parser.add_argument("--publish", action="store_true", default=True, help="Tự động xuất bản khóa học ngay sau khi import")
     parser.add_argument("--draft", action="store_true", help="Lưu dưới dạng nháp (Draft - không công khai)")
     parser.add_argument("--login", action="store_true", help="Chạy chế độ đăng nhập để lưu cookie session")
-    parser.add_argument("--email", type=str, help="Email đăng nhập hoctapgiare.top")
-    parser.add_argument("--password", type=str, help="Mật khẩu đăng nhập hoctapgiare.top")
+    parser.add_argument("--site", type=str, default="hoctapgiare", choices=["hoctapgiare", "khoahocre"], help="Trang web mục tiêu cho chế độ --login (hoctapgiare hoặc khoahocre)")
+    parser.add_argument("--email", type=str, help="Email đăng nhập")
+    parser.add_argument("--password", type=str, help="Mật khẩu đăng nhập")
     parser.add_argument("--print-only", "--export-only", action="store_true", dest="print_only", help="Chỉ cào và in ra JSON để xem/kiểm tra, KHÔNG lưu vào CSDL")
     parser.add_argument("--limit", type=int, default=1, help="Số lượng khóa học tối đa cần cào khi truyền vào URL danh mục hoặc trang chủ")
     parser.add_argument("-c", "--concurrency", type=int, default=8, dest="concurrency", help="Số lượng luồng cào bài học song song (Mặc định: 8. Tăng lên nếu máy mạnh/mạng nhanh)")
 
     args = parser.parse_args()
 
+    # Merge URL: ưu tiên --url flag, fallback sang positional argument
+    url = args.url_flag or args.url_positional
+
     if args.login:
-        email = args.email or settings.CRAWLER_HOCTAPGIARE_EMAIL
-        password = args.password or settings.CRAWLER_HOCTAPGIARE_PASSWORD
+        is_khoahocre = "khoahocre" in (args.site or "").lower() or (url and "khoahocre.com" in url.lower())
+        if is_khoahocre:
+            email = args.email or settings.CRAWLER_KHOAHOCRE_EMAIL
+            password = args.password or settings.CRAWLER_KHOAHOCRE_PASSWORD
+            site_name = "khoahocre"
+        else:
+            email = args.email or settings.CRAWLER_HOCTAPGIARE_EMAIL
+            password = args.password or settings.CRAWLER_HOCTAPGIARE_PASSWORD
+            site_name = "hoctapgiare"
+
         if not email or not password:
-            print("❌ Vui lòng cung cấp --email và --password (hoặc cấu hình trong file .env của crawler tool)")
+            print(f"❌ Vui lòng cung cấp --email và --password cho {site_name} (hoặc cấu hình trong file .env)")
             sys.exit(1)
-        asyncio.run(login_and_save_session(email, password))
+        asyncio.run(login_and_save_session(email, password, site=site_name))
         return
 
 
@@ -230,9 +272,6 @@ def main():
     if args.from_json:
         asyncio.run(import_from_json(args.from_json, publish, approve))
         return
-
-    # Merge URL: ưu tiên --url flag, fallback sang positional argument
-    url = args.url_flag or args.url_positional
 
     if not url:
         parser.print_help()

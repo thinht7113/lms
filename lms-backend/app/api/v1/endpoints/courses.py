@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_db, get_current_user, get_current_user_optional
 
@@ -304,23 +304,29 @@ async def delete_lesson_content(
     summary="Search, filter, and sort courses for students and guests"
 )
 async def get_courses(
-    q: Optional[str] = Query(None, description="Tá»« khÃ³a tÃ¬m kiáº¿m trong tiÃªu Ä‘á» vÃ  mÃ´ táº£"),
-    category_id: Optional[int] = Query(None, alias="ma_danh_muc", description="ID Danh má»¥c"),
-    level: Optional[str] = Query(None, alias="trinh_do", description="TrÃ¬nh Ä‘á»™: beginner, intermediate, advanced"),
-    min_price: Optional[Decimal] = Query(None, alias="gia_min", description="GiÃ¡ tá»‘i thiá»ƒu"),
-    max_price: Optional[Decimal] = Query(None, alias="gia_max", description="GiÃ¡ tá»‘i Ä‘a"),
-    instructor_id: Optional[int] = Query(None, alias="ma_giang_vien", description="ID Giáº£ng viÃªn"),
-    sort_by: Optional[str] = Query("ngay_tao", description="TrÆ°á»ng sáº¯p xáº¿p: ngay_tao, gia_tien, danh_gia_trung_binh"),
-    order: Optional[str] = Query("desc", description="HÆ°á»›ng sáº¯p xáº¿p: asc hoáº·c desc"),
-    skip: int = 0,
-    limit: int = 20,
+    response: Response,
+    q: Optional[str] = Query(None, description="Từ khóa tìm kiếm trong tiêu đề và mô tả"),
+    category_id: Optional[int] = Query(None, alias="ma_danh_muc", description="ID Danh mục"),
+    level: Optional[str] = Query(None, alias="trinh_do", description="Trình độ: beginner, intermediate, advanced"),
+    min_price: Optional[Decimal] = Query(None, alias="gia_min", description="Giá tối thiểu"),
+    max_price: Optional[Decimal] = Query(None, alias="gia_max", description="Giá tối đa"),
+    instructor_id: Optional[int] = Query(None, alias="ma_giang_vien", description="ID Giảng viên"),
+    sort_by: Optional[str] = Query("ngay_tao", description="Trường sắp xếp: ngay_tao, gia_tien, danh_gia_trung_binh"),
+    order: Optional[str] = Query("desc", description="Hướng sắp xếp: asc hoặc desc"),
+    page: Optional[int] = Query(None, ge=1, description="Trang hiện tại (bắt đầu từ 1)"),
+    limit: int = Query(16, ge=1, le=1000, description="Số lượng mỗi trang"),
+    skip: Optional[int] = Query(None, description="Số lượng bản ghi bỏ qua"),
     db: AsyncSession = Depends(get_db)
 ):
-    return await CourseService.get_courses(
-        db, skip=skip, limit=limit, q=q, category_id=category_id,
+    offset = skip if skip is not None else ((page - 1) * limit if page is not None else 0)
+    courses, total = await CourseService.get_courses(
+        db, skip=offset, limit=limit, q=q, category_id=category_id,
         level=level, min_price=min_price, max_price=max_price,
         instructor_id=instructor_id, sort_by=sort_by, order=order
     )
+    response.headers["X-Total-Count"] = str(total)
+    response.headers["Access-Control-Expose-Headers"] = "X-Total-Count"
+    return courses
 
 @router.get(
     "/courses/{course_id}",

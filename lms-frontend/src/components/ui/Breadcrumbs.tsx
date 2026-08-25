@@ -33,7 +33,8 @@ const breadcrumbLabels: Record<string, string> = {
     learn: "Học tập",
     edit: "Sửa",
     notifications: "Thông báo",
-    certificates: "Chứng chỉ"
+    certificates: "Chứng chỉ",
+    quizzes: "Bài kiểm tra"
 };
 
 export default function Breadcrumbs({ variant = "dashboard", isScrolled = false }: { variant?: "public" | "dashboard", isScrolled?: boolean }) {

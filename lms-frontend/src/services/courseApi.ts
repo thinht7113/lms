@@ -76,6 +76,43 @@ export const courseApi = {
     }
   },
 
+  async getCoursesWithPagination(params?: {
+    q?: string;
+    ma_danh_muc?: number;
+    trinh_do?: string;
+    gia_min?: number;
+    gia_max?: number;
+    sort_by?: string;
+    order?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<{ courses: Course[]; total: number }> {
+    try {
+      const queryParts: string[] = [];
+      if (params) {
+        if (params.q) queryParts.push(`q=${encodeURIComponent(params.q)}`);
+        if (params.ma_danh_muc) queryParts.push(`ma_danh_muc=${params.ma_danh_muc}`);
+        if (params.trinh_do) queryParts.push(`trinh_do=${params.trinh_do}`);
+        if (params.gia_min !== undefined) queryParts.push(`gia_min=${params.gia_min}`);
+        if (params.gia_max !== undefined) queryParts.push(`gia_max=${params.gia_max}`);
+        if (params.sort_by) queryParts.push(`sort_by=${params.sort_by}`);
+        if (params.order) queryParts.push(`order=${params.order}`);
+        if (params.page) queryParts.push(`page=${params.page}`);
+        if (params.limit) queryParts.push(`limit=${params.limit}`);
+      }
+      const queryString = queryParts.length > 0 ? `?${queryParts.join("&")}` : "";
+      const res = await fetchWithTimeout(`${API_BASE_URL}/courses${queryString}`);
+      if (!res.ok) throw new Error("Failed to fetch courses");
+      const courses: Course[] = await res.json();
+      const totalHeader = res.headers.get("X-Total-Count");
+      const total = totalHeader ? parseInt(totalHeader, 10) : courses.length;
+      return { courses, total };
+    } catch (err) {
+      console.warn("API Error (CoursesWithPagination):", err);
+      return { courses: [], total: 0 };
+    }
+  },
+
   // Course Details
   async getCourseDetail(id: number): Promise<CourseDetail | null> {
     try {

@@ -400,32 +400,14 @@ class CertService:
     # ==================== CERTIFICATE SERVICES ====================
     @staticmethod
     async def check_and_issue_certificate(db: AsyncSession, user_id: int, course_id: int) -> Optional[Certificate]:
-        # 1. Kiểm tra tiến độ học có đạt 100% không
         progress_data = await CertService.get_course_progress(db, user_id, course_id)
+        
         if progress_data["total_lessons"] == 0 or progress_data["completed_lessons"] < progress_data["total_lessons"]:
-            # Chưa hoàn thành tất cả các bài học
+            return None
+            
+        if progress_data["passed_quizzes"] < progress_data["total_quizzes"]:
             return None
 
-        # 2. Kiểm tra xem khóa học có bài kiểm tra (Quiz) nào không
-        quiz_result = await db.execute(select(Quiz).where(Quiz.ma_khoa_hoc == course_id))
-        quizzes = quiz_result.scalars().all()
-        if quizzes:
-            # Học viên bắt buộc phải đỗ TẤT CẢ các bài kiểm tra trong khóa học
-            for quiz in quizzes:
-                attempt_res = await db.execute(
-                    select(QuizAttempt).where(
-                        and_(
-                            QuizAttempt.ma_nguoi_dung == user_id,
-                            QuizAttempt.ma_bai_kiem_tra == quiz.id,
-                            QuizAttempt.da_qua_mon == True
-                        )
-                    )
-                )
-                if not attempt_res.scalars().first():
-                    # Nếu có bất kỳ bài kiểm tra nào chưa thi đỗ, không cấp chứng chỉ
-                    return None
-
-        # 3. Kiểm tra xem chứng chỉ đã được cấp trước đó chưa (Tránh cấp trùng lặp)
         cert_result = await db.execute(
             select(Certificate).where(
                 and_(
@@ -438,7 +420,6 @@ class CertService:
         if existing_cert:
             return existing_cert
 
-        # 4. Tiến hành cấp chứng chỉ mới
         cert_uuid = str(uuid.uuid4())
         certificate_url = (
             f"{settings.API_PUBLIC_URL.rstrip('/')}"

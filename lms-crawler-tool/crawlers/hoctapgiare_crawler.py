@@ -245,7 +245,7 @@ class HocTapGiaReCrawler(BaseCourseCrawler):
             next_url = await self._next_listing_url(page, next_url, urls, limit)
 
         if not urls:
-            print("  ℹ️ Không còn khóa học miễn phí mới nào cần cào (tất cả đã tồn tại trong CSDL hoặc không có khóa miễn phí mới).", flush=True)
+            print("Không còn khóa học miễn phí mới nào cần cào (tất cả đã tồn tại trong CSDL hoặc không có khóa miễn phí mới).", flush=True)
             return []
         return urls
 

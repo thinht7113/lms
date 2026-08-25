@@ -8,9 +8,10 @@ const AUTH_COOKIE_NAME = "lms_session";
 
 async function assertAdminAccess() {
     const cookieStore = await cookies();
-    const session = cookieStore.get(AUTH_COOKIE_NAME)?.value;
+    const sessionToken = cookieStore.get(AUTH_COOKIE_NAME)?.value;
+    const roleCookie = cookieStore.get("lumina_role")?.value;
 
-    if (!session) {
+    if (!sessionToken && roleCookie !== "admin") {
         notFound();
     }
 
@@ -20,10 +21,15 @@ async function assertAdminAccess() {
         .join("; ");
 
     try {
+        const headers: Record<string, string> = {
+            Cookie: cookieHeader,
+        };
+        if (sessionToken) {
+            headers["Authorization"] = `Bearer ${sessionToken}`;
+        }
+
         const res = await fetch(`${API_BASE_URL}/auth/profile`, {
-            headers: {
-                Cookie: cookieHeader,
-            },
+            headers,
             cache: "no-store",
         });
 

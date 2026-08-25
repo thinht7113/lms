@@ -1,0 +1,13 @@
+{
+  "name": "lms-benchmarks",
+  "version": "1.0.0",
+  "description": "K6 Performance Testing Suite for LuminaLMS",
+  "scripts": {
+    "test:public": "k6 run -e BASE_URL=http://localhost:8000/api/v1 -e VUS=600 -e DURATION=30s scenarios/public_load_test.js",
+    "test:auth": "k6 run -e BASE_URL=http://localhost:8000/api/v1 -e VUS=5 -e DURATION=30s scenarios/auth_load_test.js",
+    "test:student": "k6 run -e BASE_URL=http://localhost:8000/api/v1 -e VUS=50 -e DURATION=30s scenarios/student_load_test.js",
+    "test:instructor": "k6 run -e BASE_URL=http://localhost:8000/api/v1 -e VUS=50 -e DURATION=30s scenarios/instructor_load_test.js",
+    "test:admin": "k6 run -e BASE_URL=http://localhost:8000/api/v1 -e VUS=5 -e DURATION=30s scenarios/admin_load_test.js",
+    "test:all": "npm run test:public && npm run test:auth && npm run test:student && npm run test:instructor && npm run test:admin"
+  }
+}

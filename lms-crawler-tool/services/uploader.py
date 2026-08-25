@@ -54,9 +54,15 @@ class MinioUploader:
 
     @staticmethod
     def is_youtube_url(url: str) -> bool:
+        return MinioUploader.is_embed_video_url(url)
+
+    @staticmethod
+    def is_embed_video_url(url: str) -> bool:
         parsed = urlparse(url)
         host = parsed.netloc.lower()
-        return "youtube.com" in host or "youtube-nocookie.com" in host or "youtu.be" in host
+        path = parsed.path.lower()
+        embed_domains = ("youtube.com", "youtube-nocookie.com", "youtu.be", "rumble.com", "vimeo.com", "dailymotion.com", "wistia.com", "bitchute.com")
+        return any(domain in host for domain in embed_domains) or "/embed/" in path
 
     @classmethod
     def _max_bytes_for(cls, asset_type: str) -> int:
@@ -116,8 +122,8 @@ class MinioUploader:
         if not url:
             return None
 
-        # YouTube: always keep original URL (embed via iframe on frontend)
-        if cls.is_youtube_url(url):
+        # Embed video URLs (YouTube, Rumble, Vimeo, etc.): always keep original URL for iframe embedding on frontend
+        if asset_type == "video" and cls.is_embed_video_url(url):
             return url
 
         # Check if already a minio storage URL

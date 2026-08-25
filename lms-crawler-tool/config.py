@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     CRAWLER_HOCTAPGIARE_STORAGE_STATE_PATH: str = "./storage_states/hoctapgiare.json"
     CRAWLER_HOCTAPGIARE_EMAIL: str | None = None
     CRAWLER_HOCTAPGIARE_PASSWORD: str | None = None
+    CRAWLER_KHOAHOCRE_STORAGE_STATE_PATH: str = "./storage_states/khoahocre.json"
+    CRAWLER_KHOAHOCRE_EMAIL: str | None = None
+    CRAWLER_KHOAHOCRE_PASSWORD: str | None = None
     CRAWLER_COURSE_TIMEOUT_SECONDS: int = 420
     CRAWLER_LESSON_TIMEOUT_SECONDS: int = 45
     CRAWLER_RESOLVE_VIDEO_TIMEOUT_SECONDS: int = 18

@@ -56,6 +56,7 @@ export const apiService = {
   getCategoriesWithCounts: courseApi.getCategoriesWithCounts,
   getFeaturedCourses: courseApi.getFeaturedCourses,
   getCourses: courseApi.getCourses,
+  getCoursesWithPagination: courseApi.getCoursesWithPagination,
   getCourseDetail: courseApi.getCourseDetail,
   getCourseDetailWithAuth: courseApi.getCourseDetailWithAuth,
   getCourseReviews: courseApi.getCourseReviews,

@@ -291,118 +291,133 @@ export default function AdminQuizzesPage() {
   };
 
   return (
-    <div className="min-h-full flex flex-col space-y-6 pb-12">
+    <div className="min-h-[calc(100vh-4rem)] flex flex-col space-y-8 pb-12 relative font-sans">
+      {/* Decorative Background Elements */}
+      <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-blue-50/80 via-white/50 to-transparent dark:from-blue-950/20 dark:via-slate-900/50 -z-10 pointer-events-none rounded-t-xl" />
+      <div className="absolute top-20 right-10 w-96 h-96 bg-indigo-500/10 dark:bg-indigo-500/5 blur-[120px] rounded-full -z-10 pointer-events-none" />
+      <div className="absolute top-40 left-10 w-80 h-80 bg-blue-500/10 dark:bg-blue-500/5 blur-[100px] rounded-full -z-10 pointer-events-none" />
+
       {/* Header section with back button */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10 px-2 pt-2">
+        <div className="flex items-center space-x-5">
           <button
             onClick={() => router.push("/admin/courses")}
-            className="group p-2.5 bg-card hover:bg-secondary border border-border/80 rounded-2xl transition-all flex items-center space-x-2 text-muted-foreground font-bold text-sm shadow-sm"
+            className="group p-3 bg-white/80 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-800 backdrop-blur-md border border-white/40 dark:border-slate-700/50 rounded-lg transition-all duration-300 flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold shadow-sm hover:shadow-md hover:-translate-x-1"
           >
-            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-            <span>Quay lại Khóa học</span>
+            <ArrowLeft className="w-5 h-5" />
           </button>
-          <div className="flex flex-col">
-            <h1 className="text-2xl font-black tracking-tight text-foreground flex items-center space-x-2">
-              <ClipboardList className="w-6 h-6 text-blue-500" />
-              <span>Quản lý bài kiểm tra</span>
-            </h1>
-            <p className="text-xs text-muted-foreground font-medium">
-              Khóa học: <span className="font-extrabold text-blue-600">{courseTitle || `ID: #${courseId}`}</span>
+          <div className="flex items-center space-x-3">
+            <p className="text-sm text-slate-600 dark:text-slate-300 font-medium flex items-center space-x-1.5">
+              <span>Khóa học:</span>
+              <span className="font-bold text-blue-700 dark:text-blue-400 bg-blue-50/80 dark:bg-blue-900/30 px-2.5 py-1 rounded-md border border-blue-100 dark:border-blue-800/50 shadow-sm backdrop-blur-sm truncate max-w-[300px] md:max-w-[400px]">
+                {courseTitle || `ID: #${courseId}`}
+              </span>
             </p>
           </div>
         </div>
 
         <button
           onClick={() => setIsCreateQuizOpen(true)}
-          className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-2.5 px-5 rounded-2xl shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] text-sm"
+          className="group relative overflow-hidden flex items-center space-x-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:via-indigo-500 hover:to-purple-500 text-white font-bold py-3 px-6 rounded-lg shadow-[0_8px_25px_rgba(79,70,229,0.3)] transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0"
         >
-          <Plus className="w-4 h-4" />
-          <span>Tạo bài kiểm tra</span>
+          <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out" />
+          <Plus className="w-5 h-5 relative z-10 group-hover:rotate-90 transition-transform duration-300" />
+          <span className="relative z-10 text-sm">Tạo bài kiểm tra</span>
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start relative z-10">
         {/* Left Side: Quiz List */}
         <div className="lg:col-span-7 flex flex-col space-y-4">
-          <div className="bg-card rounded-[2rem] border border-border/50 p-6 shadow-sm flex flex-col space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-border/40">
-              <h2 className="text-lg font-extrabold text-foreground flex items-center space-x-2">
-                <span>Danh sách bài kiểm tra</span>
-                <span className="bg-blue-50 text-blue-600 text-xs px-2.5 py-1 rounded-full font-black">
+          <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/40 dark:border-slate-700/50 rounded-xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex flex-col space-y-4">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200/50 dark:border-slate-700/50">
+              <h2 className="text-xl font-extrabold text-slate-800 dark:text-white flex items-center space-x-3">
+                <span>Danh sách Bài kiểm tra</span>
+                <span className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs px-3 py-1 rounded-full font-black shadow-sm">
                   {quizzes.length}
                 </span>
               </h2>
             </div>
 
             {isLoadingQuizzes ? (
-              <div className="py-12 flex flex-col items-center justify-center space-y-3">
-                <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-sm text-muted-foreground font-medium animate-pulse">Đang tải danh sách bài kiểm tra...</p>
+              <div className="py-16 flex flex-col items-center justify-center space-y-4">
+                <div className="w-10 h-10 border-4 border-blue-500/30 border-t-blue-600 rounded-full animate-spin"></div>
+                <p className="text-sm text-slate-500 font-medium animate-pulse">Đang tải danh sách bài kiểm tra...</p>
               </div>
             ) : quizzes.length === 0 ? (
-              <div className="py-16 text-center flex flex-col items-center justify-center space-y-4">
-                <div className="p-4 bg-muted rounded-full text-muted-foreground/80">
-                  <ClipboardList className="w-8 h-8" />
+              <div className="py-20 text-center flex flex-col items-center justify-center space-y-5">
+                <div className="p-5 bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 rounded-full shadow-inner">
+                  <ClipboardList className="w-10 h-10 text-slate-400" />
                 </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-bold text-foreground">Chưa có bài kiểm tra nào</p>
-                  <p className="text-xs text-muted-foreground max-w-sm mx-auto">Tạo bài kiểm tra đầu tiên để đánh giá kết quả học tập của học viên.</p>
+                <div className="space-y-1.5">
+                  <p className="text-base font-bold text-slate-700 dark:text-slate-300">Chưa có bài kiểm tra nào</p>
+                  <p className="text-sm text-slate-500 max-w-xs mx-auto leading-relaxed">Tạo bài kiểm tra đầu tiên để đánh giá kết quả học tập của học viên.</p>
                 </div>
                 <button
                   onClick={() => setIsCreateQuizOpen(true)}
-                  className="text-xs bg-secondary hover:bg-secondary/80 font-bold px-4 py-2 rounded-xl transition-all border border-border/80"
+                  className="text-sm bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 font-bold px-5 py-2.5 rounded-xl transition-all border border-blue-100 dark:border-blue-900/50 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 shadow-sm"
                 >
-                  Tạo bài kiểm tra ngay
+                  Tạo ngay
                 </button>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto -mx-2 px-2">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="border-b border-border/40 text-xs font-black text-muted-foreground tracking-wider uppercase">
-                      <th className="py-3 px-4">Tiêu đề</th>
-                      <th className="py-3 px-3 text-center">Điểm đạt</th>
-                      <th className="py-3 px-3 text-center">Thời gian</th>
-                      <th className="py-3 px-3 text-center">Lượt làm</th>
-                      <th className="py-3 px-4 text-center">Thao tác</th>
+                    <tr className="border-b-2 border-slate-100 dark:border-slate-800 text-xs font-black text-slate-400 dark:text-slate-500 tracking-wider uppercase">
+                      <th className="py-4 px-4">Tiêu đề</th>
+                      <th className="py-4 px-3 text-center">Điểm đạt</th>
+                      <th className="py-4 px-3 text-center">Thời gian</th>
+                      <th className="py-4 px-3 text-center">Lượt làm</th>
+                      <th className="py-4 px-4 text-center">Thao tác</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border/30">
+                  <tbody className="divide-y divide-slate-100/80 dark:divide-slate-800/80">
                     {quizzes.map((quiz) => {
                       const isSelected = selectedQuiz?.id === quiz.id;
                       return (
                         <tr
                           key={quiz.id}
-                          className={`group text-sm transition-colors duration-150 ${isSelected ? "bg-blue-50/45 dark:bg-blue-950/20" : "hover:bg-muted/30"
-                            }`}
+                          className={`group text-sm transition-all duration-300 ${isSelected 
+                            ? "bg-gradient-to-r from-blue-50/80 to-indigo-50/80 dark:from-blue-900/20 dark:to-indigo-900/20 shadow-sm" 
+                            : "hover:bg-slate-50/80 dark:hover:bg-slate-800/40 hover:shadow-sm"
+                            } rounded-lg`}
                         >
-                          <td className="py-3.5 px-4 font-bold text-foreground max-w-[200px] truncate">
+                          <td className="py-4 px-4 font-bold text-slate-700 dark:text-slate-200 max-w-[180px] truncate rounded-l-2xl">
                             {quiz.tieu_de}
                           </td>
-                          <td className="py-3.5 px-3 text-center font-medium">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+                          <td className="py-4 px-3 text-center font-medium">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-100/50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-500/20">
                               {Number(quiz.diem_dat).toFixed(1)}/10
                             </span>
                           </td>
-                          <td className="py-3.5 px-3 text-center font-medium text-muted-foreground text-xs">
+                          <td className="py-4 px-3 text-center font-medium text-slate-500 text-xs">
                             {quiz.thoi_gian_lam_bai ? (
-                              <span className="inline-flex items-center space-x-1">
-                                <Clock className="w-3.5 h-3.5 text-muted-foreground/70" />
+                              <span className="inline-flex items-center space-x-1.5 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">
+                                <Clock className="w-3.5 h-3.5 text-slate-400" />
                                 <span>{quiz.thoi_gian_lam_bai}p</span>
                               </span>
-                            ) : "Không giới hạn"}
+                            ) : (
+                              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 bg-slate-100/50 dark:bg-slate-800/50 px-2 py-1 rounded-md">Không g.hạn</span>
+                            )}
                           </td>
-                          <td className="py-3.5 px-3 text-center font-medium text-muted-foreground text-xs">
-                            {quiz.so_luot_lam_toi_da ? `${quiz.so_luot_lam_toi_da} lần` : "Không giới hạn"}
+                          <td className="py-4 px-3 text-center font-medium text-slate-500 text-xs">
+                            {quiz.so_luot_lam_toi_da ? (
+                              <span className="inline-flex items-center space-x-1.5 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">
+                                <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+                                <span>{quiz.so_luot_lam_toi_da} lần</span>
+                              </span>
+                            ) : (
+                              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 bg-slate-100/50 dark:bg-slate-800/50 px-2 py-1 rounded-md">Không g.hạn</span>
+                            )}
                           </td>
-                          <td className="py-3.5 px-4 text-center">
-                            <div className="flex items-center justify-center space-x-2">
+                          <td className="py-4 px-4 text-center rounded-r-2xl">
+                            <div className="flex items-center justify-center space-x-2 opacity-80 group-hover:opacity-100 transition-opacity">
                               <button
                                 onClick={() => fetchQuizDetail(quiz.id)}
-                                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm ${isSelected
-                                    ? "bg-blue-600 text-white"
-                                    : "bg-card border border-border/80 hover:bg-secondary text-foreground"
+                                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-300 shadow-sm hover:scale-105 active:scale-95 ${isSelected
+                                    ? "bg-blue-600 text-white shadow-blue-500/30"
+                                    : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-blue-300 hover:text-blue-600 dark:text-slate-300"
                                   }`}
                               >
                                 <Eye className="w-3.5 h-3.5" />
@@ -410,10 +425,10 @@ export default function AdminQuizzesPage() {
                               </button>
                               <button
                                 onClick={() => handleDeleteQuiz(quiz.id, quiz.tieu_de)}
-                                className="p-1.5 bg-card hover:bg-rose-50 hover:text-rose-600 border border-border/80 rounded-xl transition-all shadow-sm"
+                                className="p-1.5 bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 hover:border-rose-200 dark:hover:border-rose-500/30 rounded-xl transition-all duration-300 shadow-sm hover:scale-105 active:scale-95"
                                 title="Xóa bài kiểm tra"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
                           </td>
@@ -426,42 +441,50 @@ export default function AdminQuizzesPage() {
             )}
           </div>
         </div>
-
         {/* Right Side: Quiz Detail & Questions */}
         <div className="lg:col-span-5 flex flex-col space-y-4">
           {isLoadingDetail ? (
-            <div className="bg-card rounded-[2rem] border border-border/50 p-6 shadow-sm py-20 flex flex-col items-center justify-center space-y-3">
-              <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-sm text-muted-foreground font-medium animate-pulse">Đang tải chi tiết câu hỏi...</p>
+            <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/40 dark:border-slate-700/50 rounded-xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] py-24 flex flex-col items-center justify-center space-y-4">
+              <div className="w-10 h-10 border-4 border-blue-500/30 border-t-blue-600 rounded-full animate-spin"></div>
+              <p className="text-sm text-slate-500 font-medium animate-pulse">Đang tải chi tiết bài thi...</p>
             </div>
           ) : selectedQuiz ? (
-            <div className="bg-card rounded-[2rem] border border-border/50 p-6 shadow-sm flex flex-col space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-200">
-              <div className="flex flex-col space-y-2 pb-4 border-b border-border/40">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <span className="text-[10px] uppercase font-black tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-                      Chi tiết bài kiểm tra
-                    </span>
-                    <h3 className="text-lg font-black text-foreground max-w-[280px] leading-tight">
-                      {selectedQuiz.tieu_de}
-                    </h3>
-                  </div>
-                  <button
-                    onClick={() => setSelectedQuiz(null)}
-                    className="p-1 text-muted-foreground hover:bg-secondary rounded-lg transition-colors border border-border/40"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+            <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/40 dark:border-slate-700/50 rounded-xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+              {/* Quiz Detail Header */}
+              <div className="flex flex-col space-y-3 pb-5 border-b border-slate-200/50 dark:border-slate-700/50 relative">
+                <button
+                  onClick={() => setSelectedQuiz(null)}
+                  className="absolute right-0 top-0 p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <div className="space-y-1.5 pr-8">
+                  <span className="inline-block text-[10px] uppercase font-black tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-800/50">
+                    Chi tiết Bài kiểm tra
+                  </span>
+                  <h3 className="text-xl font-black text-slate-800 dark:text-white leading-tight">
+                    {selectedQuiz.tieu_de}
+                  </h3>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-xs font-bold text-muted-foreground pt-2">
-                  <div className="flex items-center space-x-1.5 p-2 bg-muted/40 rounded-xl">
-                    <Award className="w-4 h-4 text-emerald-500" />
-                    <span>Điểm đạt: {Number(selectedQuiz.diem_dat).toFixed(1)}/10</span>
+                <div className="grid grid-cols-2 gap-3 pt-3">
+                  <div className="flex items-center space-x-2.5 p-3 bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/20 dark:to-slate-900/20 border border-emerald-100 dark:border-emerald-900/30 rounded-lg shadow-sm">
+                    <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/50 rounded-lg">
+                      <Award className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Điểm đạt</span>
+                      <span className="text-sm font-black text-emerald-700 dark:text-emerald-400">{Number(selectedQuiz.diem_dat).toFixed(1)}/10</span>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-1.5 p-2 bg-muted/40 rounded-xl">
-                    <Clock className="w-4 h-4 text-blue-500" />
-                    <span>{selectedQuiz.thoi_gian_lam_bai ? `${selectedQuiz.thoi_gian_lam_bai} phút` : "Không giới hạn"}</span>
+                  <div className="flex items-center space-x-2.5 p-3 bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/20 dark:to-slate-900/20 border border-blue-100 dark:border-blue-900/30 rounded-lg shadow-sm">
+                    <div className="p-1.5 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
+                      <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Thời gian</span>
+                      <span className="text-sm font-black text-blue-700 dark:text-blue-400">{selectedQuiz.thoi_gian_lam_bai ? `${selectedQuiz.thoi_gian_lam_bai} phút` : "Không g.hạn"}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -469,15 +492,15 @@ export default function AdminQuizzesPage() {
               {/* Questions List */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-black text-foreground flex items-center space-x-2">
-                    <span>Danh sách câu hỏi</span>
-                    <span className="bg-muted text-muted-foreground text-xs px-2 py-0.5 rounded-full font-bold">
+                  <h4 className="text-sm font-black text-slate-800 dark:text-white flex items-center space-x-2">
+                    <span>Danh sách Câu hỏi</span>
+                    <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs px-2 py-0.5 rounded-full font-bold">
                       {selectedQuiz.cau_hoi?.length || 0}
                     </span>
                   </h4>
                   <button
                     onClick={() => setIsAddQuestionOpen(true)}
-                    className="flex items-center space-x-1 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 py-1.5 px-3.5 rounded-xl transition-all"
+                    className="flex items-center space-x-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 py-1.5 px-3 rounded-xl transition-all border border-blue-100 dark:border-blue-800/50"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Thêm câu hỏi</span>
@@ -485,52 +508,54 @@ export default function AdminQuizzesPage() {
                 </div>
 
                 {!selectedQuiz.cau_hoi || selectedQuiz.cau_hoi.length === 0 ? (
-                  <div className="py-12 border border-dashed border-border/80 rounded-2xl text-center flex flex-col items-center justify-center space-y-3">
-                    <HelpCircle className="w-6 h-6 text-muted-foreground/60" />
+                  <div className="py-12 border-2 border-dashed border-slate-200 dark:border-slate-700/70 rounded-xl text-center flex flex-col items-center justify-center space-y-3 bg-slate-50/50 dark:bg-slate-800/20">
+                    <div className="p-3 bg-white dark:bg-slate-800 rounded-full shadow-sm">
+                      <HelpCircle className="w-6 h-6 text-slate-400" />
+                    </div>
                     <div className="space-y-1">
-                      <p className="text-xs font-bold text-foreground">Chưa có câu hỏi nào</p>
-                      <p className="text-[10px] text-muted-foreground">Nhấn vào nút Thêm câu hỏi ở trên để bắt đầu thêm câu hỏi trắc nghiệm.</p>
+                      <p className="text-xs font-bold text-slate-600 dark:text-slate-300">Chưa có câu hỏi nào</p>
+                      <p className="text-[10px] text-slate-400 max-w-[200px] mx-auto">Nhấn Thêm câu hỏi để bắt đầu xây dựng bài thi.</p>
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
+                  <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                     {selectedQuiz.cau_hoi.map((question, idx) => (
                       <div
                         key={question.id}
-                        className="p-4 bg-muted/35 border border-border/50 rounded-2xl flex flex-col space-y-3 relative group"
+                        className="p-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg flex flex-col space-y-3 relative group hover:shadow-md transition-shadow duration-300"
                       >
                         <button
                           onClick={() => handleDeleteQuestion(question.id)}
-                          className="absolute top-3 right-3 p-1.5 bg-card hover:bg-rose-50 hover:text-rose-600 border border-border/40 rounded-lg text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute top-3 right-3 p-1.5 bg-slate-50 dark:bg-slate-900 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-400 opacity-0 group-hover:opacity-100 transition-all shadow-sm hover:scale-105"
                           title="Xóa câu hỏi"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
 
-                        <div className="flex items-start space-x-2">
-                          <span className="flex items-center justify-center w-5 h-5 bg-blue-600 text-white rounded-full text-[10px] font-black shrink-0 mt-0.5">
+                        <div className="flex items-start space-x-3">
+                          <span className="flex items-center justify-center w-6 h-6 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-lg text-xs font-black shrink-0 mt-0.5 shadow-sm shadow-blue-500/20">
                             {idx + 1}
                           </span>
-                          <p className="text-sm font-bold text-foreground pr-6 whitespace-pre-line leading-relaxed">
+                          <p className="text-sm font-bold text-slate-700 dark:text-slate-200 pr-8 whitespace-pre-line leading-relaxed">
                             {question.noi_dung}
                           </p>
                         </div>
 
                         {/* Options List */}
-                        <div className="space-y-1.5 pl-7">
+                        <div className="space-y-2 pl-9">
                           {question.cac_lua_chon.map((option) => (
                             <div
                               key={option.id}
-                              className={`flex items-start space-x-2 p-2 rounded-xl text-xs font-medium border ${option.is_correct
-                                  ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-800 dark:text-emerald-300 font-bold"
-                                  : "bg-card border-border/40 text-muted-foreground"
+                              className={`flex items-start space-x-2.5 p-2.5 rounded-xl text-xs font-medium border transition-colors ${option.is_correct
+                                  ? "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-bold shadow-sm"
+                                  : "bg-slate-50 dark:bg-slate-900/50 border-slate-100 dark:border-slate-800 text-slate-500"
                                 }`}
                             >
                               <div className="mt-0.5 shrink-0">
                                 {option.is_correct ? (
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-500 drop-shadow-sm" />
                                 ) : (
-                                  <div className="w-3.5 h-3.5 border border-border rounded-full" />
+                                  <div className="w-4 h-4 border-2 border-slate-200 dark:border-slate-700 rounded-full" />
                                 )}
                               </div>
                               <span className="flex-1 leading-snug">{option.text}</span>
@@ -540,12 +565,12 @@ export default function AdminQuizzesPage() {
 
                         {/* Explanation */}
                         {question.giai_thich && (
-                          <div className="pl-7 pt-1">
-                            <div className="p-3 bg-blue-500/5 border border-blue-500/10 rounded-xl flex items-start space-x-1.5">
+                          <div className="pl-9 pt-1">
+                            <div className="p-3 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 rounded-xl flex items-start space-x-2">
                               <AlertCircle className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
                               <div className="space-y-0.5">
-                                <span className="text-[10px] font-black text-blue-600 uppercase tracking-wider block">Giải thích:</span>
-                                <p className="text-[11px] text-muted-foreground leading-relaxed">{question.giai_thich}</p>
+                                <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider block">Giải thích:</span>
+                                <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed font-medium">{question.giai_thich}</p>
                               </div>
                             </div>
                           </div>
@@ -557,14 +582,17 @@ export default function AdminQuizzesPage() {
               </div>
             </div>
           ) : (
-            <div className="bg-card rounded-[2rem] border border-border/50 p-6 shadow-sm py-24 text-center flex flex-col items-center justify-center space-y-4">
-              <div className="p-4 bg-muted/50 rounded-full text-muted-foreground/60">
-                <BookOpen className="w-8 h-8" />
+            <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/40 dark:border-slate-700/50 rounded-xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] py-28 text-center flex flex-col items-center justify-center space-y-5">
+              <div className="relative">
+                <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full" />
+                <div className="relative p-5 bg-gradient-to-br from-slate-100 to-white dark:from-slate-800 dark:to-slate-900 rounded-full shadow-inner border border-white/60 dark:border-slate-700">
+                  <BookOpen className="w-10 h-10 text-slate-400" />
+                </div>
               </div>
-              <div className="space-y-1">
-                <p className="text-sm font-bold text-foreground">Xem chi tiết câu hỏi</p>
-                <p className="text-xs text-muted-foreground max-w-[240px] mx-auto">
-                  Chọn nút <strong className="text-blue-500">Chi tiết</strong> ở bảng bên cạnh để xem và quản lý câu hỏi của bài thi.
+              <div className="space-y-1.5">
+                <p className="text-base font-bold text-slate-700 dark:text-slate-300">Xem chi tiết câu hỏi</p>
+                <p className="text-xs text-slate-500 max-w-[260px] mx-auto leading-relaxed">
+                  Chọn nút <strong className="text-blue-500 font-black px-1">Chi tiết</strong> ở bảng bên cạnh để xem và quản lý câu hỏi của bài thi.
                 </p>
               </div>
             </div>
@@ -574,37 +602,39 @@ export default function AdminQuizzesPage() {
 
       {/* Modal - Create Quiz */}
       {isCreateQuizOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-card rounded-3xl border border-border p-6 shadow-xl w-full max-w-md space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-2 border-b border-border/40">
-              <h3 className="text-lg font-black text-foreground flex items-center space-x-2">
-                <ClipboardList className="w-5 h-5 text-blue-500" />
-                <span>Tạo bài kiểm tra mới</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/50 dark:border-slate-800 p-7 shadow-2xl w-full max-w-md space-y-5 animate-in zoom-in-95 duration-300">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-xl font-black text-slate-800 dark:text-white flex items-center space-x-2.5">
+                <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-xl text-blue-600 dark:text-blue-400">
+                  <ClipboardList className="w-5 h-5" />
+                </div>
+                <span>Tạo Bài kiểm tra</span>
               </h3>
               <button
                 onClick={() => setIsCreateQuizOpen(false)}
-                className="p-1 hover:bg-secondary rounded-lg transition-colors"
+                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateQuizSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-extrabold text-foreground uppercase tracking-wider">Tiêu đề bài kiểm tra</label>
+            <form onSubmit={handleCreateQuizSubmit} className="space-y-5">
+              <div className="space-y-2">
+                <label className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest">Tiêu đề</label>
                 <input
                   type="text"
                   value={quizForm.tieu_de}
                   onChange={(e) => setQuizForm({ ...quizForm, tieu_de: e.target.value })}
-                  placeholder="Ví dụ: Kiểm tra cuối khóa chương 1"
-                  className="w-full text-sm font-medium px-4 py-2.5 bg-background border border-border/80 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl transition-all"
+                  placeholder="VD: Kiểm tra cuối khóa chương 1"
+                  className="w-full text-sm font-bold px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 rounded-lg transition-all"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-1 space-y-1.5">
-                  <label className="text-xs font-extrabold text-foreground uppercase tracking-wider">Điểm đạt</label>
+                <div className="col-span-1 space-y-2">
+                  <label className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest">Điểm đạt</label>
                   <input
                     type="number"
                     value={quizForm.diem_dat}
@@ -612,50 +642,50 @@ export default function AdminQuizzesPage() {
                     min="0"
                     max="10"
                     step="0.1"
-                    className="w-full text-sm font-medium px-3 py-2.5 bg-background border border-border/80 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl transition-all text-center"
+                    className="w-full text-sm font-bold px-3 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-lg transition-all text-center text-emerald-600 dark:text-emerald-400"
                     required
                   />
                 </div>
-                <div className="col-span-1 space-y-1.5">
-                  <label className="text-xs font-extrabold text-foreground uppercase tracking-wider">Thời gian (phút)</label>
+                <div className="col-span-1 space-y-2">
+                  <label className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest">Thời gian (p)</label>
                   <input
                     type="number"
                     value={quizForm.thoi_gian_lam_bai || ""}
                     onChange={(e) => setQuizForm({ ...quizForm, thoi_gian_lam_bai: e.target.value ? parseInt(e.target.value) : 0 })}
-                    placeholder="Không giới hạn"
+                    placeholder="Không"
                     min="0"
-                    className="w-full text-sm font-medium px-3 py-2.5 bg-background border border-border/80 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl transition-all text-center"
+                    className="w-full text-sm font-bold px-3 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 rounded-lg transition-all text-center text-blue-600 dark:text-blue-400"
                   />
                 </div>
-                <div className="col-span-1 space-y-1.5">
-                  <label className="text-xs font-extrabold text-foreground uppercase tracking-wider">Số lượt làm</label>
+                <div className="col-span-1 space-y-2">
+                  <label className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest">Lượt làm</label>
                   <input
                     type="number"
                     value={quizForm.so_luot_lam_toi_da || ""}
                     onChange={(e) => setQuizForm({ ...quizForm, so_luot_lam_toi_da: e.target.value ? parseInt(e.target.value) : 0 })}
-                    placeholder="Không giới hạn"
+                    placeholder="Không"
                     min="0"
-                    className="w-full text-sm font-medium px-3 py-2.5 bg-background border border-border/80 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl transition-all text-center"
+                    className="w-full text-sm font-bold px-3 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 rounded-lg transition-all text-center text-purple-600 dark:text-purple-400"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-border/40">
+              <div className="flex items-center justify-end space-x-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setIsCreateQuizOpen(false)}
-                  className="px-4 py-2 text-sm font-bold text-muted-foreground hover:bg-secondary rounded-xl transition-colors border border-border/80"
+                  className="px-5 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingQuiz}
-                  className="px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-xl shadow-md transition-colors flex items-center space-x-2"
+                  className="px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 rounded-xl shadow-lg shadow-blue-500/30 transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center space-x-2"
                 >
                   {isSubmittingQuiz ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                       <span>Đang tạo...</span>
                     </>
                   ) : (
@@ -670,92 +700,94 @@ export default function AdminQuizzesPage() {
 
       {/* Modal - Add Question */}
       {isAddQuestionOpen && selectedQuiz && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-card rounded-3xl border border-border p-6 shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-2 border-b border-border/40">
-              <div className="space-y-0.5">
-                <h3 className="text-base font-black text-foreground flex items-center space-x-2">
-                  <HelpCircle className="w-5 h-5 text-blue-500" />
-                  <span>Thêm câu hỏi trắc nghiệm</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/50 dark:border-slate-800 p-7 shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto space-y-5 animate-in zoom-in-95 duration-300 custom-scrollbar">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white dark:bg-slate-900 z-10">
+              <div className="space-y-1">
+                <h3 className="text-lg font-black text-slate-800 dark:text-white flex items-center space-x-2.5">
+                  <div className="p-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-blue-600 dark:text-blue-400">
+                    <HelpCircle className="w-5 h-5" />
+                  </div>
+                  <span>Thêm Câu hỏi Trắc nghiệm</span>
                 </h3>
-                <span className="text-[10px] font-bold text-muted-foreground uppercase block">
-                  Bài thi: {selectedQuiz.tieu_de}
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block pl-10">
+                  Bài thi: <span className="text-blue-500">{selectedQuiz.tieu_de}</span>
                 </span>
               </div>
               <button
                 onClick={() => setIsAddQuestionOpen(false)}
-                className="p-1 hover:bg-secondary rounded-lg transition-colors border border-border/40"
+                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateQuestionSubmit} className="space-y-4">
+            <form onSubmit={handleCreateQuestionSubmit} className="space-y-6">
               {/* Question Text */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-extrabold text-foreground uppercase tracking-wider block">Nội dung câu hỏi</label>
+              <div className="space-y-2">
+                <label className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest block">Nội dung câu hỏi</label>
                 <textarea
                   value={questionForm.noi_dung}
                   onChange={(e) => setQuestionForm({ ...questionForm, noi_dung: e.target.value })}
-                  placeholder="Nhập nội dung câu hỏi trắc nghiệm..."
+                  placeholder="Nhập nội dung câu hỏi..."
                   rows={3}
-                  className="w-full text-sm font-medium px-4 py-2.5 bg-background border border-border/80 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl transition-all resize-y"
+                  className="w-full text-sm font-bold px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 rounded-lg transition-all resize-y"
                   required
                 />
               </div>
 
               {/* Options List */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between pb-1 border-b border-border/20">
-                  <label className="text-xs font-extrabold text-foreground uppercase tracking-wider">Danh sách các đáp án</label>
+              <div className="space-y-3 bg-slate-50/50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200/50 dark:border-slate-700/50">
+                  <label className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest">Các đáp án</label>
                   <button
                     type="button"
                     onClick={addOptionField}
-                    className="flex items-center space-x-1 text-[11px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 py-1 px-2.5 rounded-lg transition-all"
+                    className="flex items-center space-x-1.5 text-xs font-bold text-blue-600 bg-blue-100/50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 py-1.5 px-3 rounded-xl transition-all"
                   >
-                    <PlusCircle className="w-3.5 h-3.5" />
-                    <span>Thêm lựa chọn</span>
+                    <PlusCircle className="w-4 h-4" />
+                    <span>Thêm đáp án</span>
                   </button>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2.5 pt-2">
                   {questionForm.cac_lua_chon.map((option, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center space-x-2.5 p-2 bg-muted/30 border border-border/40 rounded-xl"
+                      className={`flex items-center space-x-3 p-2.5 rounded-xl border transition-all ${
+                        option.is_correct 
+                        ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30' 
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm'
+                      }`}
                     >
-                      {/* Checkbox for is_correct */}
-                      <div className="flex flex-col items-center justify-center shrink-0">
-                        <label className="text-[9px] font-black text-muted-foreground uppercase mb-0.5">Đúng?</label>
+                      <div className="flex flex-col items-center justify-center shrink-0 pl-1">
+                        <label className={`text-[9px] font-black uppercase mb-1 ${option.is_correct ? 'text-emerald-600' : 'text-slate-400'}`}>Đúng?</label>
                         <input
                           type="checkbox"
                           checked={option.is_correct}
                           onChange={(e) => handleOptionCorrectChange(idx, e.target.checked)}
-                          className="w-4.5 h-4.5 text-blue-600 bg-background border-border rounded focus:ring-blue-500"
+                          className="w-5 h-5 text-emerald-500 bg-slate-100 border-slate-300 rounded focus:ring-emerald-500 cursor-pointer transition-colors"
                         />
                       </div>
 
-                      {/* Option Text Input */}
                       <div className="flex-1">
                         <input
                           type="text"
                           value={option.text}
                           onChange={(e) => handleOptionTextChange(idx, e.target.value)}
-                          placeholder={`Lựa chọn ${idx + 1}`}
-                          className="w-full text-xs font-bold px-3 py-2 bg-background border border-border/80 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-lg transition-all"
-                          required={idx < 2} // At least first two options are required
+                          placeholder={`Nội dung lựa chọn ${idx + 1}`}
+                          className={`w-full text-sm font-bold px-3 py-2.5 bg-transparent border-none focus:ring-0 ${option.is_correct ? 'text-emerald-800 dark:text-emerald-300' : 'text-slate-700 dark:text-slate-200'}`}
+                          required={idx < 2}
                         />
                       </div>
 
-                      {/* Remove Option Button */}
                       {questionForm.cac_lua_chon.length > 2 && (
                         <button
                           type="button"
                           onClick={() => removeOptionField(idx)}
-                          className="p-1.5 hover:bg-rose-50 hover:text-rose-600 border border-border/30 rounded-lg text-muted-foreground transition-all mt-3"
-                          title="Xóa lựa chọn này"
+                          className="p-2 hover:bg-rose-100 hover:text-rose-600 dark:hover:bg-rose-900/30 dark:hover:text-rose-400 rounded-lg text-slate-300 transition-all mt-4"
                         >
-                          <X className="w-3.5 h-3.5" />
+                          <X className="w-4 h-4" />
                         </button>
                       )}
                     </div>
@@ -764,33 +796,33 @@ export default function AdminQuizzesPage() {
               </div>
 
               {/* Explanation Field */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-extrabold text-foreground uppercase tracking-wider block">Giải thích đáp án (tùy chọn)</label>
+              <div className="space-y-2">
+                <label className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest block">Giải thích (Tùy chọn)</label>
                 <textarea
                   value={questionForm.giai_thich}
                   onChange={(e) => setQuestionForm({ ...questionForm, giai_thich: e.target.value })}
-                  placeholder="Giải thích vì sao đáp án này là đúng hoặc hướng dẫn làm bài..."
+                  placeholder="Giải thích vì sao đáp án này là đúng..."
                   rows={2}
-                  className="w-full text-sm font-medium px-4 py-2.5 bg-background border border-border/80 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl transition-all resize-y"
+                  className="w-full text-sm font-medium px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-lg transition-all resize-y text-slate-600 dark:text-slate-400"
                 />
               </div>
 
-              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-border/40">
+              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setIsAddQuestionOpen(false)}
-                  className="px-4 py-2 text-sm font-bold text-muted-foreground hover:bg-secondary rounded-xl transition-colors border border-border/80"
+                  className="px-5 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingQuestion}
-                  className="px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-xl shadow-md transition-colors flex items-center space-x-2"
+                  className="px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 rounded-xl shadow-lg shadow-blue-500/30 transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center space-x-2"
                 >
                   {isSubmittingQuestion ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                       <span>Đang lưu...</span>
                     </>
                   ) : (

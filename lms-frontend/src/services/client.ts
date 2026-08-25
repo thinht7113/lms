@@ -52,14 +52,16 @@ export const tokenHelper = {
     if (legacyToken) return legacyToken;
     return localStorage.getItem("lumina_user") ? "cookie-session" : null;
   },
-  setToken(_token: string) {
+  setToken(token: string) {
     if (typeof window !== "undefined") {
-      localStorage.removeItem("lumina_token");
+      localStorage.setItem("lumina_token", token);
+      document.cookie = `lms_session=${encodeURIComponent(token)}; Path=/; Max-Age=86400; SameSite=Lax`;
     }
   },
   removeToken() {
     if (typeof window !== "undefined") {
       localStorage.removeItem("lumina_token");
+      document.cookie = "lms_session=; Path=/; Max-Age=0; SameSite=Lax";
     }
   },
   getCurrentUser(): User | null {
@@ -83,6 +85,43 @@ export const tokenHelper = {
   }
 };
 
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error("Refresh failed");
+      }
+
+      const data = await res.json();
+      if (data.access_token) {
+        tokenHelper.setToken(data.access_token);
+        return data.access_token;
+      }
+      return null;
+    } catch (err) {
+      tokenHelper.removeCurrentUser();
+      tokenHelper.removeToken();
+      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+        window.location.href = "/login";
+      }
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
 // Helper for Fetching with Auth Token
 export async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
   const headers = new Headers(options.headers || {});
@@ -91,16 +130,33 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(url, {
+  // Send JWT token via Authorization header as fallback for cookie-based auth
+  const token = typeof window !== "undefined" ? localStorage.getItem("lumina_token") : null;
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  let response = await fetch(url, {
     ...options,
     headers,
     credentials: "include",
   });
 
-  if (response.status === 401) {
-    tokenHelper.removeCurrentUser();
-    if (typeof window !== "undefined") {
-      window.location.href = "/login";
+  // Tự động Refresh Token ngầm khi bị lỗi 401 Unauthorized
+  if (response.status === 401 && !url.includes("/auth/refresh") && !url.includes("/auth/login")) {
+    const newToken = await refreshAccessToken();
+    if (newToken) {
+      const retryHeaders = new Headers(options.headers || {});
+      if (!retryHeaders.has("Content-Type") && !(options.body instanceof FormData)) {
+        retryHeaders.set("Content-Type", "application/json");
+      }
+      retryHeaders.set("Authorization", `Bearer ${newToken}`);
+
+      response = await fetch(url, {
+        ...options,
+        headers: retryHeaders,
+        credentials: "include",
+      });
     }
   }
 
